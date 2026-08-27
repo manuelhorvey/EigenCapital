@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -230,9 +230,13 @@ class CapitalBoundaryValidator:
         """Run all capital boundary validations."""
         self._checks.clear()
         self.validate_max_equity(actual_equity)
-        self.validate_campaign_duration(start_timestamp, end_timestamp, actual_duration_days)
+        self.validate_campaign_duration(
+            start_timestamp, end_timestamp, actual_duration_days
+        )
         self.validate_risk_envelope(envelope_fingerprint, expected_fingerprint)
-        self.validate_position_separation(r4_position_count, pre_existing_position_count, manual_position_count)
+        self.validate_position_separation(
+            r4_position_count, pre_existing_position_count, manual_position_count
+        )
         self.validate_no_manual_trading(manual_trade_count)
         self.validate_drawdown_envelope(current_drawdown_pct)
         self.validate_daily_loss_envelope(current_daily_loss)

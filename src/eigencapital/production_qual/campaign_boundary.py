@@ -7,8 +7,6 @@ No manual trades contaminating campaign results.
 
 from __future__ import annotations
 
-import hashlib
-import json
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Any
@@ -180,12 +178,14 @@ class CampaignBoundary:
                 entry_price=pos.get("price_open", 0),
                 entry_time=pos.get("time", ""),
             )
-            classified.append({
-                "symbol": pos.get("symbol"),
-                "origin": origin.value,
-                "volume": pos.get("volume"),
-                "pnl": pos.get("profit", 0),
-            })
+            classified.append(
+                {
+                    "symbol": pos.get("symbol"),
+                    "origin": origin.value,
+                    "volume": pos.get("volume"),
+                    "pnl": pos.get("profit", 0),
+                }
+            )
 
             # Check if R4 position matches
             if origin == TradeOrigin.R4_CAMPAIGN:

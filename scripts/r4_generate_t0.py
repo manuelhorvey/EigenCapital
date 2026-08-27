@@ -10,20 +10,18 @@ Usage:
     python scripts/r4_generate_t0.py
     python scripts/r4_generate_t0.py --campaign-id R4-5K-20260827
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import os
 import sys
-import time
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Dict
 
 sys.path.insert(0, "src")
 
-import numpy as np
 
 try:
     from mt5linux import MetaTrader5
@@ -35,10 +33,9 @@ from eigencapital.live.position_attribution import (
     classify_all,
     capacity_account,
     snapshot_hash,
-    R4_MAGIC,
 )
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
-from eigencapital.live.watchdog import Watchdog, ProbeResult, WatchState
+from eigencapital.live.watchdog import Watchdog, ProbeResult
 
 
 def generate_t0(campaign_id: str = "") -> Dict[str, Any]:
@@ -57,22 +54,32 @@ def generate_t0(campaign_id: str = "") -> Dict[str, Any]:
     account = mt5.account_info()
     balance = float(account.balance)
     equity = float(account.equity)
-    free_margin = float(getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0)
+    free_margin = float(
+        getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0
+    )
     margin = float(getattr(account, "margin", 0) or 0)
     margin_level = float(getattr(account, "margin_level", 0) or 0)
     leverage = int(getattr(account, "leverage", 0) or 0)
 
     # Positions
     positions = list(mt5.positions_get() or [])
-    classified = classify_all([
-        {
-            "ticket": p.ticket, "symbol": p.symbol, "type": p.type,
-            "volume": p.volume, "magic": p.magic, "comment": p.comment,
-            "profit": p.profit, "price_open": p.price_open,
-            "sl": p.sl, "tp": p.tp,
-        }
-        for p in positions
-    ])
+    classified = classify_all(
+        [
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "type": p.type,
+                "volume": p.volume,
+                "magic": p.magic,
+                "comment": p.comment,
+                "profit": p.profit,
+                "price_open": p.price_open,
+                "sl": p.sl,
+                "tp": p.tp,
+            }
+            for p in positions
+        ]
+    )
 
     config = load_config("production")
     capacity = capacity_account(classified, config.capital.max_concurrent_positions)
@@ -81,19 +88,21 @@ def generate_t0(campaign_id: str = "") -> Dict[str, Any]:
     pos_details = []
     for p in positions:
         cls = [c for c in classified if c.ticket == p.ticket][0]
-        pos_details.append({
-            "ticket": p.ticket,
-            "symbol": p.symbol,
-            "direction": "LONG" if p.type == 0 else "SHORT",
-            "volume": p.volume,
-            "entry_price": p.price_open,
-            "sl": p.sl,
-            "tp": p.tp,
-            "magic": p.magic,
-            "comment": p.comment,
-            "profit": p.profit,
-            "classification": cls.pclass.value,
-        })
+        pos_details.append(
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "direction": "LONG" if p.type == 0 else "SHORT",
+                "volume": p.volume,
+                "entry_price": p.price_open,
+                "sl": p.sl,
+                "tp": p.tp,
+                "magic": p.magic,
+                "comment": p.comment,
+                "profit": p.profit,
+                "classification": cls.pclass.value,
+            }
+        )
 
     # Fingerprints
     verifier = FingerprintVerifier(config=config)
@@ -107,9 +116,18 @@ def generate_t0(campaign_id: str = "") -> Dict[str, Any]:
 
     # Broker state hash
     broker_hash = snapshot_hash(
-        [{"ticket": p.ticket, "symbol": p.symbol, "volume": p.volume,
-          "type": p.type, "magic": p.magic} for p in positions],
-        equity, free_margin,
+        [
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "volume": p.volume,
+                "type": p.type,
+                "magic": p.magic,
+            }
+            for p in positions
+        ],
+        equity,
+        free_margin,
     )
 
     # Watchdog initial state
@@ -129,6 +147,7 @@ def generate_t0(campaign_id: str = "") -> Dict[str, Any]:
 
     # R4 signal fingerprint (from config)
     from eigencapital.fidelity.r4_manifest import R4ConfigManifest
+
     manifest = R4ConfigManifest()
     r4_identity = manifest.compute_identity()
 
@@ -214,9 +233,15 @@ def main():
 
     print(f"\nCampaign: {t0['campaign_id']}")
     print(f"Timestamp: {t0['snapshot_timestamp']}")
-    print(f"Account: {t0['account']['id']} | Balance: ${t0['account']['balance']:,.2f} | Equity: ${t0['account']['equity']:,.2f}")
-    print(f"Positions: {t0['positions']['total']} ({t0['positions']['r4_count']} R4, {t0['positions']['foreign_count']} foreign)")
-    print(f"Fingerprints: {'✅ all verified' if t0['fingerprints']['all_verified'] else '❌ MISMATCH'}")
+    print(
+        f"Account: {t0['account']['id']} | Balance: ${t0['account']['balance']:,.2f} | Equity: ${t0['account']['equity']:,.2f}"
+    )
+    print(
+        f"Positions: {t0['positions']['total']} ({t0['positions']['r4_count']} R4, {t0['positions']['foreign_count']} foreign)"
+    )
+    print(
+        f"Fingerprints: {'✅ all verified' if t0['fingerprints']['all_verified'] else '❌ MISMATCH'}"
+    )
     print(f"Watchdog: {t0['watchdog']['initial_state']}")
     print(f"Contamination: {'⚠️ YES' if t0['positions']['contamination'] else '✅ NO'}")
     print(f"Snapshot Hash: {t0['snapshot_hash'][:32]}...")
@@ -225,8 +250,10 @@ def main():
     print("\nPositions at T=0:")
     for p in t0["positions"]["detail"]:
         icon = "🟢" if p["classification"] == "R4_BOT" else "🔴"
-        sl_str = f"{p['sl']:.5f}" if p['sl'] > 0 else "NONE"
-        print(f"  {icon} #{p['ticket']} {p['symbol']} {p['direction']} {p['volume']:.2f} @ {p['entry_price']:.5f} SL={sl_str} [{p['classification']}]")
+        sl_str = f"{p['sl']:.5f}" if p["sl"] > 0 else "NONE"
+        print(
+            f"  {icon} #{p['ticket']} {p['symbol']} {p['direction']} {p['volume']:.2f} @ {p['entry_price']:.5f} SL={sl_str} [{p['classification']}]"
+        )
 
     # Save
     os.makedirs("reports/r4_qualification", exist_ok=True)
@@ -236,7 +263,7 @@ def main():
     print(f"\nSaved: {path}")
 
     print(f"\n{'=' * 70}")
-    print(f"  T=0 CAPTURED — immutable campaign boundary established")
+    print("  T=0 CAPTURED — immutable campaign boundary established")
     print(f"{'=' * 70}")
 
 

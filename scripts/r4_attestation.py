@@ -10,14 +10,14 @@ Derives an honest attestation from actual broker state:
 Usage:
     python scripts/r4_attestation.py
 """
+
 from __future__ import annotations
 
 import json
 import os
 import sys
-import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 sys.path.insert(0, "src")
 
@@ -50,15 +50,23 @@ def generate_attestation() -> Dict[str, Any]:
 
     # ── Position classification ───────────────────────────────────
     positions = list(mt5.positions_get() or [])
-    classified = classify_all([
-        {
-            "ticket": p.ticket, "symbol": p.symbol, "type": p.type,
-            "volume": p.volume, "magic": p.magic, "comment": p.comment,
-            "profit": p.profit, "price_open": p.price_open,
-            "sl": p.sl, "tp": p.tp,
-        }
-        for p in positions
-    ])
+    classified = classify_all(
+        [
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "type": p.type,
+                "volume": p.volume,
+                "magic": p.magic,
+                "comment": p.comment,
+                "profit": p.profit,
+                "price_open": p.price_open,
+                "sl": p.sl,
+                "tp": p.tp,
+            }
+            for p in positions
+        ]
+    )
 
     capacity = capacity_account(classified, config.capital.max_concurrent_positions)
 
@@ -67,21 +75,23 @@ def generate_attestation() -> Dict[str, Any]:
     deal_list = []
     if deals:
         for d in deals:
-            deal_list.append({
-                "ticket": d.ticket,
-                "order": d.order,
-                "time": str(d.time),
-                "type": d.type,
-                "entry": d.entry,
-                "magic": d.magic,
-                "volume": d.volume,
-                "price": d.price,
-                "profit": d.profit,
-                "commission": d.commission,
-                "swap": d.swap,
-                "symbol": d.symbol,
-                "comment": d.comment,
-            })
+            deal_list.append(
+                {
+                    "ticket": d.ticket,
+                    "order": d.order,
+                    "time": str(d.time),
+                    "type": d.type,
+                    "entry": d.entry,
+                    "magic": d.magic,
+                    "volume": d.volume,
+                    "price": d.price,
+                    "profit": d.profit,
+                    "commission": d.commission,
+                    "swap": d.swap,
+                    "symbol": d.symbol,
+                    "comment": d.comment,
+                }
+            )
 
     ledger = ledger_from_deals(deal_list)
 
@@ -91,8 +101,16 @@ def generate_attestation() -> Dict[str, Any]:
 
     # ── Broker state hash ─────────────────────────────────────────
     broker_hash = snapshot_hash(
-        [{"ticket": p.ticket, "symbol": p.symbol, "volume": p.volume,
-          "type": p.type, "magic": p.magic} for p in positions],
+        [
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "volume": p.volume,
+                "type": p.type,
+                "magic": p.magic,
+            }
+            for p in positions
+        ],
         float(account.equity),
         float(getattr(account, "margin_free", 0) or 0),
     )
@@ -101,16 +119,18 @@ def generate_attestation() -> Dict[str, Any]:
     position_summary = []
     for p in positions:
         cls = [c for c in classified if c.ticket == p.ticket][0]
-        position_summary.append({
-            "ticket": p.ticket,
-            "symbol": p.symbol,
-            "direction": "LONG" if p.type == 0 else "SHORT",
-            "volume": p.volume,
-            "magic": p.magic,
-            "classification": cls.pclass.value,
-            "profit": p.profit,
-            "has_sl": p.sl > 0,
-        })
+        position_summary.append(
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "direction": "LONG" if p.type == 0 else "SHORT",
+                "volume": p.volume,
+                "magic": p.magic,
+                "classification": cls.pclass.value,
+                "profit": p.profit,
+                "has_sl": p.sl > 0,
+            }
+        )
 
     r4_positions = [p for p in position_summary if p["classification"] == "R4_BOT"]
     foreign_positions = [p for p in position_summary if p["classification"] != "R4_BOT"]
@@ -160,7 +180,10 @@ def generate_attestation() -> Dict[str, Any]:
     # Compute attestation hash
     attestation_hash = json.dumps(attestation, sort_keys=True, default=str)
     import hashlib
-    attestation["attestation_hash"] = hashlib.sha256(attestation_hash.encode()).hexdigest()
+
+    attestation["attestation_hash"] = hashlib.sha256(
+        attestation_hash.encode()
+    ).hexdigest()
 
     mt5.shutdown()
     return attestation
@@ -176,23 +199,37 @@ def main():
 
     print(f"\nAccount: {att['account_id']}")
     print(f"Balance: ${att['balance']:,.2f} | Equity: ${att['equity']:,.2f}")
-    print(f"Positions: {att['positions']['total']} ({att['positions']['r4_count']} R4, {att['positions']['foreign_count']} foreign)")
-    print(f"Ownership: {'✅ all R4-owned' if att['ownership']['all_r4_owned'] else '⚠️ FOREIGN POSITIONS PRESENT'}")
-    print(f"Quarantine: {'⚠️ CONTAMINATED' if att['quarantine']['contamination_detected'] else '✅ clean'}")
-    print(f"Deal Attribution: {'✅ valid' if att['deal_attribution']['attestation_valid'] else '⚠️ unattributable deals'}")
-    print(f"Fingerprint: {'✅ verified' if att['fingerprint']['all_verified'] else '❌ MISMATCH'}")
+    print(
+        f"Positions: {att['positions']['total']} ({att['positions']['r4_count']} R4, {att['positions']['foreign_count']} foreign)"
+    )
+    print(
+        f"Ownership: {'✅ all R4-owned' if att['ownership']['all_r4_owned'] else '⚠️ FOREIGN POSITIONS PRESENT'}"
+    )
+    print(
+        f"Quarantine: {'⚠️ CONTAMINATED' if att['quarantine']['contamination_detected'] else '✅ clean'}"
+    )
+    print(
+        f"Deal Attribution: {'✅ valid' if att['deal_attribution']['attestation_valid'] else '⚠️ unattributable deals'}"
+    )
+    print(
+        f"Fingerprint: {'✅ verified' if att['fingerprint']['all_verified'] else '❌ MISMATCH'}"
+    )
 
     if att["positions"]["foreign_count"] > 0:
         print("\n⚠️ FOREIGN POSITIONS DETECTED:")
         for fp in att["quarantine"]["foreign_positions"]:
-            print(f"  🔴 #{fp['ticket']} {fp['symbol']} magic={fp['magic']} — QUARANTINED")
+            print(
+                f"  🔴 #{fp['ticket']} {fp['symbol']} magic={fp['magic']} — QUARANTINED"
+            )
 
     # Position listing
     print("\nPosition Classification:")
     for p in att["positions"]["detail"]:
         icon = "🟢" if p["classification"] == "R4_BOT" else "🔴"
         sl_icon = "✅" if p["has_sl"] else "⚠️"
-        print(f"  {icon} #{p['ticket']} {p['symbol']} {p['direction']} {p['volume']:.2f} [{p['classification']}] SL={sl_icon} P&L=${p['profit']:.2f}")
+        print(
+            f"  {icon} #{p['ticket']} {p['symbol']} {p['direction']} {p['volume']:.2f} [{p['classification']}] SL={sl_icon} P&L=${p['profit']:.2f}"
+        )
 
     # Deal attribution summary
     print(f"\nDeal Attribution ({att['deal_attribution']['total_deals']} deals):")

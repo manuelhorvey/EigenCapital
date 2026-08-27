@@ -12,6 +12,7 @@ Definition of "trading day":
   A trading day starts at 00:00 UTC and ends at 23:59:59 UTC.
   Daily loss is measured from the equity at the start of the trading day.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -26,6 +27,7 @@ from typing import Any, Dict, Optional
 @dataclass(frozen=True)
 class DailyBaseline:
     """Immutable record of the daily baseline."""
+
     date_str: str  # "YYYY-MM-DD"
     equity: float
     timestamp_utc: str

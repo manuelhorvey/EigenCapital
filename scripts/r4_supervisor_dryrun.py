@@ -17,15 +17,14 @@ Usage:
     python scripts/r4_supervisor_dryrun.py
     python scripts/r4_supervisor_dryrun.py --verbose
 """
+
 from __future__ import annotations
 
 import json
 import os
 import sys
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, "src")
@@ -46,14 +45,13 @@ from eigencapital.live.position_attribution import (
 )
 from eigencapital.live.catastrophic_protection import (
     plan_protection,
-    disaster_stop_price,
-    ActionKind,
 )
-from eigencapital.live.watchdog import Watchdog, ProbeResult, WatchState
+from eigencapital.live.watchdog import Watchdog, ProbeResult
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 
 
 # ── Gate result types ─────────────────────────────────────────────
+
 
 @dataclass
 class GateCheck:
@@ -128,16 +126,16 @@ class SupervisorReport:
             "",
             "## Account State",
             "",
-            f"| Metric | Value |",
-            f"|---|---|",
+            "| Metric | Value |",
+            "|---|---|",
             f"| Balance | ${self.balance:,.2f} |",
             f"| Equity | ${self.equity:,.2f} |",
             f"| Free Margin | ${self.free_margin:,.2f} |",
             "",
             "## Position Inventory",
             "",
-            f"| Category | Count |",
-            f"|---|---|",
+            "| Category | Count |",
+            "|---|---|",
             f"| Total | {self.positions_total} |",
             f"| R4 (magic={R4_MAGIC}) | {self.r4_positions} |",
             f"| Foreign (magic≠{R4_MAGIC}) | {self.foreign_positions} |",
@@ -155,19 +153,24 @@ class SupervisorReport:
         if self.intended_actions:
             lines.extend(["", "## Intended Actions (Dry-Run)", ""])
             for a in self.intended_actions:
-                lines.append(f"- {a.get('kind', '?')} {a.get('symbol', '?')} #{a.get('ticket', '?')} — {a.get('reason', '')}")
+                lines.append(
+                    f"- {a.get('kind', '?')} {a.get('symbol', '?')} #{a.get('ticket', '?')} — {a.get('reason', '')}"
+                )
 
-        lines.extend([
-            "",
-            "## Verdict",
-            "",
-            f"**{self.verdict}** — {self.message}",
-        ])
+        lines.extend(
+            [
+                "",
+                "## Verdict",
+                "",
+                f"**{self.verdict}** — {self.message}",
+            ]
+        )
 
         return "\n".join(lines)
 
 
 # ── Compute ATR for SL planning ───────────────────────────────────
+
 
 def compute_atr_pct(mt5, symbol: str, period: int = 14) -> Optional[float]:
     """Compute ATR% from daily data."""
@@ -189,6 +192,7 @@ def compute_atr_pct(mt5, symbol: str, period: int = 14) -> Optional[float]:
 
 # ── Main supervisor ───────────────────────────────────────────────
 
+
 def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
     """Run the full supervisor dry-run against live MT5."""
     now = datetime.now(timezone.utc).isoformat()
@@ -198,19 +202,35 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
     # ── 1. Broker connectivity ────────────────────────────────────
     mt5 = MetaTrader5(host="127.0.0.1", port=8001)
     connected = bool(mt5.initialize())
-    gates.append(GateCheck(
-        name="broker_connectivity",
-        passed=connected,
-        severity="critical",
-        detail="MT5 connection established" if connected else "CANNOT CONNECT TO MT5",
-    ))
+    gates.append(
+        GateCheck(
+            name="broker_connectivity",
+            passed=connected,
+            severity="critical",
+            detail="MT5 connection established"
+            if connected
+            else "CANNOT CONNECT TO MT5",
+        )
+    )
     if not connected:
         return SupervisorReport(
-            timestamp=now, account_id=0, balance=0, equity=0, free_margin=0,
-            positions_total=0, r4_positions=0, foreign_positions=0,
-            unclassified_positions=0, positions_with_sl=0, positions_without_sl=0,
-            fingerprint_ok=False, watchdog_state="N/A", contamination=False,
-            gates=gates, intended_actions=[], verdict="CRITICAL",
+            timestamp=now,
+            account_id=0,
+            balance=0,
+            equity=0,
+            free_margin=0,
+            positions_total=0,
+            r4_positions=0,
+            foreign_positions=0,
+            unclassified_positions=0,
+            positions_with_sl=0,
+            positions_without_sl=0,
+            fingerprint_ok=False,
+            watchdog_state="N/A",
+            contamination=False,
+            gates=gates,
+            intended_actions=[],
+            verdict="CRITICAL",
             message="Cannot connect to MT5 — all gates fail",
         )
 
@@ -218,20 +238,30 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
     account = mt5.account_info()
     balance = float(account.balance) if account else 0
     equity = float(account.equity) if account else 0
-    free_margin = float(getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0)
+    free_margin = float(
+        getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0
+    )
     account_id = int(account.login) if account else 0
 
     # ── 3. Position inventory ─────────────────────────────────────
     positions = list(mt5.positions_get() or [])
-    classified = classify_all([
-        {
-            "ticket": p.ticket, "symbol": p.symbol, "type": p.type,
-            "volume": p.volume, "magic": p.magic, "comment": p.comment,
-            "profit": p.profit, "price_open": p.price_open,
-            "sl": p.sl, "tp": p.tp,
-        }
-        for p in positions
-    ])
+    classified = classify_all(
+        [
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "type": p.type,
+                "volume": p.volume,
+                "magic": p.magic,
+                "comment": p.comment,
+                "profit": p.profit,
+                "price_open": p.price_open,
+                "sl": p.sl,
+                "tp": p.tp,
+            }
+            for p in positions
+        ]
+    )
 
     config = load_config("production")
     capacity = capacity_account(classified, config.capital.max_concurrent_positions)
@@ -241,33 +271,52 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
     unclassified_count = sum(1 for c in classified if c.pclass.value not in ("R4_BOT",))
     # More precise: unclassified = magic not in known set
     from eigencapital.live.position_attribution import PositionClass
-    unclassified_count = sum(1 for c in classified if c.pclass == PositionClass.FOREIGN_MAGIC_UNKNOWN)
+
+    unclassified_count = sum(
+        1 for c in classified if c.pclass == PositionClass.FOREIGN_MAGIC_UNKNOWN
+    )
 
     positions_with_sl = sum(1 for p in positions if p.sl > 0)
     positions_without_sl = sum(1 for p in positions if p.sl <= 0)
 
-    gates.append(GateCheck(
-        name="position_count",
-        passed=r4_count <= config.capital.max_concurrent_positions,
-        severity="critical" if r4_count > config.capital.max_concurrent_positions else "info",
-        detail=f"{r4_count}/{config.capital.max_concurrent_positions} R4 positions",
-        evidence={"r4_count": r4_count, "max": config.capital.max_concurrent_positions},
-    ))
+    gates.append(
+        GateCheck(
+            name="position_count",
+            passed=r4_count <= config.capital.max_concurrent_positions,
+            severity="critical"
+            if r4_count > config.capital.max_concurrent_positions
+            else "info",
+            detail=f"{r4_count}/{config.capital.max_concurrent_positions} R4 positions",
+            evidence={
+                "r4_count": r4_count,
+                "max": config.capital.max_concurrent_positions,
+            },
+        )
+    )
 
-    gates.append(GateCheck(
-        name="foreign_positions",
-        passed=foreign_count == 0,
-        severity="critical" if foreign_count > 0 else "info",
-        detail=f"{foreign_count} foreign position(s) present" if foreign_count else "No foreign positions",
-        evidence={"foreign_count": foreign_count, "foreign": capacity.foreign_positions},
-    ))
+    gates.append(
+        GateCheck(
+            name="foreign_positions",
+            passed=foreign_count == 0,
+            severity="critical" if foreign_count > 0 else "info",
+            detail=f"{foreign_count} foreign position(s) present"
+            if foreign_count
+            else "No foreign positions",
+            evidence={
+                "foreign_count": foreign_count,
+                "foreign": capacity.foreign_positions,
+            },
+        )
+    )
 
-    gates.append(GateCheck(
-        name="unclassified_positions",
-        passed=unclassified_count == 0,
-        severity="critical" if unclassified_count > 0 else "info",
-        detail=f"{unclassified_count} unclassified position(s)",
-    ))
+    gates.append(
+        GateCheck(
+            name="unclassified_positions",
+            passed=unclassified_count == 0,
+            severity="critical" if unclassified_count > 0 else "info",
+            detail=f"{unclassified_count} unclassified position(s)",
+        )
+    )
 
     contamination = capacity.contaminated
 
@@ -275,22 +324,24 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
     no_sl_r4 = [p for p in positions if p.magic == R4_MAGIC and p.sl <= 0]
     with_sl_r4 = [p for p in positions if p.magic == R4_MAGIC and p.sl > 0]
 
-    gates.append(GateCheck(
-        name="catastrophic_protection",
-        passed=len(no_sl_r4) == 0,
-        severity="critical" if no_sl_r4 else "warn",
-        detail=f"{len(with_sl_r4)}/{r4_count} R4 positions have SL",
-        evidence={
-            "positions_with_sl": [
-                {"ticket": p.ticket, "symbol": p.symbol, "sl": p.sl}
-                for p in with_sl_r4
-            ],
-            "positions_without_sl": [
-                {"ticket": p.ticket, "symbol": p.symbol, "entry": p.price_open}
-                for p in no_sl_r4
-            ],
-        },
-    ))
+    gates.append(
+        GateCheck(
+            name="catastrophic_protection",
+            passed=len(no_sl_r4) == 0,
+            severity="critical" if no_sl_r4 else "warn",
+            detail=f"{len(with_sl_r4)}/{r4_count} R4 positions have SL",
+            evidence={
+                "positions_with_sl": [
+                    {"ticket": p.ticket, "symbol": p.symbol, "sl": p.sl}
+                    for p in with_sl_r4
+                ],
+                "positions_without_sl": [
+                    {"ticket": p.ticket, "symbol": p.symbol, "entry": p.price_open}
+                    for p in no_sl_r4
+                ],
+            },
+        )
+    )
 
     # Compute intended protection actions for positions missing SL
     if no_sl_r4:
@@ -316,13 +367,15 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
             entry_price_lookup,
         )
         for action in protection_actions:
-            intended_actions.append({
-                "kind": action.kind.value,
-                "symbol": action.symbol,
-                "ticket": action.ticket,
-                "sl": action.detail.get("sl"),
-                "reason": action.detail.get("reason"),
-            })
+            intended_actions.append(
+                {
+                    "kind": action.kind.value,
+                    "symbol": action.symbol,
+                    "ticket": action.ticket,
+                    "sl": action.detail.get("sl"),
+                    "reason": action.detail.get("reason"),
+                }
+            )
 
     # ── 5. Fingerprint verification ───────────────────────────────
     try:
@@ -330,58 +383,74 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
         fp_result = verifier.verify_all()
         fp_ok = fp_result.all_verified
         failed_checks = [c for c in fp_result.checks if c.status != "verified"]
-        detail = "All fingerprints verified" if fp_ok else f"{len(failed_checks)} fingerprint(s) mismatched"
+        detail = (
+            "All fingerprints verified"
+            if fp_ok
+            else f"{len(failed_checks)} fingerprint(s) mismatched"
+        )
         evidence = {"checks": [c.to_dict() for c in fp_result.checks]}
     except Exception as e:
         fp_ok = False
         detail = f"Fingerprint verification error: {e}"
         evidence = {"error": str(e)}
 
-    gates.append(GateCheck(
-        name="fingerprint_verification",
-        passed=fp_ok,
-        severity="critical",
-        detail=detail,
-        evidence=evidence,
-    ))
+    gates.append(
+        GateCheck(
+            name="fingerprint_verification",
+            passed=fp_ok,
+            severity="critical",
+            detail=detail,
+            evidence=evidence,
+        )
+    )
 
     # ── 6. Equity/drawdown check ──────────────────────────────────
-    dd_pct = (config.capital.max_equity - equity) / config.capital.max_equity if config.capital.max_equity > 0 else 0
+    (
+        (config.capital.max_equity - equity) / config.capital.max_equity
+        if config.capital.max_equity > 0
+        else 0
+    )
     equity_ok = equity >= config.live_risk.min_equity
-    gates.append(GateCheck(
-        name="equity_floor",
-        passed=equity_ok,
-        severity="critical" if not equity_ok else "info",
-        detail=f"Equity ${equity:,.2f} {'above' if equity_ok else 'BELOW'} minimum ${config.live_risk.min_equity:,.0f}",
-        evidence={"equity": equity, "min_equity": config.live_risk.min_equity},
-    ))
+    gates.append(
+        GateCheck(
+            name="equity_floor",
+            passed=equity_ok,
+            severity="critical" if not equity_ok else "info",
+            detail=f"Equity ${equity:,.2f} {'above' if equity_ok else 'BELOW'} minimum ${config.live_risk.min_equity:,.0f}",
+            evidence={"equity": equity, "min_equity": config.live_risk.min_equity},
+        )
+    )
 
     # ── 7. Capacity verdict (quarantine logic) ────────────────────
-    gates.append(GateCheck(
-        name="quarantine_logic",
-        passed=not contamination,
-        severity="warn" if contamination else "info",
-        detail=capacity.reason,
-        evidence={
-            "allow_new_entries": capacity.allow_new_entries,
-            "allow_self_rotation": capacity.allow_self_rotation,
-        },
-    ))
+    gates.append(
+        GateCheck(
+            name="quarantine_logic",
+            passed=not contamination,
+            severity="warn" if contamination else "info",
+            detail=capacity.reason,
+            evidence={
+                "allow_new_entries": capacity.allow_new_entries,
+                "allow_self_rotation": capacity.allow_self_rotation,
+            },
+        )
+    )
 
     if contamination:
         # Intended action: close foreign positions
         for fp in capacity.foreign_positions:
-            intended_actions.append({
-                "kind": "CLOSE_FOREIGN",
-                "symbol": fp.get("symbol"),
-                "ticket": fp.get("ticket"),
-                "reason": f"Foreign position (magic={fp.get('magic')}) — quarantine",
-            })
+            intended_actions.append(
+                {
+                    "kind": "CLOSE_FOREIGN",
+                    "symbol": fp.get("symbol"),
+                    "ticket": fp.get("ticket"),
+                    "reason": f"Foreign position (magic={fp.get('magic')}) — quarantine",
+                }
+            )
 
     # ── 8. Watchdog state (probe-based) ───────────────────────────
     watchdog = Watchdog(
-        stale_after_seconds=300,   # 5 min
-        blind_after_seconds=900,   # 15 min
+        stale_after_seconds=300,  # 5 min
+        blind_after_seconds=900,  # 15 min
         contain_after_seconds=3600,  # 1 hour
     )
     # Simulate a healthy probe (we're connected and just polled)
@@ -392,23 +461,26 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
         broker_reachable=True,
         evidence_hash=snapshot_hash(
             [{"ticket": p.ticket, "symbol": p.symbol} for p in positions],
-            equity, free_margin,
+            equity,
+            free_margin,
         ),
     )
     decision = watchdog.evaluate(probe)
     watchdog_state = decision.state.value
 
-    gates.append(GateCheck(
-        name="watchdog_state",
-        passed=decision.authorize_trading,
-        severity="info",
-        detail=f"Watchdog: {watchdog_state} — {decision.reason}",
-        evidence={
-            "state": watchdog_state,
-            "authorize_trading": decision.authorize_trading,
-            "authorize_flatten": decision.authorize_flatten_on_reconnect,
-        },
-    ))
+    gates.append(
+        GateCheck(
+            name="watchdog_state",
+            passed=decision.authorize_trading,
+            severity="info",
+            detail=f"Watchdog: {watchdog_state} — {decision.reason}",
+            evidence={
+                "state": watchdog_state,
+                "authorize_trading": decision.authorize_trading,
+                "authorize_flatten": decision.authorize_flatten_on_reconnect,
+            },
+        )
+    )
 
     # ── 9. Position detail listing ────────────────────────────────
     if verbose:
@@ -417,14 +489,25 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
             cls = [c for c in classified if c.ticket == p.ticket][0]
             icon = "🟢" if cls.pclass.value == "R4_BOT" else "🔴"
             sl_str = f"{p.sl:.5f}" if p.sl > 0 else "NONE"
-            print(f"  {icon} #{p.ticket} {p.symbol} {'BUY' if p.type == 0 else 'SELL'} "
-                  f"{p.volume:.2f} @ {p.price_open:.5f} SL={sl_str} magic={p.magic}")
+            print(
+                f"  {icon} #{p.ticket} {p.symbol} {'BUY' if p.type == 0 else 'SELL'} "
+                f"{p.volume:.2f} @ {p.price_open:.5f} SL={sl_str} magic={p.magic}"
+            )
 
     # ── 10. Compute snapshot hash ─────────────────────────────────
-    broker_hash = snapshot_hash(
-        [{"ticket": p.ticket, "symbol": p.symbol, "volume": p.volume,
-          "type": p.type, "magic": p.magic} for p in positions],
-        equity, free_margin,
+    snapshot_hash(
+        [
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "volume": p.volume,
+                "type": p.type,
+                "magic": p.magic,
+            }
+            for p in positions
+        ],
+        equity,
+        free_margin,
     )
 
     # ── Verdict ───────────────────────────────────────────────────
@@ -468,6 +551,7 @@ def run_supervisor_dryrun(verbose: bool = False) -> SupervisorReport:
 
 # ── CLI ───────────────────────────────────────────────────────────
 
+
 def main():
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
 
@@ -479,9 +563,15 @@ def main():
     report = run_supervisor_dryrun(verbose=verbose)
 
     # Print gates
-    print(f"\nAccount: {report.account_id} | Balance: ${report.balance:,.2f} | Equity: ${report.equity:,.2f}")
-    print(f"Positions: {report.positions_total} total ({report.r4_positions} R4, {report.foreign_positions} foreign, {report.unclassified_positions} unclassified)")
-    print(f"SL Coverage: {report.positions_with_sl}/{report.positions_total} positions protected")
+    print(
+        f"\nAccount: {report.account_id} | Balance: ${report.balance:,.2f} | Equity: ${report.equity:,.2f}"
+    )
+    print(
+        f"Positions: {report.positions_total} total ({report.r4_positions} R4, {report.foreign_positions} foreign, {report.unclassified_positions} unclassified)"
+    )
+    print(
+        f"SL Coverage: {report.positions_with_sl}/{report.positions_total} positions protected"
+    )
     print(f"Fingerprint: {'✅ verified' if report.fingerprint_ok else '❌ MISMATCH'}")
     print(f"Watchdog: {report.watchdog_state}")
     print(f"Contamination: {'⚠️ YES' if report.contamination else '✅ NO'}")
@@ -494,7 +584,9 @@ def main():
     if report.intended_actions:
         print(f"\nIntended Actions ({len(report.intended_actions)}):")
         for a in report.intended_actions:
-            print(f"  → {a['kind']} {a.get('symbol', '?')} #{a.get('ticket', '?')} — {a.get('reason', '')}")
+            print(
+                f"  → {a['kind']} {a.get('symbol', '?')} #{a.get('ticket', '?')} — {a.get('reason', '')}"
+            )
 
     print(f"\n{'=' * 70}")
     print(f"  VERDICT: {report.verdict}")

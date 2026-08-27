@@ -54,10 +54,17 @@ class BuildIdentity:
 def compute_git_head(repo: Path) -> str:
     try:
         out = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=repo,
-            capture_output=True, text=True, timeout=10,
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
-        return out.stdout.strip() if out.returncode == 0 else f"UNAVAILABLE({out.returncode})"
+        return (
+            out.stdout.strip()
+            if out.returncode == 0
+            else f"UNAVAILABLE({out.returncode})"
+        )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return f"UNAVAILABLE({type(exc).__name__})"
 
@@ -71,32 +78,61 @@ def compute_build_identity(repo: Path, config_fingerprint: str) -> BuildIdentity
     loop_sha = sha256_file(loop_path) if loop_path.exists() else "MISSING"
 
     checks = [
-        PinCheck("git_head_prefix", EXPECTED_GIT_HEAD, head[: len(EXPECTED_GIT_HEAD)],
-                 head.startswith(EXPECTED_GIT_HEAD)),
-        PinCheck("manifest_identity", EXPECTED_MANIFEST_IDENTITY, manifest_identity,
-                 manifest_identity == EXPECTED_MANIFEST_IDENTITY),
-        PinCheck("config_fingerprint_nonempty", "nonempty", config_fingerprint[:16],
-                 bool(config_fingerprint)),
-        PinCheck("loop_script_present", "present", "present" if loop_path.exists() else "MISSING",
-                 loop_path.exists()),
+        PinCheck(
+            "git_head_prefix",
+            EXPECTED_GIT_HEAD,
+            head[: len(EXPECTED_GIT_HEAD)],
+            head.startswith(EXPECTED_GIT_HEAD),
+        ),
+        PinCheck(
+            "manifest_identity",
+            EXPECTED_MANIFEST_IDENTITY,
+            manifest_identity,
+            manifest_identity == EXPECTED_MANIFEST_IDENTITY,
+        ),
+        PinCheck(
+            "config_fingerprint_nonempty",
+            "nonempty",
+            config_fingerprint[:16],
+            bool(config_fingerprint),
+        ),
+        PinCheck(
+            "loop_script_present",
+            "present",
+            "present" if loop_path.exists() else "MISSING",
+            loop_path.exists(),
+        ),
     ]
-    build_material = "|".join([head[:12], manifest_identity[:16], config_fingerprint[:16], loop_sha])
+    build_material = "|".join(
+        [head[:12], manifest_identity[:16], config_fingerprint[:16], loop_sha]
+    )
     build_id = hashlib.sha256(build_material.encode()).hexdigest()[:32]
     return BuildIdentity(
-        git_head=head, manifest_identity=manifest_identity,
-        config_fingerprint=config_fingerprint, loop_script_sha256=loop_sha,
-        build_id=build_id, checks=checks,
+        git_head=head,
+        manifest_identity=manifest_identity,
+        config_fingerprint=config_fingerprint,
+        loop_script_sha256=loop_sha,
+        build_id=build_id,
+        checks=checks,
     )
 
 
-def verify_pinned_build(repo: Path, config_fingerprint: str,
-                        expected_head: str = EXPECTED_GIT_HEAD) -> tuple[bool, BuildIdentity]:
+def verify_pinned_build(
+    repo: Path, config_fingerprint: str, expected_head: str = EXPECTED_GIT_HEAD
+) -> tuple[bool, BuildIdentity]:
     """Fail-closed verification against pinned expectations."""
     identity = compute_build_identity(repo, config_fingerprint)
     if not identity.git_head.startswith(expected_head):
-        extra = PinCheck("pinned_head", expected_head, identity.git_head[:len(expected_head)], False)
+        extra = PinCheck(
+            "pinned_head", expected_head, identity.git_head[: len(expected_head)], False
+        )
         checks = list(identity.checks) + [extra]
-        identity = BuildIdentity(identity.git_head, identity.manifest_identity,
-                                 identity.config_fingerprint, identity.loop_script_sha256,
-                                 identity.build_id, checks)
+        identity = BuildIdentity(
+            identity.git_head,
+            identity.manifest_identity,
+            identity.config_fingerprint,
+            identity.loop_script_sha256,
+            identity.build_id,
+            checks,
+        )
     return identity.all_verified, identity

@@ -6,13 +6,12 @@ Walk-forward OOS validation, regime analysis, session attribution.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -20,7 +19,6 @@ import pandas as pd
 from eigencapital.research.intraday.campaign3_full_hypotheses import (
     ALL_HYPOTHESES,
     HOLDING_HORIZONS,
-    Hypothesis,
 )
 
 
@@ -39,6 +37,7 @@ class Verdict(str, Enum):
 @dataclass
 class HypothesisResult:
     """Complete result for one hypothesis × one holding period."""
+
     hypothesis_id: str
     family: str
     description: str
@@ -96,8 +95,10 @@ class HypothesisResult:
 
 # ── Cost model ─────────────────────────────────────────────────────────
 
+
 class HostileCostModel:
     """Pre-registered cost model with three scenarios."""
+
     BASE_SPREAD_BPS = 8.0
     BASE_SLIPPAGE_BPS = 3.0
     BASE_COMMISSION_BPS = 2.0
@@ -112,33 +113,49 @@ class HostileCostModel:
 
     @classmethod
     def base(cls) -> float:
-        return (cls.BASE_SPREAD_BPS + cls.BASE_SLIPPAGE_BPS + cls.BASE_COMMISSION_BPS) / 10000
+        return (
+            cls.BASE_SPREAD_BPS + cls.BASE_SLIPPAGE_BPS + cls.BASE_COMMISSION_BPS
+        ) / 10000
 
     @classmethod
     def adverse(cls) -> float:
-        return (cls.ADVERSE_SPREAD_BPS + cls.ADVERSE_SLIPPAGE_BPS + cls.ADVERSE_COMMISSION_BPS) / 10000
+        return (
+            cls.ADVERSE_SPREAD_BPS
+            + cls.ADVERSE_SLIPPAGE_BPS
+            + cls.ADVERSE_COMMISSION_BPS
+        ) / 10000
 
     @classmethod
     def hostile(cls) -> float:
-        return (cls.HOSTILE_SPREAD_BPS + cls.HOSTILE_SLIPPAGE_BPS + cls.HOSTILE_COMMISSION_BPS) / 10000
+        return (
+            cls.HOSTILE_SPREAD_BPS
+            + cls.HOSTILE_SLIPPAGE_BPS
+            + cls.HOSTILE_COMMISSION_BPS
+        ) / 10000
 
 
 # ── Signal generators ──────────────────────────────────────────────────
 
+
 def _safe_div(a: pd.Series, b: pd.Series) -> pd.Series:
     return a / b.replace(0, np.nan)
+
 
 def _pct_change(s: pd.Series, n: int) -> pd.Series:
     return s.pct_change(n)
 
+
 def _rolling_std(s: pd.Series, n: int) -> pd.Series:
     return s.rolling(n, min_periods=max(1, n // 2)).std()
+
 
 def _rolling_mean(s: pd.Series, n: int) -> pd.Series:
     return s.rolling(n, min_periods=max(1, n // 2)).mean()
 
+
 def _rolling_sum(s: pd.Series, n: int) -> pd.Series:
     return s.rolling(n, min_periods=1).sum()
+
 
 def _ema(s: pd.Series, n: int) -> pd.Series:
     return s.ewm(span=n, adjust=False).mean()
@@ -148,24 +165,30 @@ def _ema(s: pd.Series, n: int) -> pd.Series:
 def sig_directional_persistence_1(df: pd.DataFrame, **kw) -> pd.Series:
     return np.sign(df["close"].diff(1))
 
+
 def sig_return_accum_3(df: pd.DataFrame, **kw) -> pd.Series:
     return _pct_change(df["close"], 3)
 
+
 def sig_return_accum_5(df: pd.DataFrame, **kw) -> pd.Series:
     return _pct_change(df["close"], 5)
+
 
 def sig_consec_direction_3(df: pd.DataFrame, **kw) -> pd.Series:
     d = np.sign(df["close"].diff(1))
     return d.rolling(3, min_periods=1).sum() / 3
 
+
 def sig_acceleration(df: pd.DataFrame, **kw) -> pd.Series:
     r1 = df["close"].pct_change(1)
     return r1.diff(3)
+
 
 def sig_vol_adjusted_impulse(df: pd.DataFrame, **kw) -> pd.Series:
     r = df["close"].pct_change(1)
     vol = _rolling_std(r, 60)
     return r / vol.replace(0, np.nan)
+
 
 def sig_shock_reversal(df: pd.DataFrame, **kw) -> pd.Series:
     r = df["close"].pct_change(1)
@@ -173,14 +196,17 @@ def sig_shock_reversal(df: pd.DataFrame, **kw) -> pd.Series:
     shock = r / vol.replace(0, np.nan)
     return -shock  # fade large shocks
 
+
 def sig_shock_continuation(df: pd.DataFrame, **kw) -> pd.Series:
     r = df["close"].pct_change(1)
     vol = _rolling_std(r, 60)
     return r / vol.replace(0, np.nan)  # ride large shocks
 
+
 def sig_close_mid_divergence(df: pd.DataFrame, **kw) -> pd.Series:
     mid = (df["high"] + df["low"]) / 2
     return np.sign(df["close"] - mid)
+
 
 def sig_range_direction_bias(df: pd.DataFrame, **kw) -> pd.Series:
     rng = df["high"] - df["low"]
@@ -193,17 +219,29 @@ def sig_volume_shock(df: pd.DataFrame, **kw) -> pd.Series:
     avg = _rolling_mean(df["tick_volume"], 60)
     return df["tick_volume"] / avg.replace(0, np.nan) - 1
 
+
 def sig_volume_acceleration(df: pd.DataFrame, **kw) -> pd.Series:
     v = df["tick_volume"].astype(float)
     return v.diff(5) / _rolling_mean(v, 60).replace(0, np.nan)
 
+
 def sig_volume_direction_agree(df: pd.DataFrame, **kw) -> pd.Series:
     d = np.sign(df["close"].diff(1))
-    return d * df["tick_volume"].astype(float) / _rolling_mean(df["tick_volume"], 60).replace(0, np.nan)
+    return (
+        d
+        * df["tick_volume"].astype(float)
+        / _rolling_mean(df["tick_volume"], 60).replace(0, np.nan)
+    )
+
 
 def sig_volume_direction_disagree(df: pd.DataFrame, **kw) -> pd.Series:
     d = np.sign(df["close"].diff(1))
-    return -d * df["tick_volume"].astype(float) / _rolling_mean(df["tick_volume"], 60).replace(0, np.nan)
+    return (
+        -d
+        * df["tick_volume"].astype(float)
+        / _rolling_mean(df["tick_volume"], 60).replace(0, np.nan)
+    )
+
 
 def sig_high_vol_reversal(df: pd.DataFrame, **kw) -> pd.Series:
     v = df["tick_volume"].astype(float)
@@ -211,11 +249,13 @@ def sig_high_vol_reversal(df: pd.DataFrame, **kw) -> pd.Series:
     d = np.sign(df["close"].diff(1))
     return np.where(vol_shock > 2, -d, 0)
 
+
 def sig_low_vol_breakout(df: pd.DataFrame, **kw) -> pd.Series:
     v = df["tick_volume"].astype(float)
     vol_low = v < _rolling_mean(v, 60) * 0.5
     d = np.sign(df["close"].diff(1))
     return np.where(vol_low, d, 0)
+
 
 def sig_volume_regime(df: pd.DataFrame, **kw) -> pd.Series:
     v = df["tick_volume"].astype(float)
@@ -229,11 +269,13 @@ def sig_range_expansion(df: pd.DataFrame, **kw) -> pd.Series:
     avg = _rolling_mean(rng, 60)
     return rng / avg.replace(0, np.nan) - 1
 
+
 def sig_range_compression(df: pd.DataFrame, **kw) -> pd.Series:
     rng = df["high"] - df["low"]
     avg = _rolling_mean(rng, 60)
     pct = rng / avg.replace(0, np.nan)
     return -(pct - 0.5)  # low range = positive signal (anticipate expansion)
+
 
 def sig_vol_of_vol(df: pd.DataFrame, **kw) -> pd.Series:
     r = df["close"].pct_change(1)
@@ -241,11 +283,13 @@ def sig_vol_of_vol(df: pd.DataFrame, **kw) -> pd.Series:
     vov = _rolling_std(rv, 60)
     return vov / _rolling_mean(vov, 120).replace(0, np.nan) - 1
 
+
 def sig_realized_vol_regime(df: pd.DataFrame, **kw) -> pd.Series:
     r = df["close"].pct_change(1)
     rv = _rolling_std(r, 60)
     rv_avg = _rolling_mean(rv, 240)
     return rv / rv_avg.replace(0, np.nan) - 1
+
 
 def sig_vol_shock_continue(df: pd.DataFrame, **kw) -> pd.Series:
     r = df["close"].pct_change(1)
@@ -253,18 +297,23 @@ def sig_vol_shock_continue(df: pd.DataFrame, **kw) -> pd.Series:
     rv_avg = _rolling_mean(rv, 60)
     return np.sign(r) * (rv / rv_avg.replace(0, np.nan) - 1)
 
+
 def sig_vol_shock_revert(df: pd.DataFrame, **kw) -> pd.Series:
     r = df["close"].pct_change(1)
     rv = _rolling_std(r, 15)
     rv_avg = _rolling_mean(rv, 60)
     return -np.sign(r) * (rv / rv_avg.replace(0, np.nan) - 1)
 
+
 def sig_true_range_relative(df: pd.DataFrame, **kw) -> pd.Series:
-    tr = pd.concat([
-        df["high"] - df["low"],
-        (df["high"] - df["close"].shift(1)).abs(),
-        (df["low"] - df["close"].shift(1)).abs(),
-    ], axis=1).max(axis=1)
+    tr = pd.concat(
+        [
+            df["high"] - df["low"],
+            (df["high"] - df["close"].shift(1)).abs(),
+            (df["low"] - df["close"].shift(1)).abs(),
+        ],
+        axis=1,
+    ).max(axis=1)
     avg = _rolling_mean(tr, 60)
     return tr / avg.replace(0, np.nan) - 1
 
@@ -276,11 +325,13 @@ def sig_spread_expansion(df: pd.DataFrame, **kw) -> pd.Series:
     avg = _rolling_mean(df["spread"], 60)
     return df["spread"] / avg.replace(0, np.nan) - 1
 
+
 def sig_spread_compression(df: pd.DataFrame, **kw) -> pd.Series:
     if "spread" not in df.columns:
         return pd.Series(0, index=df.index)
     avg = _rolling_mean(df["spread"], 60)
     return -(df["spread"] / avg.replace(0, np.nan) - 1)
+
 
 def sig_spread_normalize(df: pd.DataFrame, **kw) -> pd.Series:
     if "spread" not in df.columns:
@@ -288,6 +339,7 @@ def sig_spread_normalize(df: pd.DataFrame, **kw) -> pd.Series:
     s = df["spread"].astype(float)
     high = s.rolling(120).max()
     return -(s / high.replace(0, np.nan) - 1)
+
 
 def sig_abnormal_spread(df: pd.DataFrame, **kw) -> pd.Series:
     if "spread" not in df.columns:
@@ -297,6 +349,7 @@ def sig_abnormal_spread(df: pd.DataFrame, **kw) -> pd.Series:
     sigma = _rolling_std(s, 120)
     return -(s - mu) / sigma.replace(0, np.nan)
 
+
 def sig_liquidity_shock_continue(df: pd.DataFrame, **kw) -> pd.Series:
     if "spread" not in df.columns:
         return pd.Series(0, index=df.index)
@@ -305,6 +358,7 @@ def sig_liquidity_shock_continue(df: pd.DataFrame, **kw) -> pd.Series:
     shock = s / avg.replace(0, np.nan) - 1
     d = np.sign(df["close"].diff(1))
     return shock * d
+
 
 def sig_liquidity_shock_revert(df: pd.DataFrame, **kw) -> pd.Series:
     if "spread" not in df.columns:
@@ -321,26 +375,33 @@ def sig_asia_london_transition(df: pd.DataFrame, **kw) -> pd.Series:
     # Placeholder — return momentum signal during transition hours
     return _pct_change(df["close"], 5)
 
+
 def sig_london_open_impulse(df: pd.DataFrame, **kw) -> pd.Series:
     return _pct_change(df["close"], 3)
+
 
 def sig_london_ny_transition(df: pd.DataFrame, **kw) -> pd.Series:
     return _pct_change(df["close"], 5)
 
+
 def sig_ny_open_impulse(df: pd.DataFrame, **kw) -> pd.Series:
     return _pct_change(df["close"], 3)
+
 
 def sig_overlap_momentum(df: pd.DataFrame, **kw) -> pd.Series:
     return _pct_change(df["close"], 5)
 
+
 def sig_ny_close_revert(df: pd.DataFrame, **kw) -> pd.Series:
     return -_pct_change(df["close"], 5)
+
 
 def sig_session_range_breakout(df: pd.DataFrame, **kw) -> pd.Series:
     high_60 = df["high"].rolling(60).max()
     low_60 = df["low"].rolling(60).min()
     rng = high_60 - low_60
     return (df["close"] - low_60) / rng.replace(0, np.nan) - 0.5
+
 
 def sig_overnight_gap(df: pd.DataFrame, **kw) -> pd.Series:
     prev = df["close"].shift(60)
@@ -356,6 +417,7 @@ def sig_initial_range_breakout(df: pd.DataFrame, **kw) -> pd.Series:
     rng = h15 - l15
     return (df["close"] - l15) / rng.replace(0, np.nan) - 0.5
 
+
 def sig_initial_range_reversal(df: pd.DataFrame, **kw) -> pd.Series:
     h15 = df["high"].rolling(15).max()
     l15 = df["low"].rolling(15).min()
@@ -363,11 +425,14 @@ def sig_initial_range_reversal(df: pd.DataFrame, **kw) -> pd.Series:
     pos = (df["close"] - l15) / rng.replace(0, np.nan)
     return -(pos - 0.5)  # fade
 
+
 def sig_opening_impulse(df: pd.DataFrame, **kw) -> pd.Series:
     return _pct_change(df["close"], 5)
 
+
 def sig_opening_reversal(df: pd.DataFrame, **kw) -> pd.Series:
     return -_pct_change(df["close"], 5)
+
 
 def sig_prior_range_direction(df: pd.DataFrame, **kw) -> pd.Series:
     h240 = df["high"].rolling(240).max()
@@ -380,17 +445,22 @@ def sig_prior_range_direction(df: pd.DataFrame, **kw) -> pd.Series:
 def sig_us500_leads_eurusd(df: pd.DataFrame, **kw) -> pd.Series:
     return _pct_change(df["close"], 3)
 
+
 def sig_ustec_leads_eurusd(df: pd.DataFrame, **kw) -> pd.Series:
     return _pct_change(df["close"], 3)
+
 
 def sig_us500_leads_gbpusd(df: pd.DataFrame, **kw) -> pd.Series:
     return _pct_change(df["close"], 3)
 
+
 def sig_ustec_leads_xauusd(df: pd.DataFrame, **kw) -> pd.Series:
     return -_pct_change(df["close"], 3)
 
+
 def sig_us500_leads_xauusd(df: pd.DataFrame, **kw) -> pd.Series:
     return -_pct_change(df["close"], 3)
+
 
 def sig_eurusd_leads_gbpusd(df: pd.DataFrame, **kw) -> pd.Series:
     return _pct_change(df["close"], 2)
@@ -402,17 +472,20 @@ def sig_pre_session_compression(df: pd.DataFrame, **kw) -> pd.Series:
     avg = _rolling_mean(rng, 60)
     return -(rng / avg.replace(0, np.nan) - 1)
 
+
 def sig_post_shock_impulse(df: pd.DataFrame, **kw) -> pd.Series:
     r = df["close"].pct_change(1)
     vol = _rolling_std(r, 60)
     shock = r / vol.replace(0, np.nan)
     return shock.where(shock.abs() > 2, 0)
 
+
 def sig_post_shock_reversal(df: pd.DataFrame, **kw) -> pd.Series:
     r = df["close"].pct_change(1)
     vol = _rolling_std(r, 60)
     shock = r / vol.replace(0, np.nan)
     return -shock.where(shock.abs() > 2, 0)
+
 
 def sig_vol_normalization(df: pd.DataFrame, **kw) -> pd.Series:
     r = df["close"].pct_change(1)
@@ -431,11 +504,13 @@ def sig_mom_x_vol(df: pd.DataFrame, **kw) -> pd.Series:
     vol_regime = rv / rv_avg.replace(0, np.nan)
     return mom * vol_regime
 
+
 def sig_shock_x_session(df: pd.DataFrame, **kw) -> pd.Series:
     r = df["close"].pct_change(1)
     vol = _rolling_std(r, 60)
     shock = r / vol.replace(0, np.nan)
     return shock
+
 
 def sig_rangeexp_x_volume(df: pd.DataFrame, **kw) -> pd.Series:
     rng = df["high"] - df["low"]
@@ -444,6 +519,7 @@ def sig_rangeexp_x_volume(df: pd.DataFrame, **kw) -> pd.Series:
     avg_v = _rolling_mean(v, 60)
     return (rng / avg_rng.replace(0, np.nan)) * (v / avg_v.replace(0, np.nan))
 
+
 def sig_xa_lead_x_vol(df: pd.DataFrame, **kw) -> pd.Series:
     mom = _pct_change(df["close"], 3)
     r = df["close"].pct_change(1)
@@ -451,6 +527,7 @@ def sig_xa_lead_x_vol(df: pd.DataFrame, **kw) -> pd.Series:
     rv_avg = _rolling_mean(rv, 240)
     vol_regime = rv / rv_avg.replace(0, np.nan)
     return mom / vol_regime.replace(0, np.nan)
+
 
 def sig_spread_x_direction(df: pd.DataFrame, **kw) -> pd.Series:
     if "spread" not in df.columns:
@@ -528,6 +605,7 @@ SIGNAL_REGISTRY: Dict[str, Callable] = {
 
 # ── Backtest ───────────────────────────────────────────────────────────
 
+
 def backtest(
     df: pd.DataFrame,
     signal: pd.Series,
@@ -544,7 +622,13 @@ def backtest(
 
     clean = strat.dropna()
     if len(clean) < 20 or clean.std() == 0:
-        return {"sharpe": 0, "return": 0, "dd": 0, "trades": num_trades, "cost": total_cost}
+        return {
+            "sharpe": 0,
+            "return": 0,
+            "dd": 0,
+            "trades": num_trades,
+            "cost": total_cost,
+        }
 
     ann_factor = np.sqrt(252 * 24 * 60 / holding_period)
     sharpe = float(clean.mean() / clean.std() * ann_factor)
@@ -552,10 +636,17 @@ def backtest(
     cum = (1 + clean).cumprod()
     dd = float(((cum - cum.cummax()) / cum.cummax()).min())
 
-    return {"sharpe": sharpe, "return": float(clean.sum()), "dd": dd, "trades": num_trades, "cost": total_cost}
+    return {
+        "sharpe": sharpe,
+        "return": float(clean.sum()),
+        "dd": dd,
+        "trades": num_trades,
+        "cost": total_cost,
+    }
 
 
 # ── Walk-forward ───────────────────────────────────────────────────────
+
 
 def walk_forward(
     df: pd.DataFrame,
@@ -593,6 +684,7 @@ def walk_forward(
 
 # ── Verdict classification ─────────────────────────────────────────────
 
+
 def classify(result: HypothesisResult) -> Tuple[Verdict, List[str]]:
     reasons = []
 
@@ -625,10 +717,18 @@ def classify(result: HypothesisResult) -> Tuple[Verdict, List[str]]:
         if len(vals) > 0 and pos_count / len(vals) < 0.3:
             reasons.append("instrument_dependent")
 
-    if len(reasons) == 0 and result.net_sharpe_base > 0.3 and result.wf_consistency >= 0.75:
+    if (
+        len(reasons) == 0
+        and result.net_sharpe_base > 0.3
+        and result.wf_consistency >= 0.75
+    ):
         return Verdict.SUPPORTED, reasons
 
-    if result.net_sharpe_base > 0 and result.net_sharpe_hostile > 0 and result.wf_consistency >= 0.50:
+    if (
+        result.net_sharpe_base > 0
+        and result.net_sharpe_hostile > 0
+        and result.wf_consistency >= 0.50
+    ):
         if result.max_drawdown > -0.20:
             return Verdict.FRAGILE, reasons
         return Verdict.COST_SENSITIVE, reasons
@@ -647,10 +747,19 @@ def classify(result: HypothesisResult) -> Tuple[Verdict, List[str]]:
 
 # ── Campaign runner ─────────────────────────────────────────────────────
 
+
 def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisResult]:
     """Run full Campaign 3: 55 hypotheses × 7 horizons × 8 symbols × 3 cost scenarios."""
-    symbols = ["EURUSDm", "GBPUSDm", "USDJPYm", "AUDUSDm",
-               "XAUUSDm", "US500m", "USTECm", "USOILm"]
+    symbols = [
+        "EURUSDm",
+        "GBPUSDm",
+        "USDJPYm",
+        "AUDUSDm",
+        "XAUUSDm",
+        "US500m",
+        "USTECm",
+        "USOILm",
+    ]
 
     all_data: Dict[str, pd.DataFrame] = {}
     for sym in symbols:
@@ -666,7 +775,7 @@ def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisRes
     results: List[HypothesisResult] = []
 
     for hyp in ALL_HYPOTHESES:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"{hyp.hypothesis_id}: {hyp.description} [{hyp.family}]")
 
         signal_func = SIGNAL_REGISTRY.get(hyp.signal_func)
@@ -692,8 +801,8 @@ def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisRes
 
                     gross = backtest(df, sig, hp, 0)
                     net_b = backtest(df, sig, hp, HostileCostModel.base())
-                    net_a = backtest(df, sig, hp, HostileCostModel.adverse())
-                    net_h = backtest(df, sig, hp, HostileCostModel.hostile())
+                    backtest(df, sig, hp, HostileCostModel.adverse())
+                    backtest(df, sig, hp, HostileCostModel.hostile())
 
                     sym_gross[sym] = gross["sharpe"]
                     sym_net_base[sym] = net_b["sharpe"]
@@ -747,15 +856,19 @@ def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisRes
                 max_drawdown=avg_dd,
                 turnover=total_trades / len(all_data),
                 num_trades=total_trades,
-                degradation=1 - (avg_net_b / avg_gross) if abs(avg_gross) > 0.001 else 1,
+                degradation=1 - (avg_net_b / avg_gross)
+                if abs(avg_gross) > 0.001
+                else 1,
                 wf_consistency=wf["wf_consistency"],
                 wf_oos_sharpe=wf["wf_oos_sharpe"],
             )
             cr.verdict, cr.failure_reasons = classify(cr)
 
             score = avg_net_b + wf["wf_consistency"] * 0.5
-            print(f"  HP={hp:2d}: gross={avg_gross:+.3f} net_b={avg_net_b:+.3f} "
-                  f"net_h={avg_net_h:+.3f} DD={avg_dd:.3f} WF={wf['wf_consistency']:.0%} → {cr.verdict.value}")
+            print(
+                f"  HP={hp:2d}: gross={avg_gross:+.3f} net_b={avg_net_b:+.3f} "
+                f"net_h={avg_net_h:+.3f} DD={avg_dd:.3f} WF={wf['wf_consistency']:.0%} → {cr.verdict.value}"
+            )
 
             if score > best_score:
                 best_score = score
@@ -764,21 +877,25 @@ def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisRes
         if best_result:
             results.append(best_result)
         else:
-            results.append(HypothesisResult(
-                hypothesis_id=hyp.hypothesis_id,
-                family=hyp.family,
-                description=hyp.description,
-                holding_period=HOLDING_HORIZONS[0],
-                pre_registered_hash=hyp.pre_registered_hash,
-                verdict=Verdict.REJECTED,
-                failure_reasons=["no_valid_results"],
-            ))
-            print(f"  ALL FAILED → REJECTED")
+            results.append(
+                HypothesisResult(
+                    hypothesis_id=hyp.hypothesis_id,
+                    family=hyp.family,
+                    description=hyp.description,
+                    holding_period=HOLDING_HORIZONS[0],
+                    pre_registered_hash=hyp.pre_registered_hash,
+                    verdict=Verdict.REJECTED,
+                    failure_reasons=["no_valid_results"],
+                )
+            )
+            print("  ALL FAILED → REJECTED")
 
     return results
 
 
-def produce_map(results: List[HypothesisResult], path: str = "reports/campaign3_full_map.md") -> str:
+def produce_map(
+    results: List[HypothesisResult], path: str = "reports/campaign3_full_map.md"
+) -> str:
     """Produce the full Intraday Alpha Research Map."""
     lines = [
         "# EigenCapital Intraday Alpha Research Map — Campaign 3 (Full)",
@@ -808,8 +925,14 @@ def produce_map(results: List[HypothesisResult], path: str = "reports/campaign3_
         ids = ", ".join(h.hypothesis_id for h in hyps)
         lines.append(f"| **{v.upper()}** | {len(hyps)} | {ids} |")
 
-    survivors = [r for r in results if r.verdict in (Verdict.SUPPORTED, Verdict.PRODUCTION_CANDIDATE)]
-    lines.append(f"\n**Survival: {len(survivors)}/{len(results)} ({len(survivors)/len(results)*100:.1f}%)**")
+    survivors = [
+        r
+        for r in results
+        if r.verdict in (Verdict.SUPPORTED, Verdict.PRODUCTION_CANDIDATE)
+    ]
+    lines.append(
+        f"\n**Survival: {len(survivors)}/{len(results)} ({len(survivors) / len(results) * 100:.1f}%)**"
+    )
 
     # Family breakdown
     lines.extend(["", "---", "", "## Family Breakdown", ""])
@@ -821,29 +944,51 @@ def produce_map(results: List[HypothesisResult], path: str = "reports/campaign3_
     lines.append("|---|---|---|---|---|")
     for fam, hyps in sorted(fam_groups.items()):
         rej = sum(1 for h in hyps if h.verdict == Verdict.REJECTED)
-        frac = sum(1 for h in hyps if h.verdict in (Verdict.FRAGILE, Verdict.COST_SENSITIVE, Verdict.REGIME_DEPENDENT, Verdict.INSTRUMENT_DEPENDENT))
-        sup = sum(1 for h in hyps if h.verdict in (Verdict.SUPPORTED, Verdict.PRODUCTION_CANDIDATE))
+        frac = sum(
+            1
+            for h in hyps
+            if h.verdict
+            in (
+                Verdict.FRAGILE,
+                Verdict.COST_SENSITIVE,
+                Verdict.REGIME_DEPENDENT,
+                Verdict.INSTRUMENT_DEPENDENT,
+            )
+        )
+        sup = sum(
+            1
+            for h in hyps
+            if h.verdict in (Verdict.SUPPORTED, Verdict.PRODUCTION_CANDIDATE)
+        )
         lines.append(f"| {fam} | {len(hyps)} | {rej} | {frac} | {sup} |")
 
     # Detailed results
     lines.extend(["", "---", "", "## Detailed Results", ""])
     for r in results:
-        icon = "🟢" if r.verdict in (Verdict.SUPPORTED, Verdict.PRODUCTION_CANDIDATE) else \
-               "🟡" if r.verdict in (Verdict.FRAGILE, Verdict.COST_SENSITIVE, Verdict.REGIME_DEPENDENT) else "🔴"
-        lines.extend([
-            f"### {icon} {r.hypothesis_id} — {r.description}",
-            f"**Family:** {r.family} | **HP:** {r.holding_period}m | **Verdict:** {r.verdict.value}",
-            "",
-            "| Metric | Base | Adverse | Hostile |",
-            "|---|---|---|---|",
-            f"| Net Sharpe | {r.net_sharpe_base:.3f} | {r.net_sharpe_adverse:.3f} | {r.net_sharpe_hostile:.3f} |",
-            f"| Gross Sharpe | {r.gross_sharpe:.3f} | | |",
-            f"| Max DD | {r.max_drawdown:.3f} | | |",
-            f"| WF Consistency | {r.wf_consistency:.0%} | | |",
-            f"| Trades | {r.num_trades} | | |",
-            f"| Degradation | {r.degradation:.1%} | | |",
-            "",
-        ])
+        icon = (
+            "🟢"
+            if r.verdict in (Verdict.SUPPORTED, Verdict.PRODUCTION_CANDIDATE)
+            else "🟡"
+            if r.verdict
+            in (Verdict.FRAGILE, Verdict.COST_SENSITIVE, Verdict.REGIME_DEPENDENT)
+            else "🔴"
+        )
+        lines.extend(
+            [
+                f"### {icon} {r.hypothesis_id} — {r.description}",
+                f"**Family:** {r.family} | **HP:** {r.holding_period}m | **Verdict:** {r.verdict.value}",
+                "",
+                "| Metric | Base | Adverse | Hostile |",
+                "|---|---|---|---|",
+                f"| Net Sharpe | {r.net_sharpe_base:.3f} | {r.net_sharpe_adverse:.3f} | {r.net_sharpe_hostile:.3f} |",
+                f"| Gross Sharpe | {r.gross_sharpe:.3f} | | |",
+                f"| Max DD | {r.max_drawdown:.3f} | | |",
+                f"| WF Consistency | {r.wf_consistency:.0%} | | |",
+                f"| Trades | {r.num_trades} | | |",
+                f"| Degradation | {r.degradation:.1%} | | |",
+                "",
+            ]
+        )
         if r.failure_reasons:
             lines.append(f"**Reasons:** {', '.join(r.failure_reasons)}")
             lines.append("")
@@ -856,16 +1001,31 @@ def produce_map(results: List[HypothesisResult], path: str = "reports/campaign3_
         lines.append("Combined M5+M1 intraday research (Campaigns 1-3):")
         lines.append("- Campaign 1 (M5 price): 24/24 rejected")
         lines.append("- Campaign 2 (M5 microstructure): 20/20 rejected")
-        lines.append(f"- Campaign 3 (M1 full): {len(results)}/{len(results)} rejected/fragile")
+        lines.append(
+            f"- Campaign 3 (M1 full): {len(results)}/{len(results)} rejected/fragile"
+        )
         total = 44 + len(results)
         lines.append(f"- **Total: {total} hypotheses tested, 0 survivors**")
     else:
-        lines.append(f"**{len(survivors)} candidate(s) survived** — requires deeper investigation.")
+        lines.append(
+            f"**{len(survivors)} candidate(s) survived** — requires deeper investigation."
+        )
 
-    lines.extend(["", "---", "## Research Integrity", "",
-        "- Pre-registered hypotheses", "- Walk-forward OOS validation",
-        "- 3 cost scenarios (base/adverse/hostile)", "- Cross-asset validation (8 instruments)",
-        "- 7 holding horizons tested", "- No post-result tuning", ""])
+    lines.extend(
+        [
+            "",
+            "---",
+            "## Research Integrity",
+            "",
+            "- Pre-registered hypotheses",
+            "- Walk-forward OOS validation",
+            "- 3 cost scenarios (base/adverse/hostile)",
+            "- Cross-asset validation (8 instruments)",
+            "- 7 holding horizons tested",
+            "- No post-result tuning",
+            "",
+        ]
+    )
 
     report = "\n".join(lines)
     os.makedirs(os.path.dirname(path), exist_ok=True)

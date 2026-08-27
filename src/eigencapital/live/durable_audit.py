@@ -110,8 +110,11 @@ class DurableAudit:
                     rec = json.loads(line)
                 except json.JSONDecodeError:
                     return ChainVerdict(False, n, n + 1, "unparseable record")
-                expected = _digest(str(rec.get("prev_hash")), int(rec.get("seq", 0)),
-                                   rec.get("payload", {}))
+                expected = _digest(
+                    str(rec.get("prev_hash")),
+                    int(rec.get("seq", 0)),
+                    rec.get("payload", {}),
+                )
                 if rec.get("prev_hash") != prev:
                     return ChainVerdict(False, n, rec.get("seq"), "chain break")
                 if rec.get("hash") != expected:

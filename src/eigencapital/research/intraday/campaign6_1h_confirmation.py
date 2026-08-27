@@ -28,12 +28,10 @@ Confirmation rule (fail-closed):
 
 from __future__ import annotations
 
-import hashlib
 import itertools
 import json
 import os
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -50,10 +48,10 @@ from eigencapital.research.intraday.campaign5_30m import classify
 # ── Constants ───────────────────────────────────────────────────────────
 
 TRADING_DAYS_PER_YEAR = 252
-BARS_PER_TRADING_DAY = 24          # H1 bars
-HORIZONS = [1, 2, 3, 4]            # hours
-PRIMARY_BOUNDARY = 7               # London open UTC hour (C4/C5 convention)
-PRIMARY_LOOKBACK = 2               # ~2h overnight momentum (economic match to C5)
+BARS_PER_TRADING_DAY = 24  # H1 bars
+HORIZONS = [1, 2, 3, 4]  # hours
+PRIMARY_BOUNDARY = 7  # London open UTC hour (C4/C5 convention)
+PRIMARY_LOOKBACK = 2  # ~2h overnight momentum (economic match to C5)
 
 BOUNDARY_GRID = [6, 7, 8]
 LOOKBACK_GRID = [2, 3]
@@ -66,6 +64,7 @@ REPORT_MD = "reports/campaign6_1h_confirmation.md"
 # ═══════════════════════════════════════════════════════════════════════
 # SIGNAL: same economic mechanism, expressed once per (boundary, lookback)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def make_asia_london_signal(boundary_hour: int, lookback: int) -> Callable:
     """Asia→London continuation at 1H.
@@ -93,6 +92,7 @@ PRIMARY_SIGNAL = make_asia_london_signal(PRIMARY_BOUNDARY, PRIMARY_LOOKBACK)
 # ═══════════════════════════════════════════════════════════════════════
 # ENGINE (1H-correct annualization) — identical methodology to C4/C5
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def bt(
     df: pd.DataFrame,
@@ -226,9 +226,10 @@ def daily_returns(
 # RESULT CONTAINER
 # ═══════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class ConfirmResult:
-    variant: str                 # e.g. "primary(b=07,k=2)"
+    variant: str  # e.g. "primary(b=07,k=2)"
     boundary: int
     lookback: int
     hp: int
@@ -253,14 +254,24 @@ class ConfirmResult:
 
     def to_dict(self) -> Dict[str, Any]:
         d = self.__dict__.copy()
-        d.update({
-            k: {kk: round(vv, 4) for kk, vv in v.items()}
-            for k, v in d.items()
-            if isinstance(v, dict)
-        })
-        for k in ["gross_sharpe", "net_base", "net_adverse", "max_dd",
-                  "wf_consistency", "wf_oos_sharpe", "degradation",
-                  "permutation_p", "permutation_p_bonferroni"]:
+        d.update(
+            {
+                k: {kk: round(vv, 4) for kk, vv in v.items()}
+                for k, v in d.items()
+                if isinstance(v, dict)
+            }
+        )
+        for k in [
+            "gross_sharpe",
+            "net_base",
+            "net_adverse",
+            "max_dd",
+            "wf_consistency",
+            "wf_oos_sharpe",
+            "degradation",
+            "permutation_p",
+            "permutation_p_bonferroni",
+        ]:
             d[k] = round(d[k], 4)
         return d
 
@@ -268,6 +279,7 @@ class ConfirmResult:
 # ═══════════════════════════════════════════════════════════════════════
 # EVALUATION
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def evaluate_variant(
     func: Callable,
@@ -316,7 +328,9 @@ def evaluate_variant(
 
     # Regime decomposition on anchor
     try:
-        yr_sh, sess_sh, yr_dd = regime_analysis(anchor, _threshold(func(anchor).fillna(0)), hp)
+        yr_sh, sess_sh, yr_dd = regime_analysis(
+            anchor, _threshold(func(anchor).fillna(0)), hp
+        )
     except Exception:
         yr_sh, sess_sh, yr_dd = {}, {}, {}
 
@@ -333,27 +347,48 @@ def evaluate_variant(
         pass
 
     # Classify using FROZEN C4/C5 gates
-    from eigencapital.research.intraday.campaign4_15m import HypResult, Verdict
+    from eigencapital.research.intraday.campaign4_15m import HypResult
 
     hr = HypResult(
-        hid=variant_name, family="asia_london_confirm",
-        description=f"ST-001 @1H ({variant_name})", hp=hp,
-        gross_sharpe=ag, net_base=anb, net_adverse=ana, max_dd=mdd,
-        trades=total_trades, wf_consistency=wf_cons, wf_oos_sharpe=wf_oos,
-        degradation=deg, permutation_p=p_adj,
+        hid=variant_name,
+        family="asia_london_confirm",
+        description=f"ST-001 @1H ({variant_name})",
+        hp=hp,
+        gross_sharpe=ag,
+        net_base=anb,
+        net_adverse=ana,
+        max_dd=mdd,
+        trades=total_trades,
+        wf_consistency=wf_cons,
+        wf_oos_sharpe=wf_oos,
+        degradation=deg,
+        permutation_p=p_adj,
         sym_sharpes=sym_net,
     )
     verdict_v, reasons, primary_fail = classify(hr)
 
     return ConfirmResult(
-        variant=variant_name, boundary=boundary, lookback=lookback, hp=hp,
-        gross_sharpe=ag, net_base=anb, net_adverse=ana, max_dd=mdd,
-        trades=total_trades, wf_consistency=wf_cons, wf_oos_sharpe=wf_oos,
-        degradation=deg, permutation_p=perm_p,
+        variant=variant_name,
+        boundary=boundary,
+        lookback=lookback,
+        hp=hp,
+        gross_sharpe=ag,
+        net_base=anb,
+        net_adverse=ana,
+        max_dd=mdd,
+        trades=total_trades,
+        wf_consistency=wf_cons,
+        wf_oos_sharpe=wf_oos,
+        degradation=deg,
+        permutation_p=perm_p,
         permutation_p_bonferroni=p_adj,
         verdict=verdict_v.value if hasattr(verdict_v, "value") else str(verdict_v),
-        reasons=reasons, sym_sharpes=sym_net, sym_pnl_share=pnl_share,
-        year_sharpes=yr_sh, year_dd=yr_dd, session_sharpes=sess_sh,
+        reasons=reasons,
+        sym_sharpes=sym_net,
+        sym_pnl_share=pnl_share,
+        year_sharpes=yr_sh,
+        year_dd=yr_dd,
+        session_sharpes=sess_sh,
         primary_failure=primary_fail,
     )
 
@@ -383,14 +418,17 @@ def cross_instrument_correlation(
 # RUNNER
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def run(data_dir: str = DATA_DIR) -> Tuple[List[ConfirmResult], List[ConfirmResult]]:
     data: Dict[str, pd.DataFrame] = {}
     for s in UNIVERSE:
         p = os.path.join(data_dir, f"{s}_H1.csv")
         if os.path.exists(p):
             data[s] = pd.read_csv(p, parse_dates=["time"])
-            print(f"  Loaded {s}: {len(data[s])} bars "
-                  f"({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})")
+            print(
+                f"  Loaded {s}: {len(data[s])} bars "
+                f"({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})"
+            )
     if not data:
         print("ERROR: No H1 data found")
         return [], []
@@ -399,21 +437,30 @@ def run(data_dir: str = DATA_DIR) -> Tuple[List[ConfirmResult], List[ConfirmResu
     grid_size = len(BOUNDARY_GRID) * len(LOOKBACK_GRID)
     family_size = len(HORIZONS) * grid_size
 
-    print(f"\nFamily size for Bonferroni: {family_size} "
-          f"(4 horizons x {grid_size} variants)")
+    print(
+        f"\nFamily size for Bonferroni: {family_size} "
+        f"(4 horizons x {grid_size} variants)"
+    )
 
     results: List[ConfirmResult] = []
     print("\n=== PRIMARY: ST-001 @1H (b=07, k=2) ===")
     for hp in HORIZONS:
         r = evaluate_variant(
-            PRIMARY_SIGNAL, hp, data, f"b={PRIMARY_BOUNDARY:02d},k={PRIMARY_LOOKBACK}",
-            PRIMARY_BOUNDARY, PRIMARY_LOOKBACK,
-            bonferroni_factor=family_size, n_perms=200,
+            PRIMARY_SIGNAL,
+            hp,
+            data,
+            f"b={PRIMARY_BOUNDARY:02d},k={PRIMARY_LOOKBACK}",
+            PRIMARY_BOUNDARY,
+            PRIMARY_LOOKBACK,
+            bonferroni_factor=family_size,
+            n_perms=200,
         )
-        print(f"  HP={hp}h: gross={r.gross_sharpe:+.3f} net={r.net_base:+.3f} "
-              f"adv={r.net_adverse:+.3f} DD={r.max_dd:.2f} WF={r.wf_consistency:.0%} "
-              f"perm_p={r.permutation_p:.3f} p_adj={r.permutation_p_bonferroni:.3f} "
-              f"→ {r.verdict}")
+        print(
+            f"  HP={hp}h: gross={r.gross_sharpe:+.3f} net={r.net_base:+.3f} "
+            f"adv={r.net_adverse:+.3f} DD={r.max_dd:.2f} WF={r.wf_consistency:.0%} "
+            f"perm_p={r.permutation_p:.3f} p_adj={r.permutation_p_bonferroni:.3f} "
+            f"→ {r.verdict}"
+        )
         results.append(r)
 
     sensitivity: List[ConfirmResult] = []
@@ -423,13 +470,20 @@ def run(data_dir: str = DATA_DIR) -> Tuple[List[ConfirmResult], List[ConfirmResu
             continue
         for hp in HORIZONS:
             r = evaluate_variant(
-                make_asia_london_signal(b, k), hp, data,
-                f"b={b:02d},k={k}", b, k,
-                bonferroni_factor=family_size, n_perms=100,
+                make_asia_london_signal(b, k),
+                hp,
+                data,
+                f"b={b:02d},k={k}",
+                b,
+                k,
+                bonferroni_factor=family_size,
+                n_perms=100,
             )
-            print(f"  b={b:02d} k={k} HP={hp}h: net={r.net_base:+.3f} "
-                  f"WF={r.wf_consistency:.0%} p_adj={r.permutation_p_bonferroni:.3f} "
-                  f"→ {r.verdict}")
+            print(
+                f"  b={b:02d} k={k} HP={hp}h: net={r.net_base:+.3f} "
+                f"WF={r.wf_consistency:.0%} p_adj={r.permutation_p_bonferroni:.3f} "
+                f"→ {r.verdict}"
+            )
             sensitivity.append(r)
 
     return results, sensitivity
@@ -439,7 +493,8 @@ def confirm_verdict(results: List[ConfirmResult]) -> Tuple[str, List[str]]:
     """Fail-closed confirmation decision."""
     notes: List[str] = []
     confirmed = [
-        r for r in results
+        r
+        for r in results
         if r.verdict == "supported" and r.permutation_p_bonferroni <= 0.05
     ]
     if confirmed:
@@ -465,6 +520,7 @@ def confirm_verdict(results: List[ConfirmResult]) -> Tuple[str, List[str]]:
 # REPORTS
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def write_reports(
     results: List[ConfirmResult],
     sensitivity: List[ConfirmResult],
@@ -481,17 +537,27 @@ def write_reports(
         "**Universe:** 8 instruments (Exness MT5, H1)",
         "**Data:** ~50,000 bars/symbol (~8 years, 2018 → 2026)",
         f"**Generated:** {now}",
-        f"**Costs:** base {CostModel.BASE*10000:.0f}bps / adverse {CostModel.ADVERSE*10000:.0f}bps",
+        f"**Costs:** base {CostModel.BASE * 10000:.0f}bps / adverse {CostModel.ADVERSE * 10000:.0f}bps",
         f"**Multiple testing:** Bonferroni over {len(results)} primary + "
         f"{len(sensitivity)} sensitivity evaluations",
         "",
-        "---", "",
-        f"## CONFIRMATION VERDICT: **{final_verdict}**", "",
+        "---",
+        "",
+        f"## CONFIRMATION VERDICT: **{final_verdict}**",
+        "",
     ]
     lines.extend(f"- {n}" for n in notes)
-    lines.extend(["", "---", "", "## PRIMARY RESULTS (b=07, k=2)", "",
-                  "| HP | Gross | Net | Adverse | MaxDD | WF | OOS | Perm p | p_adj | Verdict |",
-                  "|---|---|---|---|---|---|---|---|---|---|"])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## PRIMARY RESULTS (b=07, k=2)",
+            "",
+            "| HP | Gross | Net | Adverse | MaxDD | WF | OOS | Perm p | p_adj | Verdict |",
+            "|---|---|---|---|---|---|---|---|---|---|",
+        ]
+    )
     for r in results:
         lines.append(
             f"| {r.hp}h | {r.gross_sharpe:+.3f} | {r.net_base:+.3f} | "
@@ -501,59 +567,84 @@ def write_reports(
         )
 
     best_primary = max(results, key=lambda r: r.net_base)
-    lines.extend([
-        "", f"### Best-primary deep dive (HP={best_primary.hp}h)", "",
-        "**Year-by-year:**",
-        *[f"- {yr}: Sharpe {sh:+.2f}, DD {dd:.1%}"
-          for (yr, sh), (_, dd) in zip(sorted(best_primary.year_sharpes.items()),
-                                       sorted(best_primary.year_dd.items(),
-                                              key=lambda x: x[0]))],
-        "",
-        "**Session attribution:**",
-        *[f"- {s}: {sh:+.2f}" for s, sh in sorted(best_primary.session_sharpes.items())],
-        "",
-        "**Per-instrument (net Sharpe | PnL share):**",
-        *[f"- {s}: {best_primary.sym_sharpes.get(s, 0):+.3f} | "
-          f"{best_primary.sym_pnl_share.get(s, 0):.1%}"
-          for s in sorted(best_primary.sym_sharpes)],
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            f"### Best-primary deep dive (HP={best_primary.hp}h)",
+            "",
+            "**Year-by-year:**",
+            *[
+                f"- {yr}: Sharpe {sh:+.2f}, DD {dd:.1%}"
+                for (yr, sh), (_, dd) in zip(
+                    sorted(best_primary.year_sharpes.items()),
+                    sorted(best_primary.year_dd.items(), key=lambda x: x[0]),
+                )
+            ],
+            "",
+            "**Session attribution:**",
+            *[
+                f"- {s}: {sh:+.2f}"
+                for s, sh in sorted(best_primary.session_sharpes.items())
+            ],
+            "",
+            "**Per-instrument (net Sharpe | PnL share):**",
+            *[
+                f"- {s}: {best_primary.sym_sharpes.get(s, 0):+.3f} | "
+                f"{best_primary.sym_pnl_share.get(s, 0):.1%}"
+                for s in sorted(best_primary.sym_sharpes)
+            ],
+            "",
+        ]
+    )
 
     if correlations:
         vals = sorted(correlations.values())
         avg = float(np.mean(vals)) if vals else 0.0
         mx = max(vals) if vals else 0.0
-        lines.extend([
-            "### Cross-instrument concentration", "",
-            f"- Average pairwise correlation of daily strategy returns: {avg:+.3f}",
-            f"- Maximum pairwise correlation: {mx:+.3f}",
-            "- Interpretation: high correlation ⇒ concentrated risk factor, "
-            "not independent edges.", "",
-        ])
+        lines.extend(
+            [
+                "### Cross-instrument concentration",
+                "",
+                f"- Average pairwise correlation of daily strategy returns: {avg:+.3f}",
+                f"- Maximum pairwise correlation: {mx:+.3f}",
+                "- Interpretation: high correlation ⇒ concentrated risk factor, "
+                "not independent edges.",
+                "",
+            ]
+        )
 
-    lines.extend([
-        "---", "",
-        "## SENSITIVITY GRID (diagnostics only — no selection)", "",
-        "| Boundary | Lookback | HP | Net | WF | p_adj | Verdict |",
-        "|---|---|---|---|---|---|---|",
-    ])
+    lines.extend(
+        [
+            "---",
+            "",
+            "## SENSITIVITY GRID (diagnostics only — no selection)",
+            "",
+            "| Boundary | Lookback | HP | Net | WF | p_adj | Verdict |",
+            "|---|---|---|---|---|---|---|",
+        ]
+    )
     for r in sensitivity:
         lines.append(
             f"| {r.boundary:02d}:00 | {r.lookback}h | {r.hp}h | "
             f"{r.net_base:+.3f} | {r.wf_consistency:.0%} | "
             f"{r.permutation_p_bonferroni:.3f} | {r.verdict} |"
         )
-    robust_count = sum(1 for r in sensitivity
-                       if r.net_base > 0 and r.permutation_p_bonferroni <= 0.10)
-    lines.extend([
-        "",
-        f"Sensitivity robustness: {robust_count}/{len(sensitivity)} variants "
-        "positive with p_adj ≤ 0.10. Robustness across neighbouring boundaries/"
-        "lookbacks indicates a stable economic effect rather than a knife-edge fit.",
-        "",
-        "---", "",
-        "## DECISION", "",
-    ])
+    robust_count = sum(
+        1 for r in sensitivity if r.net_base > 0 and r.permutation_p_bonferroni <= 0.10
+    )
+    lines.extend(
+        [
+            "",
+            f"Sensitivity robustness: {robust_count}/{len(sensitivity)} variants "
+            "positive with p_adj ≤ 0.10. Robustness across neighbouring boundaries/"
+            "lookbacks indicates a stable economic effect rather than a knife-edge fit.",
+            "",
+            "---",
+            "",
+            "## DECISION",
+            "",
+        ]
+    )
     if final_verdict == "CONFIRMED":
         lines.append(
             "Cross-timeframe evidence obtained. Next step per program rules: "
@@ -581,7 +672,8 @@ def write_reports(
         "sensitivity": [r.to_dict() for r in sensitivity],
         "cross_instrument_correlation": (
             {f"{a}|{b}": c for (a, b), c in correlations.items()}
-            if correlations else {}
+            if correlations
+            else {}
         ),
     }
     with open(REPORT_JSON, "w") as f:
@@ -595,6 +687,7 @@ def write_reports(
 
 if __name__ == "__main__":
     import sys
+
     ddir = sys.argv[1] if len(sys.argv) > 1 else DATA_DIR
     res, sens = run(ddir)
 

@@ -45,7 +45,7 @@ try:
 except ImportError:
     MetaTrader5 = None  # Allow import on non-Linux for testing
 
-from eigencapital.config import load_config, LiveRiskConfig
+from eigencapital.config import load_config
 from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope, GateResult
 from eigencapital.live.daily_loss import DailyLossTracker
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
@@ -53,7 +53,6 @@ from eigencapital.live.watchdog import Watchdog, ProbeResult, WatchState
 from eigencapital.live.position_attribution import classify_all, snapshot_hash, R4_MAGIC
 from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
-    VerificationStatus,
 )
 from eigencapital.reconciliation.engine import (
     ReconciliationEngine,
@@ -70,7 +69,8 @@ R4_SYMBOLS = list(_config.broker.allowed_symbols.keys())
 
 # Eligible symbols — those classified as tradeable (not excluded)
 ELIGIBLE_SYMBOLS = [
-    sym for sym, cls in _config.broker.allowed_symbols.items()
+    sym
+    for sym, cls in _config.broker.allowed_symbols.items()
     if not cls.endswith("_excluded")
 ]
 
@@ -150,6 +150,7 @@ if hasattr(signal, "SIGTERM"):
 
 # ── Helpers ────────────────────────────────────────────────────────
 
+
 def log(msg: str) -> None:
     ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
     print(f"  [{ts}] {msg}", flush=True)
@@ -197,7 +198,10 @@ def _load_state() -> Optional[Dict[str, Any]]:
 
 # ── Signal Computation ─────────────────────────────────────────────
 
-def fetch_d1_data(mt5, symbols: List[str], bars: Optional[int] = None) -> Dict[str, pd.DataFrame]:
+
+def fetch_d1_data(
+    mt5, symbols: List[str], bars: Optional[int] = None
+) -> Dict[str, pd.DataFrame]:
     if bars is None:
         bars = _config.data.fetch_bars
     data: Dict[str, pd.DataFrame] = {}
@@ -223,10 +227,12 @@ def compute_r4_signal(
     → regime conditioning → vol scaling → [-0.20, +0.20] clip
     → BTCUSD [-0.10, +0.10] clip
     """
-    returns_df = pd.DataFrame({
-        sym: df["close"].pct_change()
-        for sym, df in data.items()
-    }).dropna(how="all").ffill().fillna(0)
+    returns_df = (
+        pd.DataFrame({sym: df["close"].pct_change() for sym, df in data.items()})
+        .dropna(how="all")
+        .ffill()
+        .fillna(0)
+    )
 
     # 1. Momentum signal: 12-1 month
     mom_12m = (1 + returns_df).rolling(LOOKBACK).apply(lambda x: x.prod() - 1, raw=True)
@@ -282,6 +288,7 @@ def compute_r4_signal(
 
 
 # ── Order Generation ───────────────────────────────────────────────
+
 
 def generate_orders(
     target_weights: pd.Series,
@@ -375,7 +382,15 @@ def generate_orders(
             tickets = (pos_details or {}).get(sym, [])
             if tickets:
                 for tkt in tickets:
-                    orders.append((sym, side, lots if len(tickets) == 1 else tkt["volume"], reason, tkt["ticket"]))
+                    orders.append(
+                        (
+                            sym,
+                            side,
+                            lots if len(tickets) == 1 else tkt["volume"],
+                            reason,
+                            tkt["ticket"],
+                        )
+                    )
             else:
                 orders.append((sym, side, lots, reason, None))
 
@@ -414,6 +429,7 @@ def generate_orders(
 
 # ── Execution ──────────────────────────────────────────────────────
 
+
 def detect_filling_mode(mt5) -> int:
     """Try to detect the filling mode for the broker."""
     # Exness demo typically uses FOK
@@ -421,15 +437,18 @@ def detect_filling_mode(mt5) -> int:
 
 
 def execute_orders(
-    mt5, orders: List[Tuple[str, str, float, str, Optional[int]]], filling_mode: int,
-    max_retries: int = 2, retry_delay: float = 0.5,
+    mt5,
+    orders: List[Tuple[str, str, float, str, Optional[int]]],
+    filling_mode: int,
+    max_retries: int = 2,
+    retry_delay: float = 0.5,
 ) -> Dict[str, Any]:
     """Submit orders and return results.
 
     Each order is (symbol, side, lots, reason, ticket_or_None).
     When ticket is provided (close), the order is bound to that position
     so it works correctly on hedging accounts.
-    
+
     Args:
         max_retries: Maximum retry attempts per order on transient failure
         retry_delay: Initial delay between retries (doubles each retry)
@@ -448,14 +467,26 @@ def execute_orders(
             positions = mt5.positions_get(ticket=ticket)
             if positions and len(positions) > 0:
                 pos_type = positions[0].type  # 0=BUY, 1=SELL
-                mt5_type = MetaTrader5.ORDER_TYPE_SELL if pos_type == 0 else MetaTrader5.ORDER_TYPE_BUY
+                mt5_type = (
+                    MetaTrader5.ORDER_TYPE_SELL
+                    if pos_type == 0
+                    else MetaTrader5.ORDER_TYPE_BUY
+                )
                 price = tick.bid if pos_type == 0 else tick.ask
             else:
                 # Fallback: treat as new order
-                mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
+                mt5_type = (
+                    MetaTrader5.ORDER_TYPE_BUY
+                    if side == "BUY"
+                    else MetaTrader5.ORDER_TYPE_SELL
+                )
                 price = tick.ask if side == "BUY" else tick.bid
         else:
-            mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
+            mt5_type = (
+                MetaTrader5.ORDER_TYPE_BUY
+                if side == "BUY"
+                else MetaTrader5.ORDER_TYPE_SELL
+            )
             price = tick.ask if side == "BUY" else tick.bid
 
         request = {
@@ -481,20 +512,29 @@ def execute_orders(
                 break  # Success
             elif attempt < max_retries:
                 # Transient failure — retry with exponential backoff
-                delay = retry_delay * (2 ** attempt)
-                log(f"  ⚠️ {side} {lots:.2f} {sym} — retry {attempt+1}/{max_retries} in {delay:.1f}s")
+                delay = retry_delay * (2**attempt)
+                log(
+                    f"  ⚠️ {side} {lots:.2f} {sym} — retry {attempt + 1}/{max_retries} in {delay:.1f}s"
+                )
                 time.sleep(delay)
-        
+
         results["submitted"] += 1
 
         if result and result.retcode == MetaTrader5.TRADE_RETCODE_DONE:
             results["filled"] += 1
-            results["fills"].append({
-                "symbol": sym, "side": side, "lots": lots,
-                "price": result.price, "deal": result.deal,
-            })
+            results["fills"].append(
+                {
+                    "symbol": sym,
+                    "side": side,
+                    "lots": lots,
+                    "price": result.price,
+                    "deal": result.deal,
+                }
+            )
             verb = "CLOSE" if ticket is not None else side
-            log(f"  ✅ {verb} {lots:.2f} {sym} @ {result.price:.5f} — Deal #{result.deal}")
+            log(
+                f"  ✅ {verb} {lots:.2f} {sym} @ {result.price:.5f} — Deal #{result.deal}"
+            )
         else:
             results["failed"] += 1
             rc = result.retcode if result else "None"
@@ -505,6 +545,7 @@ def execute_orders(
 
 
 # ── Main Loop ──────────────────────────────────────────────────────
+
 
 def _reconnect_mt5(mt5) -> bool:
     """Force a fresh MT5 session.
@@ -539,10 +580,13 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
 
     # 0. Watchdog probe — detect stale/blind/contain conditions
     positions_for_hash = list(mt5.positions_get() or [])
-    free_margin = getattr(account, 'margin_free', 0) or getattr(account, 'free_margin', 0) or 0
+    free_margin = (
+        getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0
+    )
     broker_hash = snapshot_hash(
         [{"ticket": p.ticket, "symbol": p.symbol} for p in positions_for_hash],
-        equity, free_margin,
+        equity,
+        free_margin,
     )
     wd_probe = ProbeResult(
         process_alive=True,
@@ -554,26 +598,52 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     wd_decision = _watchdog.evaluate(wd_probe)
     if wd_decision.state not in (WatchState.NORMAL,):
         log(f"🔴 Watchdog: {wd_decision.state.value} — {wd_decision.reason}")
-        audit({"event": "watchdog_escalation", "state": wd_decision.state.value, "reason": wd_decision.reason})
+        audit(
+            {
+                "event": "watchdog_escalation",
+                "state": wd_decision.state.value,
+                "reason": wd_decision.reason,
+            }
+        )
         if not wd_decision.authorize_trading:
-            return {"status": "BLOCKED", "reason": f"watchdog_{wd_decision.state.value}"}
+            return {
+                "status": "BLOCKED",
+                "reason": f"watchdog_{wd_decision.state.value}",
+            }
 
     # 0b. Fingerprint verification (fail closed)
     fp_result = _fingerprint_verifier.verify_all()
     if not fp_result.all_verified:
         failed = [c for c in fp_result.checks if c.status != "verified"]
-        log(f"🔴 FINGERPRINT VERIFICATION FAILED — {len(failed)} component(s) mismatched")
+        log(
+            f"🔴 FINGERPRINT VERIFICATION FAILED — {len(failed)} component(s) mismatched"
+        )
         for fc in failed:
             log(f"   → {fc.component}: {fc.message}")
-        audit({"event": "fingerprint_failed", "checks": [c.to_dict() for c in fp_result.checks]})
-        return {"status": "BLOCKED", "reason": "fingerprint_mismatch", "checks": [c.to_dict() for c in fp_result.checks]}
+        audit(
+            {
+                "event": "fingerprint_failed",
+                "checks": [c.to_dict() for c in fp_result.checks],
+            }
+        )
+        return {
+            "status": "BLOCKED",
+            "reason": "fingerprint_mismatch",
+            "checks": [c.to_dict() for c in fp_result.checks],
+        }
 
     # 0b. Daily loss check (correct tracker, not broken RiskEnforcer daily loss)
     _daily_loss_tracker.update(equity=equity)
     if _daily_loss_tracker.is_daily_loss_breached:
-        log(f"🔴 DAILY LOSS BREACHED: ${_daily_loss_tracker.daily_loss:,.2f} > ${_lr.max_daily_loss:,.2f}")
+        log(
+            f"🔴 DAILY LOSS BREACHED: ${_daily_loss_tracker.daily_loss:,.2f} > ${_lr.max_daily_loss:,.2f}"
+        )
         audit({"event": "daily_loss_breached", **_daily_loss_tracker.to_dict()})
-        return {"status": "BLOCKED", "reason": "daily_loss_breached", **_daily_loss_tracker.to_dict()}
+        return {
+            "status": "BLOCKED",
+            "reason": "daily_loss_breached",
+            **_daily_loss_tracker.to_dict(),
+        }
 
     # 1. Fetch data (retry once with a fresh connection on failure)
     data = fetch_d1_data(mt5, R4_SYMBOLS, bars=300)
@@ -590,8 +660,10 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     # 2. Compute signal
     target_weights, diag = compute_r4_signal(data, force_regime)
 
-    log(f"Signal: {diag['signal_date']} | Regime: {'ON' if diag['regime_on'] else 'OFF'} | "
-        f"Active: {diag['active_positions']} | Vol: {diag['vol_now']:.1%} vs median {diag['vol_median']:.1%}")
+    log(
+        f"Signal: {diag['signal_date']} | Regime: {'ON' if diag['regime_on'] else 'OFF'} | "
+        f"Active: {diag['active_positions']} | Vol: {diag['vol_now']:.1%} vs median {diag['vol_median']:.1%}"
+    )
 
     # 3. Regime gate
     if not diag["regime_on"] and not force_regime:
@@ -608,32 +680,59 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         current_lots[p.symbol] = current_lots.get(p.symbol, 0) + sign * p.volume
 
     # 5. Position attribution — classify all positions before risk checks
-    classified = classify_all([{
-        "ticket": p.ticket, "symbol": p.symbol, "type": p.type,
-        "volume": p.volume, "magic": p.magic, "comment": p.comment,
-        "profit": p.profit, "price_open": p.price_open,
-        "sl": p.sl, "tp": p.tp,
-    } for p in pos_list])
+    classified = classify_all(
+        [
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "type": p.type,
+                "volume": p.volume,
+                "magic": p.magic,
+                "comment": p.comment,
+                "profit": p.profit,
+                "price_open": p.price_open,
+                "sl": p.sl,
+                "tp": p.tp,
+            }
+            for p in pos_list
+        ]
+    )
     from eigencapital.live.position_attribution import capacity_account
+
     capacity = capacity_account(classified, MAX_CONCURRENT)
     if capacity.contaminated:
-        log(f"⚠️ QUARANTINE: {len(capacity.foreign_positions)} foreign position(s) — new entries blocked")
+        log(
+            f"⚠️ QUARANTINE: {len(capacity.foreign_positions)} foreign position(s) — new entries blocked"
+        )
         audit({"event": "quarantine", "foreign": capacity.foreign_positions})
         # Allow self-rotation but block new entries
     if capacity.r4_open_count > capacity.max_concurrent:
-        log(f"⚠️ R4 OVERFLOW: {capacity.r4_open_count}/{capacity.max_concurrent} — forcing rotation")
+        log(
+            f"⚠️ R4 OVERFLOW: {capacity.r4_open_count}/{capacity.max_concurrent} — forcing rotation"
+        )
 
     # 5a. Reconciliation — verify broker ↔ internal state consistency
     broker_state = BrokerState(
-        positions=[{
-            "ticket": p.ticket, "symbol": p.symbol, "volume": p.volume,
-            "type": p.type, "magic": p.magic, "comment": p.comment,
-            "profit": p.profit, "price_open": p.price_open,
-            "sl": p.sl, "tp": p.tp,
-        } for p in pos_list],
+        positions=[
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "volume": p.volume,
+                "type": p.type,
+                "magic": p.magic,
+                "comment": p.comment,
+                "profit": p.profit,
+                "price_open": p.price_open,
+                "sl": p.sl,
+                "tp": p.tp,
+            }
+            for p in pos_list
+        ],
         account_equity=equity,
-        account_balance=getattr(account, 'balance', equity),
-        account_free_margin=getattr(account, 'margin_free', 0) or getattr(account, 'free_margin', 0) or 0,
+        account_balance=getattr(account, "balance", equity),
+        account_free_margin=getattr(account, "margin_free", 0)
+        or getattr(account, "free_margin", 0)
+        or 0,
         orders=[],
         timestamp=datetime.now(timezone.utc).isoformat(),
     )
@@ -649,46 +748,64 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             for p in pos_list
         },
         pending_orders=[],
-        last_signal={"weights": target_weights.to_dict() if hasattr(target_weights, 'to_dict') else {}},
-        target_weights=target_weights.to_dict() if hasattr(target_weights, 'to_dict') else {},
+        last_signal={
+            "weights": target_weights.to_dict()
+            if hasattr(target_weights, "to_dict")
+            else {}
+        },
+        target_weights=target_weights.to_dict()
+        if hasattr(target_weights, "to_dict")
+        else {},
         timestamp=datetime.now(timezone.utc).isoformat(),
     )
     recon_result = _reconciliation_engine.reconcile(broker_state, internal_state)
-    
+
     # Log reconciliation results
     if recon_result.status != "RECONCILED":
-        log(f"⚠️ Reconciliation: {recon_result.status} — {len(recon_result.mismatches)} mismatch(es)")
+        log(
+            f"⚠️ Reconciliation: {recon_result.status} — {len(recon_result.mismatches)} mismatch(es)"
+        )
         for mm in recon_result.mismatches:
             log(f"   → {mm}")
-        audit({
-            "event": "reconciliation",
-            "status": recon_result.status,
-            "mismatches": recon_result.mismatches,
-            "action": recon_result.action_required,
-        })
+        audit(
+            {
+                "event": "reconciliation",
+                "status": recon_result.status,
+                "mismatches": recon_result.mismatches,
+                "action": recon_result.action_required,
+            }
+        )
         # HALT on dangerous discrepancies
         if recon_result.action_required == "HALT":
             log("🔴 RECONCILIATION HALT — stopping trading")
-            return {"status": "HALTED", "reason": "reconciliation_halt", "mismatches": recon_result.mismatches}
+            return {
+                "status": "HALTED",
+                "reason": "reconciliation_halt",
+                "mismatches": recon_result.mismatches,
+            }
     else:
-        log(f"✅ Reconciliation: RECONCILED")
+        log("✅ Reconciliation: RECONCILED")
 
     # 5b. Risk enforcement gates (before generating orders)
     broker_positions = []
     for p in pos_list:
-        broker_positions.append({
-            "symbol": p.symbol,
-            "volume": p.volume,
-            "type": p.type,
-            "price_open": p.price_open,
-            "sl": p.sl,
-            "tp": p.tp,
-            "profit": p.profit,
-            "magic": p.magic,
-            "comment": p.comment,
-        })
+        broker_positions.append(
+            {
+                "symbol": p.symbol,
+                "volume": p.volume,
+                "type": p.type,
+                "price_open": p.price_open,
+                "sl": p.sl,
+                "tp": p.tp,
+                "profit": p.profit,
+                "magic": p.magic,
+                "comment": p.comment,
+            }
+        )
 
-    free_margin = getattr(account, 'margin_free', 0) or getattr(account, 'free_margin', 0) or 0
+    free_margin = (
+        getattr(account, "margin_free", 0) or getattr(account, "free_margin", 0) or 0
+    )
     all_pass, gate_results = _risk_enforcer.check_all(
         broker_positions=broker_positions,
         account_equity=equity,
@@ -701,7 +818,13 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
 
     # Log gate results
     for gr in gate_results:
-        status = "✅" if gr.result == GateResult.PASS else "⚠️" if gr.result == GateResult.BLOCK else "🔴"
+        status = (
+            "✅"
+            if gr.result == GateResult.PASS
+            else "⚠️"
+            if gr.result == GateResult.BLOCK
+            else "🔴"
+        )
         log(f"  {status} {gr.gate_name}: {gr.message}")
 
     # Check for CRITICAL conditions (breach already exists)
@@ -709,13 +832,19 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     if has_critical:
         critical_gates = [r for r in gate_results if r.result == GateResult.CRITICAL]
         log(f"🔴 CRITICAL: {len(critical_gates)} gate(s) breached — NO ENTRIES")
-        audit({
-            "event": "risk_critical",
-            "gates": [r.to_dict() for r in critical_gates],
-            "positions": len(pos_list),
-            "equity": equity,
-        })
-        return {"status": "BLOCKED", "reason": "risk_critical", "gates": [r.to_dict() for r in gate_results]}
+        audit(
+            {
+                "event": "risk_critical",
+                "gates": [r.to_dict() for r in critical_gates],
+                "positions": len(pos_list),
+                "equity": equity,
+            }
+        )
+        return {
+            "status": "BLOCKED",
+            "reason": "risk_critical",
+            "gates": [r.to_dict() for r in gate_results],
+        }
 
     # Check for BLOCK conditions (new entries not allowed)
     has_block = any(r.result == GateResult.BLOCK for r in gate_results)
@@ -724,13 +853,19 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         log(f"⛔ BLOCKED: {len(blocked_gates)} gate(s) prevent entries")
         for bg in blocked_gates:
             log(f"   → {bg.gate_name}: {bg.message}")
-        audit({
-            "event": "risk_blocked",
+        audit(
+            {
+                "event": "risk_blocked",
+                "gates": [r.to_dict() for r in gate_results],
+                "positions": len(pos_list),
+                "equity": equity,
+            }
+        )
+        return {
+            "status": "BLOCKED",
+            "reason": "risk_blocked",
             "gates": [r.to_dict() for r in gate_results],
-            "positions": len(pos_list),
-            "equity": equity,
-        })
-        return {"status": "BLOCKED", "reason": "risk_blocked", "gates": [r.to_dict() for r in gate_results]}
+        }
 
     # 6. Get prices and specs
     prices: Dict[str, float] = {}
@@ -747,12 +882,24 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     # 6. Build position details (tickets for hedging-safe closes)
     pos_details: Dict[str, List[Dict[str, Any]]] = {}
     for p in pos_list:
-        pos_details.setdefault(p.symbol, []).append({
-            "ticket": p.ticket, "volume": p.volume, "type": p.type,
-        })
+        pos_details.setdefault(p.symbol, []).append(
+            {
+                "ticket": p.ticket,
+                "volume": p.volume,
+                "type": p.type,
+            }
+        )
 
     # 6. Generate orders (rotation-aware: closes weak, opens strong)
-    orders = generate_orders(target_weights, current_lots, prices, contract_sizes, min_volumes, equity, pos_details)
+    orders = generate_orders(
+        target_weights,
+        current_lots,
+        prices,
+        contract_sizes,
+        min_volumes,
+        equity,
+        pos_details,
+    )
 
     # Split into closes and opens
     closes = [o for o in orders if "rotated out" in o[3]]
@@ -761,7 +908,9 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     # After closes, we have free slots for opens
     available_after_close = MAX_CONCURRENT - len(pos_list) + len(closes)
     if len(opens) > available_after_close:
-        log(f"⚠️  {len(opens)} opens after {len(closes)} closes — truncating to {available_after_close}")
+        log(
+            f"⚠️  {len(opens)} opens after {len(closes)} closes — truncating to {available_after_close}"
+        )
         opens = opens[:available_after_close]
         orders = closes + opens
 
@@ -769,7 +918,9 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     if not orders:
         # Check if we're at limit with no rotation needed
         if len(pos_list) >= MAX_CONCURRENT:
-            log(f"📊 At {len(pos_list)}/{MAX_CONCURRENT} — portfolio aligned, no rotation needed")
+            log(
+                f"📊 At {len(pos_list)}/{MAX_CONCURRENT} — portfolio aligned, no rotation needed"
+            )
             audit({"event": "aligned", "positions": len(pos_list), "diag": diag})
             return {"status": "ALIGNED", "diag": diag}
 
@@ -812,8 +963,10 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         "duration_seconds": time.time() - cycle_start,
     }
 
-    log(f"Result: {exec_results['filled']}/{exec_results['submitted']} filled | "
-        f"Equity: ${cycle_result['equity_after']:,.2f}")
+    log(
+        f"Result: {exec_results['filled']}/{exec_results['submitted']} filled | "
+        f"Equity: ${cycle_result['equity_after']:,.2f}"
+    )
 
     audit({"event": "executed", **cycle_result})
 
@@ -846,7 +999,9 @@ def emergency_flatten(mt5) -> Dict[str, Any]:
             continue
 
         # Close in opposite direction
-        close_type = MetaTrader5.ORDER_TYPE_SELL if p.type == 0 else MetaTrader5.ORDER_TYPE_BUY
+        close_type = (
+            MetaTrader5.ORDER_TYPE_SELL if p.type == 0 else MetaTrader5.ORDER_TYPE_BUY
+        )
         close_price = tick.bid if p.type == 0 else tick.ask
 
         request = {
@@ -891,12 +1046,21 @@ def main() -> None:
 
     print("=" * 60, flush=True)
     print("  R4 REBALANCE LOOP", flush=True)
-    print(f"  Mode: {'LOOP' if loop_mode else 'ONE-SHOT'} | Interval: {interval}s", flush=True)
-    print(f"  Regime: {'FORCED ON' if force_regime else 'gated'} | "
-          f"Exec: {'DRY RUN' if dry_run else 'LIVE'}", flush=True)
-    print(f"  Risk: ENFORCED (max_concurrent={RISK_ENVELOPE.max_concurrent_positions}, "
-          f"max_pos=${RISK_ENVELOPE.max_position_notional:,.0f}, "
-          f"max_dd={RISK_ENVELOPE.max_account_drawdown_pct:.0%})", flush=True)
+    print(
+        f"  Mode: {'LOOP' if loop_mode else 'ONE-SHOT'} | Interval: {interval}s",
+        flush=True,
+    )
+    print(
+        f"  Regime: {'FORCED ON' if force_regime else 'gated'} | "
+        f"Exec: {'DRY RUN' if dry_run else 'LIVE'}",
+        flush=True,
+    )
+    print(
+        f"  Risk: ENFORCED (max_concurrent={RISK_ENVELOPE.max_concurrent_positions}, "
+        f"max_pos=${RISK_ENVELOPE.max_position_notional:,.0f}, "
+        f"max_dd={RISK_ENVELOPE.max_account_drawdown_pct:.0%})",
+        flush=True,
+    )
     print("=" * 60, flush=True)
 
     mt5 = MetaTrader5(host="127.0.0.1", port=8001)
@@ -909,21 +1073,25 @@ def main() -> None:
 
     # Flatten-only mode
     if flatten_only:
-        result = emergency_flatten(mt5)
+        emergency_flatten(mt5)
         mt5.shutdown()
         return
 
     # Initialize daily loss tracker (handles persistence, midnight rollover, restart)
     _daily_loss_tracker.initialize(broker_equity=account.equity)
-    log(f"Daily loss tracker: baseline=${_daily_loss_tracker.baseline_equity:,.2f}, "
-        f"budget=${_daily_loss_tracker.remaining_daily_loss_budget:,.2f}")
+    log(
+        f"Daily loss tracker: baseline=${_daily_loss_tracker.baseline_equity:,.2f}, "
+        f"budget=${_daily_loss_tracker.remaining_daily_loss_budget:,.2f}"
+    )
 
     # Load persisted state (survives restart)
     saved_state = _load_state()
     if saved_state:
         saved_recovery = saved_state.get("recovery_state", "connected")
         saved_attempts = saved_state.get("recovery_attempts", 0)
-        log(f"Loaded persisted state: recovery={saved_recovery}, attempts={saved_attempts}")
+        log(
+            f"Loaded persisted state: recovery={saved_recovery}, attempts={saved_attempts}"
+        )
         # Restore peak equity if persisted
         saved_peak = saved_state.get("peak_equity")
         if saved_peak and saved_peak > _risk_enforcer._peak_equity:
@@ -939,15 +1107,28 @@ def main() -> None:
     if not fp_result.all_verified:
         log("\n🔴 FINGERPRINT VERIFICATION FAILED — cannot start trading")
         log("   Fix configuration drift before running.")
-        audit({"event": "startup_fingerprint_failed", "checks": [c.to_dict() for c in fp_result.checks]})
+        audit(
+            {
+                "event": "startup_fingerprint_failed",
+                "checks": [c.to_dict() for c in fp_result.checks],
+            }
+        )
         mt5.shutdown()
         return
     log("✅ All fingerprints verified — trading authorized\n")
-    audit({"event": "startup_fingerprint_verified", "checks": [c.to_dict() for c in fp_result.checks]})
+    audit(
+        {
+            "event": "startup_fingerprint_verified",
+            "checks": [c.to_dict() for c in fp_result.checks],
+        }
+    )
 
     # T=0 validation — verify frozen campaign boundary exists and matches
     import glob as _glob
-    t0_files = sorted(_glob.glob("reports/r4_qualification/T0_*.json"), key=os.path.getmtime)
+
+    t0_files = sorted(
+        _glob.glob("reports/r4_qualification/T0_*.json"), key=os.path.getmtime
+    )
     if t0_files:
         try:
             with open(t0_files[-1]) as f:
@@ -960,11 +1141,27 @@ def main() -> None:
             account_match = t0_account == live_account
             if t0_match and account_match:
                 log(f"✅ T=0 validated: {t0_files[-1]}")
-                log(f"   Campaign: {t0.get('campaign_id', '?')} | Account: {t0_account} | Hash: {t0.get('snapshot_hash', '?')[:16]}...")
-                audit({"event": "t0_validated", "file": t0_files[-1], "campaign_id": t0.get("campaign_id")})
+                log(
+                    f"   Campaign: {t0.get('campaign_id', '?')} | Account: {t0_account} | Hash: {t0.get('snapshot_hash', '?')[:16]}..."
+                )
+                audit(
+                    {
+                        "event": "t0_validated",
+                        "file": t0_files[-1],
+                        "campaign_id": t0.get("campaign_id"),
+                    }
+                )
             else:
-                log(f"🔴 T=0 MISMATCH: config_fp={'match' if t0_match else 'DRIFT'}, account={'match' if account_match else 'MISMATCH'}")
-                audit({"event": "t0_mismatch", "config_match": t0_match, "account_match": account_match})
+                log(
+                    f"🔴 T=0 MISMATCH: config_fp={'match' if t0_match else 'DRIFT'}, account={'match' if account_match else 'MISMATCH'}"
+                )
+                audit(
+                    {
+                        "event": "t0_mismatch",
+                        "config_match": t0_match,
+                        "account_match": account_match,
+                    }
+                )
                 mt5.shutdown()
                 return
         except Exception as e:
@@ -973,18 +1170,44 @@ def main() -> None:
         log("⚠️  No T=0 snapshot found — proceeding without T=0 check")
 
     # Position count assertion
-    from eigencapital.live.position_attribution import classify_all as _classify, capacity_account as _capacity
+    from eigencapital.live.position_attribution import (
+        classify_all as _classify,
+        capacity_account as _capacity,
+    )
+
     pos_assertion = list(mt5.positions_get() or [])
-    classified_start = _classify([{
-        "ticket": p.ticket, "symbol": p.symbol, "type": p.type,
-        "volume": p.volume, "magic": p.magic, "comment": p.comment,
-        "profit": p.profit, "price_open": p.price_open, "sl": p.sl, "tp": p.tp,
-    } for p in pos_assertion])
+    classified_start = _classify(
+        [
+            {
+                "ticket": p.ticket,
+                "symbol": p.symbol,
+                "type": p.type,
+                "volume": p.volume,
+                "magic": p.magic,
+                "comment": p.comment,
+                "profit": p.profit,
+                "price_open": p.price_open,
+                "sl": p.sl,
+                "tp": p.tp,
+            }
+            for p in pos_assertion
+        ]
+    )
     cap_start = _capacity(classified_start, MAX_CONCURRENT)
-    log(f"📊 Position assertion: {cap_start.r4_open_count} R4, {len(cap_start.foreign_positions)} foreign, max={MAX_CONCURRENT}")
-    log(f"   gate: {'PASS' if cap_start.r4_open_count <= MAX_CONCURRENT and len(cap_start.foreign_positions) == 0 else 'BLOCK'}")
-    audit({"event": "startup_position_assertion", "r4_count": cap_start.r4_open_count,
-           "foreign": len(cap_start.foreign_positions), "max": MAX_CONCURRENT})
+    log(
+        f"📊 Position assertion: {cap_start.r4_open_count} R4, {len(cap_start.foreign_positions)} foreign, max={MAX_CONCURRENT}"
+    )
+    log(
+        f"   gate: {'PASS' if cap_start.r4_open_count <= MAX_CONCURRENT and len(cap_start.foreign_positions) == 0 else 'BLOCK'}"
+    )
+    audit(
+        {
+            "event": "startup_position_assertion",
+            "r4_count": cap_start.r4_open_count,
+            "foreign": len(cap_start.foreign_positions),
+            "max": MAX_CONCURRENT,
+        }
+    )
 
     log("🟢 TRADING_AUTHORIZED — all startup gates passed\n")
     audit({"event": "trading_authorized"})
@@ -1009,12 +1232,22 @@ def main() -> None:
             if _disconnect_recovery.state == RecoveryState.CONNECTED:
                 recovery_msg = _disconnect_recovery.on_disconnect()
                 log(f"🔴 MT5 DISCONNECTED — {recovery_msg}")
-                audit({"event": "disconnect", "recovery_state": _disconnect_recovery.state.value})
+                audit(
+                    {
+                        "event": "disconnect",
+                        "recovery_state": _disconnect_recovery.state.value,
+                    }
+                )
             elif _disconnect_recovery.state == RecoveryState.RESUMED:
                 # Was resumed but now disconnected again
                 recovery_msg = _disconnect_recovery.on_disconnect()
                 log(f"🔴 MT5 DISCONNECTED (was resumed) — {recovery_msg}")
-                audit({"event": "disconnect_from_resumed", "recovery_state": _disconnect_recovery.state.value})
+                audit(
+                    {
+                        "event": "disconnect_from_resumed",
+                        "recovery_state": _disconnect_recovery.state.value,
+                    }
+                )
 
             # Check if frozen
             if _disconnect_recovery.state == RecoveryState.FROZEN:
@@ -1043,7 +1276,12 @@ def main() -> None:
         if _disconnect_recovery.state == RecoveryState.DISCONNECTED:
             recovery_msg = _disconnect_recovery.on_reconnect()
             log(f"🟢 MT5 RECONNECTED — {recovery_msg}")
-            audit({"event": "reconnect", "recovery_state": _disconnect_recovery.state.value})
+            audit(
+                {
+                    "event": "reconnect",
+                    "recovery_state": _disconnect_recovery.state.value,
+                }
+            )
 
             # Reconcile: verify positions, equity, fingerprint
             try:
@@ -1120,7 +1358,10 @@ def main() -> None:
                 continue
 
         # ── Trading permission check ──────────────────────────────────
-        if _disconnect_recovery.state not in (RecoveryState.CONNECTED, RecoveryState.RESUMED):
+        if _disconnect_recovery.state not in (
+            RecoveryState.CONNECTED,
+            RecoveryState.RESUMED,
+        ):
             log(f"⛔ Trading halted — state: {_disconnect_recovery.state.value}")
             _persist_state()
             if not loop_mode:
@@ -1133,11 +1374,10 @@ def main() -> None:
 
         # ── Run trading cycle ─────────────────────────────────────────
         try:
-            result = run_cycle(mt5, force_regime, dry_run)
+            run_cycle(mt5, force_regime, dry_run)
         except Exception as e:
             log(f"❌ Cycle error: {e}")
             audit({"event": "error", "error": str(e)})
-            result = {"status": "ERROR"}
 
         # Persist state after each cycle
         _persist_state()

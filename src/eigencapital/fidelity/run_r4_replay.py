@@ -12,10 +12,7 @@ This script:
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
-import sys
 from typing import Dict, List, Any
 
 import numpy as np
@@ -25,11 +22,8 @@ from eigencapital.data.mt5_provider import MT5DataProvider
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.fidelity.parity import (
     ResearchPaperParityEngine,
-    ParityBoundary,
-    ParitySummary,
 )
-from eigencapital.fidelity.replay import DeterministicReplayCampaign
-from eigencapital.fidelity.verdict import FidelityEvaluator, FidelityVerdict
+from eigencapital.fidelity.verdict import FidelityEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +31,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # R4 Research Engine — produces research decisions
 # ============================================================
+
 
 class R4ResearchEngine:
     """Research engine: produces signals and weights from R4 frozen config."""
@@ -46,26 +41,33 @@ class R4ResearchEngine:
 
     def run(self, data: Dict[str, pd.DataFrame]) -> List[Dict[str, Any]]:
         """Run research engine and produce decisions for every rebalance date."""
-        returns_df = pd.DataFrame({
-            sym: df["close"].pct_change()
-            for sym, df in data.items() if "close" in df.columns
-        }).dropna(how="all")
+        returns_df = pd.DataFrame(
+            {
+                sym: df["close"].pct_change()
+                for sym, df in data.items()
+                if "close" in df.columns
+            }
+        ).dropna(how="all")
 
         # Base signal: 12-1 momentum
-        mom_12m = (1 + returns_df).rolling(
-            self._manifest.signal_lookback_long
-        ).apply(lambda x: x.prod() - 1, raw=True)
-        mom_1m = (1 + returns_df).rolling(
-            self._manifest.signal_lookback_short
-        ).apply(lambda x: x.prod() - 1, raw=True)
+        mom_12m = (
+            (1 + returns_df)
+            .rolling(self._manifest.signal_lookback_long)
+            .apply(lambda x: x.prod() - 1, raw=True)
+        )
+        mom_1m = (
+            (1 + returns_df)
+            .rolling(self._manifest.signal_lookback_short)
+            .apply(lambda x: x.prod() - 1, raw=True)
+        )
         signal = (mom_12m - mom_1m).dropna(how="all")
         ranks = signal.rank(axis=1, pct=True)
-        base_weights = (ranks - 0.5)
+        base_weights = ranks - 0.5
 
         # Regime conditioning
-        avg_vol = returns_df.rolling(
-            self._manifest.regime_vol_lookback
-        ).std().mean(axis=1) * np.sqrt(252)
+        avg_vol = returns_df.rolling(self._manifest.regime_vol_lookback).std().mean(
+            axis=1
+        ) * np.sqrt(252)
         risk_median = avg_vol.expanding().median()
         regime = (avg_vol < risk_median).astype(float)
         rc_weights = base_weights.multiply(regime, axis=0)
@@ -114,18 +116,26 @@ class R4ResearchEngine:
             for inst in final.columns:
                 w = final.loc[date, inst]
                 if abs(w) > 1e-6:
-                    decisions.append({
-                        "timestamp": str(date.date()) if hasattr(date, "date") else str(date),
-                        "instrument_id": inst,
-                        "signal": float(signal.loc[date, inst]) if inst in signal.columns and date in signal.index else 0.0,
-                        "weight": float(w),
-                        "position": float(w * 100000),  # notional position
-                        "pnl": 0.0,  # will be computed separately
-                    })
+                    decisions.append(
+                        {
+                            "timestamp": str(date.date())
+                            if hasattr(date, "date")
+                            else str(date),
+                            "instrument_id": inst,
+                            "signal": float(signal.loc[date, inst])
+                            if inst in signal.columns and date in signal.index
+                            else 0.0,
+                            "weight": float(w),
+                            "position": float(w * 100000),  # notional position
+                            "pnl": 0.0,  # will be computed separately
+                        }
+                    )
 
         return decisions
 
-    def _portfolio_return(self, weights: pd.DataFrame, returns_df: pd.DataFrame) -> pd.Series:
+    def _portfolio_return(
+        self, weights: pd.DataFrame, returns_df: pd.DataFrame
+    ) -> pd.Series:
         aligned = weights.index.intersection(returns_df.index)
         w = weights.reindex(aligned).shift(1)
         r = returns_df.reindex(aligned)
@@ -136,6 +146,7 @@ class R4ResearchEngine:
 # ============================================================
 # R4 Paper Engine — produces paper decisions through execution stack
 # ============================================================
+
 
 class R4PaperEngine:
     """Paper engine: produces decisions through the paper execution stack.
@@ -154,26 +165,33 @@ class R4PaperEngine:
         """Run paper engine and produce decisions for every rebalance date."""
         # For deterministic replay, the paper engine uses the same logic
         # but through the paper execution path
-        returns_df = pd.DataFrame({
-            sym: df["close"].pct_change()
-            for sym, df in data.items() if "close" in df.columns
-        }).dropna(how="all")
+        returns_df = pd.DataFrame(
+            {
+                sym: df["close"].pct_change()
+                for sym, df in data.items()
+                if "close" in df.columns
+            }
+        ).dropna(how="all")
 
         # Same signal computation
-        mom_12m = (1 + returns_df).rolling(
-            self._manifest.signal_lookback_long
-        ).apply(lambda x: x.prod() - 1, raw=True)
-        mom_1m = (1 + returns_df).rolling(
-            self._manifest.signal_lookback_short
-        ).apply(lambda x: x.prod() - 1, raw=True)
+        mom_12m = (
+            (1 + returns_df)
+            .rolling(self._manifest.signal_lookback_long)
+            .apply(lambda x: x.prod() - 1, raw=True)
+        )
+        mom_1m = (
+            (1 + returns_df)
+            .rolling(self._manifest.signal_lookback_short)
+            .apply(lambda x: x.prod() - 1, raw=True)
+        )
         signal = (mom_12m - mom_1m).dropna(how="all")
         ranks = signal.rank(axis=1, pct=True)
-        base_weights = (ranks - 0.5)
+        base_weights = ranks - 0.5
 
         # Regime conditioning
-        avg_vol = returns_df.rolling(
-            self._manifest.regime_vol_lookback
-        ).std().mean(axis=1) * np.sqrt(252)
+        avg_vol = returns_df.rolling(self._manifest.regime_vol_lookback).std().mean(
+            axis=1
+        ) * np.sqrt(252)
         risk_median = avg_vol.expanding().median()
         regime = (avg_vol < risk_median).astype(float)
         rc_weights = base_weights.multiply(regime, axis=0)
@@ -229,27 +247,37 @@ class R4PaperEngine:
                 if abs(w) > 1e-6:
                     # Paper engine applies spread cost
                     spread_cost = self._manifest.transaction_cost_bps / 10000
-                    slippage = self._manifest.slippage_bps / 10000
+                    self._manifest.slippage_bps / 10000
 
                     # Compute paper P&L with costs
                     if date in returns_df.index and inst in returns_df.columns:
                         daily_ret = returns_df.loc[date, inst]
-                        paper_pnl = float(w * daily_ret) - float(abs(w) * spread_cost * 0.01)
+                        paper_pnl = float(w * daily_ret) - float(
+                            abs(w) * spread_cost * 0.01
+                        )
                     else:
                         paper_pnl = 0.0
 
-                    decisions.append({
-                        "timestamp": str(date.date()) if hasattr(date, "date") else str(date),
-                        "instrument_id": inst,
-                        "signal": float(signal.loc[date, inst]) if inst in signal.columns and date in signal.index else 0.0,
-                        "weight": float(w),
-                        "position": float(w * 100000),
-                        "pnl": paper_pnl,
-                    })
+                    decisions.append(
+                        {
+                            "timestamp": str(date.date())
+                            if hasattr(date, "date")
+                            else str(date),
+                            "instrument_id": inst,
+                            "signal": float(signal.loc[date, inst])
+                            if inst in signal.columns and date in signal.index
+                            else 0.0,
+                            "weight": float(w),
+                            "position": float(w * 100000),
+                            "pnl": paper_pnl,
+                        }
+                    )
 
         return decisions
 
-    def _portfolio_return(self, weights: pd.DataFrame, returns_df: pd.DataFrame) -> pd.Series:
+    def _portfolio_return(
+        self, weights: pd.DataFrame, returns_df: pd.DataFrame
+    ) -> pd.Series:
         aligned = weights.index.intersection(returns_df.index)
         w = weights.reindex(aligned).shift(1)
         r = returns_df.reindex(aligned)
@@ -260,6 +288,7 @@ class R4PaperEngine:
 # ============================================================
 # Parity Report Generator
 # ============================================================
+
 
 class ParityReportGenerator:
     """Generates the Research → Paper Parity Report."""
@@ -339,6 +368,7 @@ class ParityReportGenerator:
 # Main Execution
 # ============================================================
 
+
 def run_r4_replay() -> Dict[str, Any]:
     """Run the R4 deterministic replay and produce the parity report."""
     print("=" * 70)
@@ -350,7 +380,9 @@ def run_r4_replay() -> Dict[str, Any]:
     print("\n[1/5] Loading MT5 data...")
     provider = MT5DataProvider()
     data, manifest = provider.load_from_csv()
-    print(f"  Loaded {len(data)} symbols, {sum(len(df) for df in data.values())} total bars")
+    print(
+        f"  Loaded {len(data)} symbols, {sum(len(df) for df in data.values())} total bars"
+    )
 
     # 2. Create R4 manifest
     print("\n[2/5] Creating frozen R4 manifest...")

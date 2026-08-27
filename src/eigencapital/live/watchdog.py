@@ -39,7 +39,7 @@ class WatchState(str, Enum):
 @dataclass(frozen=True)
 class ProbeResult:
     process_alive: bool
-    trail_age_seconds: float | None      # age of decisions.jsonl / heartbeat
+    trail_age_seconds: float | None  # age of decisions.jsonl / heartbeat
     equity_read_ok: bool
     broker_reachable: bool
     evidence_hash: str
@@ -66,7 +66,9 @@ class Watchdog:
         contain_after_seconds: float,
         now: Callable[[], float] = time.monotonic,
     ) -> None:
-        if not (0 < stale_after_seconds <= blind_after_seconds <= contain_after_seconds):
+        if not (
+            0 < stale_after_seconds <= blind_after_seconds <= contain_after_seconds
+        ):
             raise ValueError("thresholds must satisfy 0 < stale <= blind <= contain")
         self._stale_after = stale_after_seconds
         self._blind_after = blind_after_seconds
@@ -86,17 +88,31 @@ class Watchdog:
 
     def complete_reconciliation(self, clean: bool) -> WatchDecision:
         prev = self.state
-        if self.state not in (WatchState.RECONCILING, WatchState.CONTAIN,
-                              WatchState.HALTED):
-            return WatchDecision(self.state, prev, False, False,
-                                 "reconciliation requested outside CONTAIN/HALT")
+        if self.state not in (
+            WatchState.RECONCILING,
+            WatchState.CONTAIN,
+            WatchState.HALTED,
+        ):
+            return WatchDecision(
+                self.state,
+                prev,
+                False,
+                False,
+                "reconciliation requested outside CONTAIN/HALT",
+            )
         if clean:
             self.state = WatchState.RESUMED
-            return WatchDecision(self.state, prev, True, False,
-                                 "reconciled clean; trading re-authorized")
+            return WatchDecision(
+                self.state, prev, True, False, "reconciled clean; trading re-authorized"
+            )
         self.state = WatchState.HALTED
-        return WatchDecision(self.state, prev, False, True,
-                             "reconciliation FAILED — HALTED, flatten intent retained")
+        return WatchDecision(
+            self.state,
+            prev,
+            False,
+            True,
+            "reconciliation FAILED — HALTED, flatten intent retained",
+        )
 
     # ── main tick ──────────────────────────────────────────────────
     def evaluate(self, probe: ProbeResult) -> WatchDecision:
@@ -115,11 +131,23 @@ class Watchdog:
 
         # Sticky terminal states
         if self.state is WatchState.HALTED:
-            return WatchDecision(WatchState.HALTED, prev, False, True,
-                                 "HALTED is sticky; manual review required", ev)
+            return WatchDecision(
+                WatchState.HALTED,
+                prev,
+                False,
+                True,
+                "HALTED is sticky; manual review required",
+                ev,
+            )
         if self.state is WatchState.CONTAIN:
-            return WatchDecision(WatchState.CONTAIN, prev, False, True,
-                                 "CONTAIN sticky until reconciliation", ev)
+            return WatchDecision(
+                WatchState.CONTAIN,
+                prev,
+                False,
+                True,
+                "CONTAIN sticky until reconciliation",
+                ev,
+            )
 
         # Severity model:
         #   degraded = any unhealthy probe (process/trail/equity/reachability)
@@ -130,13 +158,17 @@ class Watchdog:
             (not probe.process_alive)
             or (not probe.broker_reachable)
             or (not probe.equity_read_ok)
-            or (probe.trail_age_seconds is not None
-                and probe.trail_age_seconds > self._stale_after)
+            or (
+                probe.trail_age_seconds is not None
+                and probe.trail_age_seconds > self._stale_after
+            )
         )
         blind_signal = degraded_signal and (
             (not probe.broker_reachable)
-            or (probe.trail_age_seconds is not None
-                and probe.trail_age_seconds > self._blind_after)
+            or (
+                probe.trail_age_seconds is not None
+                and probe.trail_age_seconds > self._blind_after
+            )
         )
 
         if not degraded_signal:
@@ -144,8 +176,9 @@ class Watchdog:
             self._blind_since = None
             self._contain_since = None
             self.state = WatchState.NORMAL
-            return WatchDecision(WatchState.NORMAL, prev, True, False,
-                                 "all probes healthy", ev)
+            return WatchDecision(
+                WatchState.NORMAL, prev, True, False, "all probes healthy", ev
+            )
 
         if self._degraded_since is None:
             self._degraded_since = now
@@ -162,21 +195,37 @@ class Watchdog:
             self.state = WatchState.CONTAIN
             self._contain_since = now
             return WatchDecision(
-                self.state, prev, False, True,
+                self.state,
+                prev,
+                False,
+                True,
                 f"abnormal condition persisted {max(blind_dur, deg_dur):.0f}s "
                 f"(>={self._contain_after:.0f}s): containment authorized",
-                ev)
+                ev,
+            )
         if blind_signal:
             self.state = WatchState.BLIND
-            return WatchDecision(self.state, prev, False, False,
-                                 f"untrustworthy evidence (blind {blind_dur:.0f}s)", ev)
+            return WatchDecision(
+                self.state,
+                prev,
+                False,
+                False,
+                f"untrustworthy evidence (blind {blind_dur:.0f}s)",
+                ev,
+            )
         self.state = WatchState.DEGRADED
-        return WatchDecision(self.state, prev, False, False,
-                             f"degraded for {deg_dur:.0f}s "
-                             "(process/trail/equity probe unhealthy)", ev)
+        return WatchDecision(
+            self.state,
+            prev,
+            False,
+            False,
+            f"degraded for {deg_dur:.0f}s (process/trail/equity probe unhealthy)",
+            ev,
+        )
 
 
 # ── filesystem/broker probe adapters (thin IO layer) ───────────────
+
 
 def trail_age_seconds(audit_file: Path, now_s: float | None = None) -> float | None:
     try:
@@ -189,9 +238,11 @@ def trail_age_seconds(audit_file: Path, now_s: float | None = None) -> float | N
 
 def process_alive(pattern: str = "r4_rebalance_loop") -> bool:
     import subprocess
+
     try:
-        r = subprocess.run(["pgrep", "-f", pattern],
-                           capture_output=True, text=True, timeout=5)
+        r = subprocess.run(
+            ["pgrep", "-f", pattern], capture_output=True, text=True, timeout=5
+        )
         return r.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
         return False

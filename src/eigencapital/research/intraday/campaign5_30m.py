@@ -27,12 +27,11 @@ annualization differs from Campaign 4 (96). Horizon grid: 1/2/4/8 bars =
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import time
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -51,15 +50,14 @@ from eigencapital.research.intraday.campaign4_15m import (
     _rmean,
     _rstd,
     _safe_div,
-    _session_mask,
     classify,
 )
 
 # ── Constants ───────────────────────────────────────────────────────────
 
-HORIZONS = [1, 2, 4, 8]          # in M30 bars: 30m, 1h, 2h, 4h
+HORIZONS = [1, 2, 4, 8]  # in M30 bars: 30m, 1h, 2h, 4h
 TRADING_DAYS_PER_YEAR = 252
-BARS_PER_TRADING_DAY = 48        # ~24h market / 30min (FX); indices ~13h but consistent convention with prior campaigns
+BARS_PER_TRADING_DAY = 48  # ~24h market / 30min (FX); indices ~13h but consistent convention with prior campaigns
 
 DATA_DIR = "data/intraday_m30"
 REPORT_JSON = "reports/campaign5_30m_map.json"
@@ -72,90 +70,138 @@ REPORT_MD = "reports/campaign5_30m_map.md"
 
 HYPOTHESES: List[Hypothesis] = [
     # A. SE-004 continuation — NY-close mean reversion (PRIMARY lead from C4)
-    Hypothesis("NC-001", "ny_close_rev",
-               "SE-004 continuation: NY-close mean reversion at 30M",
-               "sig_ny_close",
-               "End-of-day flattening creates reversion; best C4 candidate"),
-    Hypothesis("NC-002", "ny_close_rev",
-               "Late-NY fade (UTC 19-21 only)",
-               "sig_late_ny_fade",
-               "Reversion concentrates in final hours before NY close"),
-    Hypothesis("NC-003", "ny_close_rev",
-               "NY-close reversion x vol regime composite",
-               "sig_ny_close_x_volreg",
-               "SE-004 mechanism conditioned on volatility state"),
-
+    Hypothesis(
+        "NC-001",
+        "ny_close_rev",
+        "SE-004 continuation: NY-close mean reversion at 30M",
+        "sig_ny_close",
+        "End-of-day flattening creates reversion; best C4 candidate",
+    ),
+    Hypothesis(
+        "NC-002",
+        "ny_close_rev",
+        "Late-NY fade (UTC 19-21 only)",
+        "sig_late_ny_fade",
+        "Reversion concentrates in final hours before NY close",
+    ),
+    Hypothesis(
+        "NC-003",
+        "ny_close_rev",
+        "NY-close reversion x vol regime composite",
+        "sig_ny_close_x_volreg",
+        "SE-004 mechanism conditioned on volatility state",
+    ),
     # B. NY range effects
-    Hypothesis("NR-001", "ny_range",
-               "NY opening-range breakout (first hour range)",
-               "sig_ny_open_range_break",
-               "Break of first-hour NY range signals continuation"),
-    Hypothesis("NR-002", "ny_range",
-               "Intraday closing-range fade during NY",
-               "sig_day_range_fade_ny",
-               "Position within day range fades at NY extremes"),
-
+    Hypothesis(
+        "NR-001",
+        "ny_range",
+        "NY opening-range breakout (first hour range)",
+        "sig_ny_open_range_break",
+        "Break of first-hour NY range signals continuation",
+    ),
+    Hypothesis(
+        "NR-002",
+        "ny_range",
+        "Intraday closing-range fade during NY",
+        "sig_day_range_fade_ny",
+        "Position within day range fades at NY extremes",
+    ),
     # C/D. Multi-hour momentum and reversal
-    Hypothesis("MH-001", "multihour_mom",
-               "2h momentum (4-bar continuation)",
-               "sig_mom_4",
-               "Directional persistence at 2h scale"),
-    Hypothesis("MH-002", "multihour_mom",
-               "4h momentum vol-adjusted (8-bar)",
-               "sig_mom_8_voladj",
-               "Vol-normalized persistence at 4h scale"),
-    Hypothesis("MH-003", "multihour_rev",
-               "Daily z-score reversal (48-bar lookback)",
-               "sig_daily_zscore_rev",
-               "One-day extremes revert at 30M resolution"),
-    Hypothesis("MH-004", "multihour_rev",
-               "Two-day VWAP deviation reversion",
-               "sig_day_vwap_dev",
-               "Deviation from 96-bar VWAP reverts"),
-
+    Hypothesis(
+        "MH-001",
+        "multihour_mom",
+        "2h momentum (4-bar continuation)",
+        "sig_mom_4",
+        "Directional persistence at 2h scale",
+    ),
+    Hypothesis(
+        "MH-002",
+        "multihour_mom",
+        "4h momentum vol-adjusted (8-bar)",
+        "sig_mom_8_voladj",
+        "Vol-normalized persistence at 4h scale",
+    ),
+    Hypothesis(
+        "MH-003",
+        "multihour_rev",
+        "Daily z-score reversal (48-bar lookback)",
+        "sig_daily_zscore_rev",
+        "One-day extremes revert at 30M resolution",
+    ),
+    Hypothesis(
+        "MH-004",
+        "multihour_rev",
+        "Two-day VWAP deviation reversion",
+        "sig_day_vwap_dev",
+        "Deviation from 96-bar VWAP reverts",
+    ),
     # E. Session transitions (C4: only real structure was session-conditional)
-    Hypothesis("ST-001", "session_transition",
-               "Asia→London transition continuation",
-               "sig_asia_london",
-               "London inherits overnight direction"),
-    Hypothesis("ST-002", "session_transition",
-               "London/NY overlap momentum",
-               "sig_overlap_mom",
-               "Overlap is the strongest trending period"),
-
+    Hypothesis(
+        "ST-001",
+        "session_transition",
+        "Asia→London transition continuation",
+        "sig_asia_london",
+        "London inherits overnight direction",
+    ),
+    Hypothesis(
+        "ST-002",
+        "session_transition",
+        "London/NY overlap momentum",
+        "sig_overlap_mom",
+        "Overlap is the strongest trending period",
+    ),
     # F. Volatility regimes
-    Hypothesis("VR-101", "vol_regime",
-               "Vol expansion momentum (20/80 windows)",
-               "sig_vol_expansion_mom",
-               "Expanding vol accompanies directional moves"),
-    Hypothesis("VR-102", "vol_regime",
-               "Vol contraction reversal (20/80 windows)",
-               "sig_vol_contraction_rev",
-               "Contracting vol precedes reversals"),
-
+    Hypothesis(
+        "VR-101",
+        "vol_regime",
+        "Vol expansion momentum (20/80 windows)",
+        "sig_vol_expansion_mom",
+        "Expanding vol accompanies directional moves",
+    ),
+    Hypothesis(
+        "VR-102",
+        "vol_regime",
+        "Vol contraction reversal (20/80 windows)",
+        "sig_vol_contraction_rev",
+        "Contracting vol precedes reversals",
+    ),
     # G. Cross-asset lead/lag continuations (XA-003 hit p=0.01 in C4)
-    Hypothesis("XA-101", "cross_asset",
-               "US500 leads XAUUSD inverse (C4 XA-003 continuation)",
-               "sig_us500_xauusd_lead",
-               "Equity weakness leads gold rally; strongest C4 stat signal"),
-    Hypothesis("XA-102", "cross_asset",
-               "USTEC leads EURUSD (C4 XA-002 continuation)",
-               "sig_ustec_eurusd_lead",
-               "Tech index leads FX risk appetite"),
-    Hypothesis("XA-103", "cross_asset",
-               "USOIL leads USDJPY (C4 XA-004 continuation)",
-               "sig_usoil_usdjpy_lead",
-               "Oil leads JPY through risk channel"),
-
+    Hypothesis(
+        "XA-101",
+        "cross_asset",
+        "US500 leads XAUUSD inverse (C4 XA-003 continuation)",
+        "sig_us500_xauusd_lead",
+        "Equity weakness leads gold rally; strongest C4 stat signal",
+    ),
+    Hypothesis(
+        "XA-102",
+        "cross_asset",
+        "USTEC leads EURUSD (C4 XA-002 continuation)",
+        "sig_ustec_eurusd_lead",
+        "Tech index leads FX risk appetite",
+    ),
+    Hypothesis(
+        "XA-103",
+        "cross_asset",
+        "USOIL leads USDJPY (C4 XA-004 continuation)",
+        "sig_usoil_usdjpy_lead",
+        "Oil leads JPY through risk channel",
+    ),
     # H. Composites (small, structurally motivated only)
-    Hypothesis("CM-101", "composite",
-               "Momentum gated to NY session",
-               "sig_mom_ny_only",
-               "Momentum works only during liquid NY hours"),
-    Hypothesis("CM-102", "composite",
-               "Range breakout x volume confirmation",
-               "sig_break_x_vol",
-               "Volume-confirmed breakouts are genuine"),
+    Hypothesis(
+        "CM-101",
+        "composite",
+        "Momentum gated to NY session",
+        "sig_mom_ny_only",
+        "Momentum works only during liquid NY hours",
+    ),
+    Hypothesis(
+        "CM-102",
+        "composite",
+        "Range breakout x volume confirmation",
+        "sig_break_x_vol",
+        "Volume-confirmed breakouts are genuine",
+    ),
 ]
 
 for h in HYPOTHESES:
@@ -165,6 +211,7 @@ for h in HYPOTHESES:
 # ═══════════════════════════════════════════════════════════════════════
 # NEW SIGNAL FUNCTIONS (30M-specific mechanisms)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def sig_late_ny_fade(df: pd.DataFrame, **kw) -> pd.Series:
     """Fade late-NY moves (UTC 19:00–21:00) — final-hours position squaring."""
@@ -234,6 +281,7 @@ def sig_mom_ny_only(df: pd.DataFrame, **kw) -> pd.Series:
 
 # ── Local helpers ───────────────────────────────────────────────────────
 
+
 def _hours_mask(df: pd.DataFrame, lo: int, hi: int) -> pd.Series:
     if "time" not in df.columns:
         return pd.Series(True, index=df.index)
@@ -254,7 +302,7 @@ SIGNALS: Dict[str, Callable] = {
     "sig_ny_close_x_volreg": sig_ny_close_x_volreg,
     "sig_ny_open_range_break": sig_ny_open_range_break,
     "sig_day_range_fade_ny": sig_day_range_fade_ny,
-    "sig_mom_4": None,        # filled below from campaign4 registry
+    "sig_mom_4": None,  # filled below from campaign4 registry
     "sig_mom_8_voladj": None,
     "sig_daily_zscore_rev": sig_daily_zscore_rev,
     "sig_day_vwap_dev": sig_day_vwap_dev,
@@ -279,6 +327,7 @@ for k in list(SIGNALS):
 # ═══════════════════════════════════════════════════════════════════════
 # ENGINE (30M-correct annualization)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def bt(
     df: pd.DataFrame,
@@ -397,14 +446,17 @@ def regime_analysis(
 # CAMPAIGN RUNNER
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def run(data_dir: str = DATA_DIR) -> List[HypResult]:
     data: Dict[str, pd.DataFrame] = {}
     for s in UNIVERSE:
         p = os.path.join(data_dir, f"{s}_M30.csv")
         if os.path.exists(p):
             data[s] = pd.read_csv(p, parse_dates=["time"])
-            print(f"  Loaded {s}: {len(data[s])} bars "
-                  f"({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})")
+            print(
+                f"  Loaded {s}: {len(data[s])} bars "
+                f"({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})"
+            )
     if not data:
         print("ERROR: No M30 data found")
         return []
@@ -416,7 +468,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
             print(f"SKIP {h.hid}: no signal function")
             continue
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"{h.hid}: {h.description} [{h.family}]")
 
         is_cross_asset = h.family == "cross_asset"
@@ -455,9 +507,17 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
             deg = 1 - (anb / ag) if abs(ag) > 0.001 else 1.0
 
             r = HypResult(
-                hid=h.hid, family=h.family, description=h.description, hp=hp,
-                gross_sharpe=ag, net_base=anb, net_adverse=ana, max_dd=mdd,
-                trades=total_trades, wf_consistency=wf_cons, wf_oos_sharpe=wf_oos,
+                hid=h.hid,
+                family=h.family,
+                description=h.description,
+                hp=hp,
+                gross_sharpe=ag,
+                net_base=anb,
+                net_adverse=ana,
+                max_dd=mdd,
+                trades=total_trades,
+                wf_consistency=wf_cons,
+                wf_oos_sharpe=wf_oos,
                 degradation=deg,
             )
 
@@ -492,21 +552,31 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
 
             r.verdict, r.reasons, r.primary_failure = classify(r)
 
-            print(f"  HP={hp:2d} bars ({hp*30:3d}m): gross={ag:+.3f} "
-                  f"net={anb:+.3f} adv={ana:+.3f} DD={mdd:.3f} "
-                  f"WF={wf_cons:.0%} perm_p={r.permutation_p:.3f} "
-                  f"→ {r.verdict.value}")
+            print(
+                f"  HP={hp:2d} bars ({hp * 30:3d}m): gross={ag:+.3f} "
+                f"net={anb:+.3f} adv={ana:+.3f} DD={mdd:.3f} "
+                f"WF={wf_cons:.0%} perm_p={r.permutation_p:.3f} "
+                f"→ {r.verdict.value}"
+            )
 
             score = anb + wf_cons * 0.5 - r.permutation_p * 0.2
             if score > best_score:
                 best_score = score
                 best = r
 
-        results.append(best if best else HypResult(
-            hid=h.hid, family=h.family, description=h.description,
-            hp=HORIZONS[0], verdict=Verdict.REJECTED,
-            reasons=["no_data"], primary_failure="no_data",
-        ))
+        results.append(
+            best
+            if best
+            else HypResult(
+                hid=h.hid,
+                family=h.family,
+                description=h.description,
+                hp=HORIZONS[0],
+                verdict=Verdict.REJECTED,
+                reasons=["no_data"],
+                primary_failure="no_data",
+            )
+        )
 
     return results
 
@@ -514,6 +584,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
 # ═══════════════════════════════════════════════════════════════════════
 # REPORT GENERATION
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def write_reports(results: List[HypResult]) -> None:
     now = time.strftime("%Y-%m-%d %H:%M UTC")
@@ -524,8 +595,12 @@ def write_reports(results: List[HypResult]) -> None:
         groups[r.verdict.value].append(r)
 
     surv = groups.get("supported", [])
-    frag = [r for r in results if r.verdict in (
-        Verdict.FRAGILE, Verdict.COST_SENSITIVE, Verdict.REGIME_DEPENDENT)]
+    frag = [
+        r
+        for r in results
+        if r.verdict
+        in (Verdict.FRAGILE, Verdict.COST_SENSITIVE, Verdict.REGIME_DEPENDENT)
+    ]
 
     lines: List[str] = [
         "# CAMPAIGN 5 — 30M MECHANISM-FOCUSED INTRADAY INVESTIGATION",
@@ -535,27 +610,42 @@ def write_reports(results: List[HypResult]) -> None:
         "**Bars:** ~50,000 per symbol (~4 years, Apr 2022 – Aug 2026)",
         f"**Generated:** {now}",
         f"**Hypotheses:** {len(results)} (mechanism-focused, incl. SE-004 continuation)",
-        f"**Horizons:** 30m / 1h / 2h / 4h",
-        f"**Costs:** base {CostModel.BASE*10000:.0f}bps, adverse {CostModel.ADVERSE*10000:.0f}bps",
+        "**Horizons:** 30m / 1h / 2h / 4h",
+        f"**Costs:** base {CostModel.BASE * 10000:.0f}bps, adverse {CostModel.ADVERSE * 10000:.0f}bps",
         "",
-        "---", "",
-        "## VERDICT DISTRIBUTION", "",
+        "---",
+        "",
+        "## VERDICT DISTRIBUTION",
+        "",
         "| Verdict | Count | Hypotheses |",
         "|---|---|---|",
     ]
-    for v in ["rejected", "regime_dependent", "cost_sensitive",
-              "fragile", "inconclusive", "supported"]:
+    for v in [
+        "rejected",
+        "regime_dependent",
+        "cost_sensitive",
+        "fragile",
+        "inconclusive",
+        "supported",
+    ]:
         hs = groups.get(v, [])
         if hs:
-            lines.append(f"| **{v.upper()}** | {len(hs)} | "
-                         f"{', '.join(x.hid for x in hs)} |")
+            lines.append(
+                f"| **{v.upper()}** | {len(hs)} | {', '.join(x.hid for x in hs)} |"
+            )
     lines.extend(["", f"**Survivors: {len(surv)}/{len(results)}**", ""])
 
     # Failure modes
-    lines.extend([
-        "---", "", "## FAILURE MODE DISTRIBUTION", "",
-        "| Failure Mode | Count |", "|---|---|",
-    ])
+    lines.extend(
+        [
+            "---",
+            "",
+            "## FAILURE MODE DISTRIBUTION",
+            "",
+            "| Failure Mode | Count |",
+            "|---|---|",
+        ]
+    )
     fail_counts: Dict[str, int] = defaultdict(int)
     for r in results:
         fail_counts[r.primary_failure or "unknown"] += 1
@@ -565,14 +655,19 @@ def write_reports(results: List[HypResult]) -> None:
 
     # Top candidates
     top = sorted(results, key=lambda r: r.net_base, reverse=True)[:5]
-    lines.extend([
-        "---", "", "## TOP CANDIDATES", "",
-        "| # | ID | Family | HP | Net Sharpe | Adv Sharpe | MaxDD | WF | Perm p | Verdict |",
-        "|---|---|---|---|---|---|---|---|---|---|",
-    ])
+    lines.extend(
+        [
+            "---",
+            "",
+            "## TOP CANDIDATES",
+            "",
+            "| # | ID | Family | HP | Net Sharpe | Adv Sharpe | MaxDD | WF | Perm p | Verdict |",
+            "|---|---|---|---|---|---|---|---|---|---|",
+        ]
+    )
     for i, r in enumerate(top, 1):
         lines.append(
-            f"| {i} | {r.hid} | {r.family} | {r.hp*30}m | {r.net_base:+.3f} | "
+            f"| {i} | {r.hid} | {r.family} | {r.hp * 30}m | {r.net_base:+.3f} | "
             f"{r.net_adverse:+.3f} | {r.max_dd:.2f} | {r.wf_consistency:.0%} | "
             f"{r.permutation_p:.3f} | {r.verdict.value} |"
         )
@@ -580,29 +675,39 @@ def write_reports(results: List[HypResult]) -> None:
     # Detailed per-hypothesis
     lines.extend(["---", "", "## DETAILED RESULTS", ""])
     for r in results:
-        icon = ("🟢" if r.verdict == Verdict.SUPPORTED else
-                "🟡" if r.verdict != Verdict.REJECTED else "🔴")
-        lines.extend([
-            f"### {icon} {r.hid} — {r.description}",
-            f"**Family:** {r.family} | **HP:** {r.hp*30}m "
-            f"| **Verdict:** {r.verdict.value}", "",
-            "| Metric | Value |", "|---|---|",
-            f"| Gross / Net / Adverse Sharpe | {r.gross_sharpe:+.3f} / "
-            f"{r.net_base:+.3f} / {r.net_adverse:+.3f} |",
-            f"| Max DD | {r.max_dd:.3f} |",
-            f"| Trades | {r.trades} |",
-            f"| WF Consistency / OOS Sharpe | {r.wf_consistency:.0%} / "
-            f"{r.wf_oos_sharpe:+.3f} |",
-            f"| Permutation p | {r.permutation_p:.3f} |",
-            f"| Primary Failure | {r.primary_failure} |", "",
-        ])
+        icon = (
+            "🟢"
+            if r.verdict == Verdict.SUPPORTED
+            else "🟡"
+            if r.verdict != Verdict.REJECTED
+            else "🔴"
+        )
+        lines.extend(
+            [
+                f"### {icon} {r.hid} — {r.description}",
+                f"**Family:** {r.family} | **HP:** {r.hp * 30}m "
+                f"| **Verdict:** {r.verdict.value}",
+                "",
+                "| Metric | Value |",
+                "|---|---|",
+                f"| Gross / Net / Adverse Sharpe | {r.gross_sharpe:+.3f} / "
+                f"{r.net_base:+.3f} / {r.net_adverse:+.3f} |",
+                f"| Max DD | {r.max_dd:.3f} |",
+                f"| Trades | {r.trades} |",
+                f"| WF Consistency / OOS Sharpe | {r.wf_consistency:.0%} / "
+                f"{r.wf_oos_sharpe:+.3f} |",
+                f"| Permutation p | {r.permutation_p:.3f} |",
+                f"| Primary Failure | {r.primary_failure} |",
+                "",
+            ]
+        )
         if r.session_sharpes:
-            ss = ", ".join(f"{k}: {v:+.2f}" for k, v in
-                           sorted(r.session_sharpes.items()))
+            ss = ", ".join(
+                f"{k}: {v:+.2f}" for k, v in sorted(r.session_sharpes.items())
+            )
             lines.append(f"**Sessions:** {ss}")
         if r.year_sharpes:
-            ys = ", ".join(f"{k}: {v:+.2f}" for k, v in
-                           sorted(r.year_sharpes.items()))
+            ys = ", ".join(f"{k}: {v:+.2f}" for k, v in sorted(r.year_sharpes.items()))
             lines.append(f"**Years:** {ys}")
         if r.sym_sharpes:
             npos = sum(1 for v in r.sym_sharpes.values() if v > 0)
@@ -610,28 +715,36 @@ def write_reports(results: List[HypResult]) -> None:
         lines.append("")
 
     # Combined intraday summary
-    lines.extend([
-        "---", "",
-        "## COMBINED INTRADAY RESEARCH (Campaigns 1–5)", "",
-        "| Campaign | Timeframe | Hypotheses | Supported | Fragile+ |",
-        "|---|---|---|---|---|",
-        "| 1 | M5 price | 24 | 0 | 0 |",
-        "| 2 | M5 microstructure | 20 | 0 | 0 |",
-        "| 3 | M1 order-flow | 16 | 0 | 1 |",
-        "| 4 | 15M multi-family | 31 | 0 | 15 |",
-        f"| 5 | 30M mechanism-focused | {len(results)} | {len(surv)} | {len(frag)} |",
-        f"| **Total** | | **{91+len(results)}** | **{len(surv)}** | |",
-        "",
-    ])
+    lines.extend(
+        [
+            "---",
+            "",
+            "## COMBINED INTRADAY RESEARCH (Campaigns 1–5)",
+            "",
+            "| Campaign | Timeframe | Hypotheses | Supported | Fragile+ |",
+            "|---|---|---|---|---|",
+            "| 1 | M5 price | 24 | 0 | 0 |",
+            "| 2 | M5 microstructure | 20 | 0 | 0 |",
+            "| 3 | M1 order-flow | 16 | 0 | 1 |",
+            "| 4 | 15M multi-family | 31 | 0 | 15 |",
+            f"| 5 | 30M mechanism-focused | {len(results)} | {len(surv)} | {len(frag)} |",
+            f"| **Total** | | **{91 + len(results)}** | **{len(surv)}** | |",
+            "",
+        ]
+    )
 
     if surv:
-        lines.append("**SURVIVOR(S) FOUND — proceed to independent confirmation (1H) "
-                     "before any fidelity-ladder step.**")
+        lines.append(
+            "**SURVIVOR(S) FOUND — proceed to independent confirmation (1H) "
+            "before any fidelity-ladder step.**"
+        )
     else:
-        lines.extend([
-            "**No supported survivor at 30M.** If this holds, the remaining step "
-            "of the intraday ladder is 1H confirmation of any fragile leads.",
-        ])
+        lines.extend(
+            [
+                "**No supported survivor at 30M.** If this holds, the remaining step "
+                "of the intraday ladder is 1H confirmation of any fragile leads.",
+            ]
+        )
 
     md = "\n".join(lines) + "\n"
     with open(REPORT_MD, "w") as f:
@@ -645,9 +758,11 @@ def write_reports(results: List[HypResult]) -> None:
 
 if __name__ == "__main__":
     import sys
+
     res = run(sys.argv[1] if len(sys.argv) > 1 else DATA_DIR)
     write_reports(res)
     from collections import Counter
+
     dist = Counter(r.verdict.value for r in res)
     print("\nFINAL VERDICT DISTRIBUTION:", dict(dist))
     print(f"Survival: {dist.get('supported', 0)}/{len(res)}")

@@ -150,11 +150,7 @@ class PortfolioHealthMonitor:
         parsed_now: Optional[datetime] = None
         if now_utc is not None:
             parsed_now = _parse_ts(now_utc)
-        now = (
-            parsed_now
-            or self._clock
-            or datetime.now(timezone.utc)
-        )
+        now = parsed_now or self._clock or datetime.now(timezone.utc)
         alerts: List[Alert] = []
         checks: Dict[str, bool] = {}
         age: Optional[float] = None
@@ -179,8 +175,7 @@ class PortfolioHealthMonitor:
                     Alert(
                         Severity.CRITICAL,
                         ALERT_SNAPSHOT_STALE,
-                        f"Snapshot age {age:.0f}s exceeds limit "
-                        f"{self._max_age:.0f}s",
+                        f"Snapshot age {age:.0f}s exceeds limit {self._max_age:.0f}s",
                         observed=f"{age:.1f}",
                     )
                 )
@@ -267,9 +262,7 @@ class PortfolioHealthMonitor:
                     )
                 )
 
-            checks["position_count"] = (
-                snapshot.num_positions <= p.max_position_count
-            )
+            checks["position_count"] = snapshot.num_positions <= p.max_position_count
             if not checks["position_count"]:
                 alerts.append(
                     Alert(
@@ -287,9 +280,7 @@ class PortfolioHealthMonitor:
                     conc = abs(notional) / equity * 100.0
                     if conc > worst_val:
                         worst_sym, worst_val = sym, conc
-                checks["concentration"] = (
-                    worst_val <= p.max_concentration_pct
-                )
+                checks["concentration"] = worst_val <= p.max_concentration_pct
                 if not checks["concentration"]:
                     alerts.append(
                         Alert(
@@ -328,8 +319,7 @@ class PortfolioHealthMonitor:
                     Alert(
                         Severity.CRITICAL,
                         ALERT_DAILY_LOSS,
-                        f"Daily loss {lost:.2f} exceeds limit "
-                        f"{p.daily_loss_limit:.2f}",
+                        f"Daily loss {lost:.2f} exceeds limit {p.daily_loss_limit:.2f}",
                         observed=f"{lost:.2f}",
                     )
                 )
@@ -381,9 +371,7 @@ class PortfolioHealthMonitor:
 
     # ── Immutable event log ───────────────────────────────────────────
 
-    def _append_log(
-        self, kind: str, payload: Dict[str, Any], when: datetime
-    ) -> None:
+    def _append_log(self, kind: str, payload: Dict[str, Any], when: datetime) -> None:
         seq = len(self._log)
         body = json.dumps(payload, sort_keys=True).encode("utf-8")
         entry = {
@@ -414,9 +402,7 @@ class PortfolioHealthMonitor:
         for i, entry in enumerate(self.event_log):
             if entry["seq"] != i or entry["prev_entry_hash"] != prev:
                 return False
-            material = {
-                k: v for k, v in entry.items() if k != "entry_hash"
-            }
+            material = {k: v for k, v in entry.items() if k != "entry_hash"}
             expected = hashlib.sha256(
                 json.dumps(material, sort_keys=True).encode("utf-8")
             ).hexdigest()

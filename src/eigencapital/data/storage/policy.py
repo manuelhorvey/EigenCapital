@@ -43,9 +43,7 @@ class StorageEngineUnavailableError(RuntimeError):
 
     def __init__(self, fmt: StorageFormat) -> None:
         guidance = {
-            StorageFormat.PARQUET: (
-                "pip install pandas pyarrow  (or fastparquet)"
-            ),
+            StorageFormat.PARQUET: ("pip install pandas pyarrow  (or fastparquet)"),
             StorageFormat.HDF5: "pip install pandas tables",
         }[fmt]
         super().__init__(
@@ -124,9 +122,8 @@ def recommend_format(
     """
     if engines is None:
         engines = detect_engines()
-    parquet_ok = (
-        engines.get("pandas", False)
-        and (engines.get("pyarrow", False) or engines.get("fastparquet", False))
+    parquet_ok = engines.get("pandas", False) and (
+        engines.get("pyarrow", False) or engines.get("fastparquet", False)
     )
     hdf5_ok = engines.get("pandas", False) and engines.get("tables", False)
 
@@ -148,12 +145,12 @@ def recommend_format(
     available = [(fmt, ok) for fmt, ok in ranked]
     preferred_index = next(i for i, (_, ok) in enumerate(available) if ok)
     preferred = available[preferred_index][0]
-    fallbacks = tuple(
-        fmt for fmt, ok in available[preferred_index + 1:] if ok
-    )
+    fallbacks = tuple(fmt for fmt, ok in available[preferred_index + 1 :] if ok)
     degraded = preferred_index != 0
     reason = base_reason + (
-        "" if not degraded else "; degraded because higher-ranked engines are unavailable"
+        ""
+        if not degraded
+        else "; degraded because higher-ranked engines are unavailable"
     )
     return StorageRecommendation(
         preferred=preferred,
@@ -201,7 +198,9 @@ class DatasetStore:
     silently degrading.
     """
 
-    def __init__(self, base_path: str | Path, fmt: Optional[StorageFormat] = None) -> None:
+    def __init__(
+        self, base_path: str | Path, fmt: Optional[StorageFormat] = None
+    ) -> None:
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
         self._forced_format = fmt
@@ -217,7 +216,9 @@ class DatasetStore:
             return recommendation
         if self._forced_format == recommendation.preferred:
             return recommendation
-        forced_reason = f"forced by caller (policy would choose {recommendation.preferred.value})"
+        forced_reason = (
+            f"forced by caller (policy would choose {recommendation.preferred.value})"
+        )
         return StorageRecommendation(
             preferred=self._forced_format,
             fallbacks=(recommendation.preferred,) + recommendation.fallbacks,
@@ -305,9 +306,7 @@ class DatasetStore:
     @classmethod
     def _save_parquet(cls, path: Path, records: Sequence[Dict[str, Any]]) -> None:
         engines = detect_engines()
-        if not engines["pandas"] or not (
-            engines["pyarrow"] or engines["fastparquet"]
-        ):
+        if not engines["pandas"] or not (engines["pyarrow"] or engines["fastparquet"]):
             raise StorageEngineUnavailableError(StorageFormat.PARQUET)
         cls._require_pandas().DataFrame(list(records)).to_parquet(path)
 
@@ -318,13 +317,13 @@ class DatasetStore:
         return df.to_dict(orient="records")
 
     @classmethod
-    def _save_hdf5(cls, path: Path, key: str, records: Sequence[Dict[str, Any]]) -> None:
+    def _save_hdf5(
+        cls, path: Path, key: str, records: Sequence[Dict[str, Any]]
+    ) -> None:
         engines = detect_engines()
         if not engines["pandas"] or not engines["tables"]:
             raise StorageEngineUnavailableError(StorageFormat.HDF5)
-        cls._require_pandas().DataFrame(list(records)).to_hdf(
-            path, key=key, mode="w"
-        )
+        cls._require_pandas().DataFrame(list(records)).to_hdf(path, key=key, mode="w")
 
     @classmethod
     def _load_hdf5(cls, path: Path) -> List[Dict[str, Any]]:

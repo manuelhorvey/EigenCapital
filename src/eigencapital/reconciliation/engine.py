@@ -25,6 +25,7 @@ Self-healing classification:
 
 Key principle: Reconciliation must never silently "fix" something dangerous.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -32,30 +33,30 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 
 class ReconciliationAction(str, Enum):
     """Classification of reconciliation discrepancies."""
-    
-    SAFE_AUTOFIX = "SAFE_AUTOFIX"      # Can fix automatically
-    REQUIRES_REVIEW = "REQUIRES_REVIEW" # Needs operator decision
-    HALT = "HALT"                       # Stop trading immediately
+
+    SAFE_AUTOFIX = "SAFE_AUTOFIX"  # Can fix automatically
+    REQUIRES_REVIEW = "REQUIRES_REVIEW"  # Needs operator decision
+    HALT = "HALT"  # Stop trading immediately
 
 
 class ReconciliationSeverity(str, Enum):
     """Severity of reconciliation findings."""
-    
-    INFO = "INFO"           # Informational, no action needed
-    WARNING = "WARNING"     # Anomaly detected, investigation recommended
-    CRITICAL = "CRITICAL"   # Critical mismatch, immediate attention required
-    BLOCKING = "BLOCKING"   # Blocks trading until resolved
+
+    INFO = "INFO"  # Informational, no action needed
+    WARNING = "WARNING"  # Anomaly detected, investigation recommended
+    CRITICAL = "CRITICAL"  # Critical mismatch, immediate attention required
+    BLOCKING = "BLOCKING"  # Blocks trading until resolved
 
 
 @dataclass(frozen=True)
 class ReconciliationCheck:
     """Result of a single reconciliation check."""
-    
+
     check_name: str
     status: str  # PASS, WARNING, CRITICAL, BLOCKING
     severity: str
@@ -65,7 +66,7 @@ class ReconciliationCheck:
     broker_value: Any = None
     internal_value: Any = None
     tolerance: Optional[float] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "check_name": self.check_name,
@@ -83,7 +84,7 @@ class ReconciliationCheck:
 @dataclass(frozen=True)
 class ReconciliationResult:
     """Complete reconciliation result."""
-    
+
     status: str  # RECONCILED, WARNING, MISMATCH, BLOCKING
     timestamp: str
     checks: List[ReconciliationCheck]
@@ -91,7 +92,7 @@ class ReconciliationResult:
     internal_state_hash: str
     mismatches: List[str]
     action_required: str  # NONE, REVIEW, HALT
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "status": self.status,
@@ -107,14 +108,14 @@ class ReconciliationResult:
 @dataclass
 class BrokerState:
     """Snapshot of broker state from MT5."""
-    
+
     positions: List[Dict[str, Any]]
     account_equity: float
     account_balance: float
     account_free_margin: float
     orders: List[Dict[str, Any]]
     timestamp: str
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "positions": self.positions,
@@ -129,13 +130,13 @@ class BrokerState:
 @dataclass
 class InternalState:
     """Internal strategy state."""
-    
+
     positions: Dict[int, Dict[str, Any]]  # ticket -> position info
     pending_orders: List[Dict[str, Any]]
     last_signal: Dict[str, Any]
     target_weights: Dict[str, float]
     timestamp: str
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "positions": self.positions,
@@ -148,14 +149,14 @@ class InternalState:
 
 class ReconciliationEngine:
     """Deterministic broker/internal state comparison.
-    
+
     Never silently repairs dangerous discrepancies.
     All findings are classified as:
     - SAFE_AUTOFIX: Can fix automatically
     - REQUIRES_REVIEW: Needs operator decision
     - HALT: Stop trading immediately
     """
-    
+
     def __init__(
         self,
         r4_magic: int = 20260825,
@@ -164,7 +165,7 @@ class ReconciliationEngine:
         stale_threshold_seconds: float = 86400,  # 24 hours
     ) -> None:
         """Initialize reconciliation engine.
-        
+
         Args:
             r4_magic: Magic number for R4 positions
             position_tolerance: Tolerance for position quantity comparison
@@ -177,7 +178,7 @@ class ReconciliationEngine:
         self._stale_threshold = stale_threshold_seconds
         self._reconciliation_history: List[Dict[str, Any]] = []
         self._max_history = 1000
-    
+
     def reconcile(
         self,
         broker: BrokerState,
@@ -185,72 +186,72 @@ class ReconciliationEngine:
         config_fingerprint: Optional[str] = None,
     ) -> ReconciliationResult:
         """Perform full reconciliation.
-        
+
         Args:
             broker: Current broker state from MT5
             internal: Current internal strategy state
             config_fingerprint: Expected config fingerprint
-            
+
         Returns:
             ReconciliationResult with all findings
         """
         now = datetime.now(timezone.utc).isoformat()
         checks: List[ReconciliationCheck] = []
         mismatches: List[str] = []
-        
+
         # Compute state hashes
         broker_hash = self._compute_hash(broker.to_dict())
         internal_hash = self._compute_hash(internal.to_dict())
-        
+
         # 1. Position count check
         check = self._check_position_count(broker, internal)
         checks.append(check)
         if check.status != "PASS":
             mismatches.append(check.message)
-        
+
         # 2. Position matching
         position_checks = self._check_positions(broker, internal)
         checks.extend(position_checks)
         for c in position_checks:
             if c.status != "PASS":
                 mismatches.append(c.message)
-        
+
         # 3. Foreign position detection
         check = self._check_foreign_positions(broker)
         checks.append(check)
         if check.status != "PASS":
             mismatches.append(check.message)
-        
+
         # 4. Duplicate order detection
         check = self._check_duplicate_orders(broker)
         checks.append(check)
         if check.status != "PASS":
             mismatches.append(check.message)
-        
+
         # 5. Stale position detection
         check = self._check_stale_positions(broker)
         checks.append(check)
         if check.status != "PASS":
             mismatches.append(check.message)
-        
+
         # 6. Account consistency
         check = self._check_account_consistency(broker)
         checks.append(check)
         if check.status != "PASS":
             mismatches.append(check.message)
-        
+
         # 7. P&L discrepancy (if internal P&L available)
         if internal.last_signal:
             check = self._check_pnl_discrepancy(broker, internal)
             checks.append(check)
             if check.status != "PASS":
                 mismatches.append(check.message)
-        
+
         # Determine overall status
         has_blocking = any(c.status == "BLOCKING" for c in checks)
         has_critical = any(c.status == "CRITICAL" for c in checks)
         has_warning = any(c.status == "WARNING" for c in checks)
-        
+
         if has_blocking:
             status = "BLOCKING"
             action = "HALT"
@@ -263,7 +264,7 @@ class ReconciliationEngine:
         else:
             status = "RECONCILED"
             action = "NONE"
-        
+
         result = ReconciliationResult(
             status=status,
             timestamp=now,
@@ -273,19 +274,21 @@ class ReconciliationEngine:
             mismatches=mismatches,
             action_required=action,
         )
-        
+
         # Record to history
         self._reconciliation_history.append(result.to_dict())
         if len(self._reconciliation_history) > self._max_history:
-            self._reconciliation_history = self._reconciliation_history[-self._max_history:]
-        
+            self._reconciliation_history = self._reconciliation_history[
+                -self._max_history :
+            ]
+
         return result
-    
+
     def _compute_hash(self, data: Dict[str, Any]) -> str:
         """Compute deterministic hash for state."""
         payload = json.dumps(data, sort_keys=True, default=str).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()[:32]
-    
+
     def _check_position_count(
         self,
         broker: BrokerState,
@@ -294,7 +297,7 @@ class ReconciliationEngine:
         """Check position count matches."""
         broker_count = len(broker.positions)
         internal_count = len(internal.positions)
-        
+
         if broker_count != internal_count:
             return ReconciliationCheck(
                 check_name="position_count",
@@ -302,11 +305,14 @@ class ReconciliationEngine:
                 severity=ReconciliationSeverity.CRITICAL.value,
                 action=ReconciliationAction.HALT.value,
                 message=f"Position count mismatch: broker={broker_count}, internal={internal_count}",
-                details={"broker_count": broker_count, "internal_count": internal_count},
+                details={
+                    "broker_count": broker_count,
+                    "internal_count": internal_count,
+                },
                 broker_value=broker_count,
                 internal_value=internal_count,
             )
-        
+
         return ReconciliationCheck(
             check_name="position_count",
             status="PASS",
@@ -317,7 +323,7 @@ class ReconciliationEngine:
             broker_value=broker_count,
             internal_value=internal_count,
         )
-    
+
     def _check_positions(
         self,
         broker: BrokerState,
@@ -325,83 +331,102 @@ class ReconciliationEngine:
     ) -> List[ReconciliationCheck]:
         """Check individual positions match."""
         checks = []
-        
+
         # Index broker positions by ticket
         broker_by_ticket = {p.get("ticket"): p for p in broker.positions}
-        
+
         for ticket, internal_pos in internal.positions.items():
             broker_pos = broker_by_ticket.get(ticket)
-            
+
             if broker_pos is None:
                 # Internal position not found in broker
-                checks.append(ReconciliationCheck(
-                    check_name=f"position_{ticket}_exists",
-                    status="BLOCKING",
-                    severity=ReconciliationSeverity.BLOCKING.value,
-                    action=ReconciliationAction.HALT.value,
-                    message=f"Internal position {ticket} not found at broker",
-                    details={"ticket": ticket, "symbol": internal_pos.get("symbol")},
-                    broker_value=None,
-                    internal_value=internal_pos,
-                ))
+                checks.append(
+                    ReconciliationCheck(
+                        check_name=f"position_{ticket}_exists",
+                        status="BLOCKING",
+                        severity=ReconciliationSeverity.BLOCKING.value,
+                        action=ReconciliationAction.HALT.value,
+                        message=f"Internal position {ticket} not found at broker",
+                        details={
+                            "ticket": ticket,
+                            "symbol": internal_pos.get("symbol"),
+                        },
+                        broker_value=None,
+                        internal_value=internal_pos,
+                    )
+                )
                 continue
-            
+
             # Quantity check
             broker_qty = broker_pos.get("volume", 0)
             internal_qty = internal_pos.get("volume", 0)
-            
+
             if abs(broker_qty - internal_qty) > self._position_tolerance:
-                checks.append(ReconciliationCheck(
-                    check_name=f"position_{ticket}_quantity",
-                    status="CRITICAL",
-                    severity=ReconciliationSeverity.CRITICAL.value,
-                    action=ReconciliationAction.HALT.value,
-                    message=f"Position {ticket} quantity mismatch: broker={broker_qty}, internal={internal_qty}",
-                    details={"ticket": ticket, "symbol": internal_pos.get("symbol")},
-                    broker_value=broker_qty,
-                    internal_value=internal_qty,
-                    tolerance=self._position_tolerance,
-                ))
+                checks.append(
+                    ReconciliationCheck(
+                        check_name=f"position_{ticket}_quantity",
+                        status="CRITICAL",
+                        severity=ReconciliationSeverity.CRITICAL.value,
+                        action=ReconciliationAction.HALT.value,
+                        message=f"Position {ticket} quantity mismatch: broker={broker_qty}, internal={internal_qty}",
+                        details={
+                            "ticket": ticket,
+                            "symbol": internal_pos.get("symbol"),
+                        },
+                        broker_value=broker_qty,
+                        internal_value=internal_qty,
+                        tolerance=self._position_tolerance,
+                    )
+                )
             else:
-                checks.append(ReconciliationCheck(
-                    check_name=f"position_{ticket}_quantity",
-                    status="PASS",
-                    severity=ReconciliationSeverity.INFO.value,
-                    action=ReconciliationAction.SAFE_AUTOFIX.value,
-                    message=f"Position {ticket} quantity matches",
-                    details={"ticket": ticket},
-                    broker_value=broker_qty,
-                    internal_value=internal_qty,
-                ))
-            
+                checks.append(
+                    ReconciliationCheck(
+                        check_name=f"position_{ticket}_quantity",
+                        status="PASS",
+                        severity=ReconciliationSeverity.INFO.value,
+                        action=ReconciliationAction.SAFE_AUTOFIX.value,
+                        message=f"Position {ticket} quantity matches",
+                        details={"ticket": ticket},
+                        broker_value=broker_qty,
+                        internal_value=internal_qty,
+                    )
+                )
+
             # Side check
             broker_type = broker_pos.get("type")  # 0=buy, 1=sell
             internal_side = internal_pos.get("side")  # "buy" or "sell"
-            
+
             expected_type = 0 if internal_side == "buy" else 1
             if broker_type != expected_type:
-                checks.append(ReconciliationCheck(
-                    check_name=f"position_{ticket}_side",
-                    status="CRITICAL",
-                    severity=ReconciliationSeverity.CRITICAL.value,
-                    action=ReconciliationAction.HALT.value,
-                    message=f"Position {ticket} side mismatch: broker={broker_type}, internal={internal_side}",
-                    details={"ticket": ticket, "symbol": internal_pos.get("symbol")},
-                    broker_value=broker_type,
-                    internal_value=internal_side,
-                ))
+                checks.append(
+                    ReconciliationCheck(
+                        check_name=f"position_{ticket}_side",
+                        status="CRITICAL",
+                        severity=ReconciliationSeverity.CRITICAL.value,
+                        action=ReconciliationAction.HALT.value,
+                        message=f"Position {ticket} side mismatch: broker={broker_type}, internal={internal_side}",
+                        details={
+                            "ticket": ticket,
+                            "symbol": internal_pos.get("symbol"),
+                        },
+                        broker_value=broker_type,
+                        internal_value=internal_side,
+                    )
+                )
             else:
-                checks.append(ReconciliationCheck(
-                    check_name=f"position_{ticket}_side",
-                    status="PASS",
-                    severity=ReconciliationSeverity.INFO.value,
-                    action=ReconciliationAction.SAFE_AUTOFIX.value,
-                    message=f"Position {ticket} side matches",
-                    details={"ticket": ticket},
-                    broker_value=broker_type,
-                    internal_value=internal_side,
-                ))
-        
+                checks.append(
+                    ReconciliationCheck(
+                        check_name=f"position_{ticket}_side",
+                        status="PASS",
+                        severity=ReconciliationSeverity.INFO.value,
+                        action=ReconciliationAction.SAFE_AUTOFIX.value,
+                        message=f"Position {ticket} side matches",
+                        details={"ticket": ticket},
+                        broker_value=broker_type,
+                        internal_value=internal_side,
+                    )
+                )
+
         # Check for broker positions not in internal
         for broker_pos in broker.positions:
             ticket = broker_pos.get("ticket")
@@ -409,26 +434,28 @@ class ReconciliationEngine:
                 # Check if it's an R4 position
                 magic = broker_pos.get("magic")
                 if magic == self._r4_magic:
-                    checks.append(ReconciliationCheck(
-                        check_name=f"position_{ticket}_unexpected",
-                        status="BLOCKING",
-                        severity=ReconciliationSeverity.BLOCKING.value,
-                        action=ReconciliationAction.HALT.value,
-                        message=f"Unexpected R4 position {ticket} at broker",
-                        details={"ticket": ticket, "symbol": broker_pos.get("symbol")},
-                        broker_value=broker_pos,
-                        internal_value=None,
-                    ))
-        
+                    checks.append(
+                        ReconciliationCheck(
+                            check_name=f"position_{ticket}_unexpected",
+                            status="BLOCKING",
+                            severity=ReconciliationSeverity.BLOCKING.value,
+                            action=ReconciliationAction.HALT.value,
+                            message=f"Unexpected R4 position {ticket} at broker",
+                            details={
+                                "ticket": ticket,
+                                "symbol": broker_pos.get("symbol"),
+                            },
+                            broker_value=broker_pos,
+                            internal_value=None,
+                        )
+                    )
+
         return checks
-    
+
     def _check_foreign_positions(self, broker: BrokerState) -> ReconciliationCheck:
         """Check for positions not created by R4."""
-        foreign = [
-            p for p in broker.positions
-            if p.get("magic") != self._r4_magic
-        ]
-        
+        foreign = [p for p in broker.positions if p.get("magic") != self._r4_magic]
+
         if foreign:
             symbols = [p.get("symbol", "?") for p in foreign]
             return ReconciliationCheck(
@@ -441,7 +468,7 @@ class ReconciliationEngine:
                 broker_value=len(foreign),
                 internal_value=0,
             )
-        
+
         return ReconciliationCheck(
             check_name="foreign_positions",
             status="PASS",
@@ -452,12 +479,12 @@ class ReconciliationEngine:
             broker_value=0,
             internal_value=0,
         )
-    
+
     def _check_duplicate_orders(self, broker: BrokerState) -> ReconciliationCheck:
         """Check for duplicate orders."""
         tickets = [o.get("ticket") for o in broker.orders]
         duplicates = [t for t in tickets if tickets.count(t) > 1]
-        
+
         if duplicates:
             return ReconciliationCheck(
                 check_name="duplicate_orders",
@@ -469,7 +496,7 @@ class ReconciliationEngine:
                 broker_value=len(duplicates),
                 internal_value=0,
             )
-        
+
         return ReconciliationCheck(
             check_name="duplicate_orders",
             status="PASS",
@@ -480,28 +507,30 @@ class ReconciliationEngine:
             broker_value=0,
             internal_value=0,
         )
-    
+
     def _check_stale_positions(self, broker: BrokerState) -> ReconciliationCheck:
         """Check for stale positions.
-        
+
         A position is stale if its open time is older than the stale threshold
         and it hasn't been updated. This can indicate orphaned positions or
         broker state inconsistency.
         """
         stale_positions = []
         now_ts = datetime.now(timezone.utc).timestamp()
-        
+
         for pos in broker.positions:
             open_time = pos.get("time", 0)
             if open_time and isinstance(open_time, (int, float)):
                 age_seconds = now_ts - open_time
                 if age_seconds > self._stale_threshold:
-                    stale_positions.append({
-                        "ticket": pos.get("ticket"),
-                        "symbol": pos.get("symbol"),
-                        "age_hours": round(age_seconds / 3600, 1),
-                    })
-        
+                    stale_positions.append(
+                        {
+                            "ticket": pos.get("ticket"),
+                            "symbol": pos.get("symbol"),
+                            "age_hours": round(age_seconds / 3600, 1),
+                        }
+                    )
+
         if stale_positions:
             return ReconciliationCheck(
                 check_name="stale_positions",
@@ -513,7 +542,7 @@ class ReconciliationEngine:
                 broker_value=len(stale_positions),
                 internal_value=0,
             )
-        
+
         return ReconciliationCheck(
             check_name="stale_positions",
             status="PASS",
@@ -524,7 +553,7 @@ class ReconciliationEngine:
             broker_value=0,
             internal_value=0,
         )
-    
+
     def _check_account_consistency(self, broker: BrokerState) -> ReconciliationCheck:
         """Check account state consistency."""
         # Check equity > 0
@@ -539,7 +568,7 @@ class ReconciliationEngine:
                 broker_value=broker.account_equity,
                 internal_value=None,
             )
-        
+
         # Check free margin >= 0
         if broker.account_free_margin < 0:
             return ReconciliationCheck(
@@ -552,18 +581,21 @@ class ReconciliationEngine:
                 broker_value=broker.account_free_margin,
                 internal_value=None,
             )
-        
+
         return ReconciliationCheck(
             check_name="account_consistency",
             status="PASS",
             severity=ReconciliationSeverity.INFO.value,
             action=ReconciliationAction.SAFE_AUTOFIX.value,
             message="Account state consistent",
-            details={"equity": broker.account_equity, "free_margin": broker.account_free_margin},
+            details={
+                "equity": broker.account_equity,
+                "free_margin": broker.account_free_margin,
+            },
             broker_value=broker.account_equity,
             internal_value=None,
         )
-    
+
     def _check_pnl_discrepancy(
         self,
         broker: BrokerState,
@@ -582,17 +614,23 @@ class ReconciliationEngine:
             broker_value=None,
             internal_value=None,
         )
-    
+
     def get_history(self) -> List[Dict[str, Any]]:
         """Get reconciliation history."""
         return list(self._reconciliation_history)
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Get reconciliation statistics."""
         total = len(self._reconciliation_history)
         if total == 0:
-            return {"total": 0, "reconciled": 0, "warnings": 0, "mismatches": 0, "blocking": 0}
-        
+            return {
+                "total": 0,
+                "reconciled": 0,
+                "warnings": 0,
+                "mismatches": 0,
+                "blocking": 0,
+            }
+
         statuses = [r.get("status", "UNKNOWN") for r in self._reconciliation_history]
         return {
             "total": total,

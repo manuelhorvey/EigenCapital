@@ -26,12 +26,12 @@ Design principles:
 - Durable: events are flushed to disk immediately
 - Auditable: every event has a deterministic fingerprint
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import logging
-import os
 import threading
 import time
 import uuid
@@ -44,12 +44,12 @@ from typing import Any, Dict, List, Optional
 
 class EventType(str, Enum):
     """Event types for the trade lifecycle."""
-    
+
     # Signal events
     SIGNAL_COMPUTED = "SIGNAL_COMPUTED"
     SIGNAL_CLIPPED = "SIGNAL_CLIPPED"
     SIGNAL_BLOCKED = "SIGNAL_BLOCKED"
-    
+
     # Order events
     ORDER_INTENT = "ORDER_INTENT"
     ORDER_SUBMITTED = "ORDER_SUBMITTED"
@@ -57,49 +57,49 @@ class EventType(str, Enum):
     ORDER_REJECTED = "ORDER_REJECTED"
     ORDER_CANCELLED = "ORDER_CANCELLED"
     ORDER_EXPIRED = "ORDER_EXPIRED"
-    
+
     # Fill events
     FILL = "FILL"
     PARTIAL_FILL = "PARTIAL_FILL"
     FILL_REJECTED = "FILL_REJECTED"
-    
+
     # Position events
     POSITION_OPENED = "POSITION_OPENED"
     POSITION_CLOSED = "POSITION_CLOSED"
     POSITION_MODIFIED = "POSITION_MODIFIED"
-    
+
     # Risk events
     RISK_OBSERVATION = "RISK_OBSERVATION"
     RISK_ACTION = "RISK_ACTION"
     RISK_GATE = "RISK_GATE"
-    
+
     # Price events
     PRICE_OBSERVATION = "PRICE_OBSERVATION"
     SPREAD_OBSERVATION = "SPREAD_OBSERVATION"
-    
+
     # Exit events
     EXIT_INTENT = "EXIT_INTENT"
     EXIT_SUBMITTED = "EXIT_SUBMITTED"
     EXIT_FILL = "EXIT_FILL"
-    
+
     # Reconciliation events
     RECONCILIATION = "RECONCILIATION"
     RECONCILIATION_MISMATCH = "RECONCILIATION_MISMATCH"
-    
+
     # System events
     SYSTEM_START = "SYSTEM_START"
     SYSTEM_STOP = "SYSTEM_STOP"
     SYSTEM_ERROR = "SYSTEM_ERROR"
     DISCONNECT = "DISCONNECT"
     RECONNECT = "RECONNECT"
-    
+
     # Health events
     HEALTH_CHANGE = "HEALTH_CHANGE"
     WATCHDOG_STATE = "WATCHDOG_STATE"
-    
+
     # Alert events
     ALERT_DISPATCHED = "ALERT_DISPATCHED"
-    
+
     # Campaign events
     CAMPAIGN_START = "CAMPAIGN_START"
     CAMPAIGN_END = "CAMPAIGN_END"
@@ -109,47 +109,47 @@ class EventType(str, Enum):
 @dataclass(frozen=True)
 class Event:
     """Immutable event in the trade lifecycle."""
-    
+
     # Identity
     event_id: str
     timestamp: str
     event_type: str
-    
+
     # Provenance
     strategy_version: str
     build_id: str
     config_fingerprint: str
-    
+
     # Context
     account_id: str
     tier: str
     campaign_id: str
-    
+
     # Trade context (optional)
     symbol: Optional[str] = None
     position_ticket: Optional[int] = None
     order_ticket: Optional[str] = None
-    
+
     # Correlation
     correlation_id: Optional[str] = None
     parent_event_id: Optional[str] = None
-    
+
     # Broker reference
     broker_reference: Optional[str] = None
-    
+
     # State transition
     state_transition: Optional[str] = None
-    
+
     # Payload
     payload: Dict[str, Any] = field(default_factory=dict)
-    
+
     # Integrity
     event_hash: str = ""
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Event":
         """Create from dictionary."""
@@ -158,7 +158,7 @@ class Event:
 
 class EventLedger:
     """Immutable, reconstructable trade lifecycle ledger.
-    
+
     Events are:
     - Appended in order
     - Never modified or deleted
@@ -166,7 +166,7 @@ class EventLedger:
     - Bounded by configurable retention
     - Indexed by correlation_id for trade reconstruction
     """
-    
+
     def __init__(
         self,
         base_path: str = "reports/event_ledger",
@@ -174,7 +174,7 @@ class EventLedger:
         flush_after: int = 1,  # Flush after every N events
     ) -> None:
         """Initialize the event ledger.
-        
+
         Args:
             base_path: Directory for event storage
             max_events: Maximum events before rotation
@@ -183,44 +183,47 @@ class EventLedger:
         self._base_path = Path(base_path).resolve()
         self._max_events = max_events
         self._flush_after = flush_after
-        
+
         # Structured logger
         self._logger = logging.getLogger("eigencapital.event_ledger")
-        
+
         # Thread safety
         self._lock = threading.Lock()
-        
+
         # Current batch
         self._events: List[Event] = []
         self._batch_count = 0
-        
+
         # Index for correlation lookups
-        self._correlation_index: Dict[str, List[str]] = {}  # correlation_id -> [event_id]
+        self._correlation_index: Dict[
+            str, List[str]
+        ] = {}  # correlation_id -> [event_id]
         self._position_index: Dict[int, List[str]] = {}  # position_ticket -> [event_id]
         self._symbol_index: Dict[str, List[str]] = {}  # symbol -> [event_id]
-        
+
         # Counters
         self._total_events = 0
         self._total_batches = 0
-        
+
         # Ensure directory exists
         self._base_path.mkdir(parents=True, exist_ok=True)
-    
+
     def _compute_event_hash(self, event_data: Dict[str, Any]) -> str:
         """Compute deterministic hash for event integrity."""
         # Remove event_hash itself to avoid circular reference
         data = {k: v for k, v in event_data.items() if k != "event_hash"}
         payload = json.dumps(data, sort_keys=True, default=str).encode("utf-8")
         return hashlib.sha256(payload).hexdigest()[:32]
-    
+
     def _generate_event_id(self) -> str:
         """Generate unique event ID."""
         return str(uuid.uuid4())
-    
+
     def _get_build_id(self) -> str:
         """Get build ID from git HEAD."""
         try:
             import subprocess
+
             result = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
                 capture_output=True,
@@ -232,24 +235,26 @@ class EventLedger:
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
             pass
         return "unknown"
-    
+
     def _get_config_fingerprint(self) -> str:
         """Get config fingerprint.
-        
+
         Uses the config module to compute a fingerprint directly rather than
         instantiating FingerprintVerifier without config (which produces an empty fingerprint).
         """
         try:
             from eigencapital.config import EigenCapitalConfig
+
             config = EigenCapitalConfig.load()
             import json
+
             data = config.to_dict()
             data.pop("environment", None)
             payload = json.dumps(data, sort_keys=True, default=str).encode("utf-8")
             return hashlib.sha256(payload).hexdigest()[:16]
         except (ImportError, AttributeError, FileNotFoundError, Exception):
             return "unknown"
-    
+
     def append(
         self,
         event_type: EventType,
@@ -267,7 +272,7 @@ class EventLedger:
         strategy_version: str = "R4.0",
     ) -> Event:
         """Append an event to the ledger.
-        
+
         Args:
             event_type: Type of event
             account_id: MT5 account ID
@@ -282,16 +287,18 @@ class EventLedger:
             state_transition: State change description
             payload: Event-specific data
             strategy_version: Strategy version string
-            
+
         Returns:
             Created event
-            
+
         Raises:
             ValueError: If required fields are empty or contain invalid characters
         """
         # Input validation
         if not isinstance(event_type, EventType):
-            raise ValueError(f"event_type must be an EventType, got {type(event_type).__name__}")
+            raise ValueError(
+                f"event_type must be an EventType, got {type(event_type).__name__}"
+            )
         if not account_id or not isinstance(account_id, str):
             raise ValueError("account_id must be a non-empty string")
         if not tier or not isinstance(tier, str):
@@ -299,11 +306,13 @@ class EventLedger:
         if not campaign_id or not isinstance(campaign_id, str):
             raise ValueError("campaign_id must be a non-empty string")
         # Validate symbol contains only allowed characters (alphanumeric, underscore, dot)
-        if symbol is not None and (not isinstance(symbol, str) or not symbol.isidentifier()):
+        if symbol is not None and (
+            not isinstance(symbol, str) or not symbol.isidentifier()
+        ):
             raise ValueError(f"symbol must be a valid identifier, got {symbol!r}")
-        
+
         now = datetime.now(timezone.utc).isoformat()
-        
+
         # Generate event
         event = Event(
             event_id=self._generate_event_id(),
@@ -325,46 +334,55 @@ class EventLedger:
             payload=payload or {},
             event_hash="",  # Will be computed below
         )
-        
+
         # Compute hash
         event_data = event.to_dict()
         event_hash = self._compute_event_hash(event_data)
         event = Event(**{**event_data, "event_hash": event_hash})
-        
+
         # Add to batch with thread safety
         with self._lock:
             self._events.append(event)
             self._total_events += 1
-            
+
             # Update indexes
             if event.correlation_id:
-                self._correlation_index.setdefault(event.correlation_id, []).append(event.event_id)
+                self._correlation_index.setdefault(event.correlation_id, []).append(
+                    event.event_id
+                )
             if event.position_ticket:
-                self._position_index.setdefault(event.position_ticket, []).append(event.event_id)
+                self._position_index.setdefault(event.position_ticket, []).append(
+                    event.event_id
+                )
             if event.symbol:
                 self._symbol_index.setdefault(event.symbol, []).append(event.event_id)
-        
+
         # Structured logging
-        self._logger.info(json.dumps({
-            "ts": now,
-            "event": "event_appended",
-            "event_type": event_type.value,
-            "event_id": event.event_id,
-            "correlation_id": event.correlation_id,
-            "symbol": symbol,
-            "position_ticket": position_ticket,
-            "total_events": self._total_events,
-        }, default=str))
-        
+        self._logger.info(
+            json.dumps(
+                {
+                    "ts": now,
+                    "event": "event_appended",
+                    "event_type": event_type.value,
+                    "event_id": event.event_id,
+                    "correlation_id": event.correlation_id,
+                    "symbol": symbol,
+                    "position_ticket": position_ticket,
+                    "total_events": self._total_events,
+                },
+                default=str,
+            )
+        )
+
         # Flush if needed (outside lock to avoid holding during I/O)
         if len(self._events) >= self._flush_after:
             self.flush()
-        
+
         return event
-    
+
     def flush(self, max_retries: int = 3, retry_delay: float = 0.1) -> None:
         """Flush current batch to disk with retry logic.
-        
+
         Args:
             max_retries: Maximum number of retry attempts on failure
             retry_delay: Initial delay between retries (doubles each retry)
@@ -374,11 +392,14 @@ class EventLedger:
                 return
             # Copy events and clear batch atomically
             events_to_write = self._events[:]
-            batch_file = self._base_path / f"events_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{self._total_batches:06d}.jsonl"
+            batch_file = (
+                self._base_path
+                / f"events_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{self._total_batches:06d}.jsonl"
+            )
             self._events = []
             self._batch_count += 1
             self._total_batches += 1
-        
+
         # Write events with retry logic (outside lock)
         last_error: Optional[Exception] = None
         for attempt in range(max_retries):
@@ -391,7 +412,7 @@ class EventLedger:
             except (OSError, IOError) as e:
                 last_error = e
                 if attempt < max_retries - 1:
-                    time.sleep(retry_delay * (2 ** attempt))
+                    time.sleep(retry_delay * (2**attempt))
         else:
             # All retries failed - restore events to batch
             with self._lock:
@@ -401,11 +422,11 @@ class EventLedger:
             raise RuntimeError(
                 f"Failed to flush {len(events_to_write)} events after {max_retries} attempts: {last_error}"
             ) from last_error
-        
+
         # Check if we need to rotate
         if self._total_events >= self._max_events:
             self._rotate()
-    
+
     def _rotate(self) -> None:
         """Rotate old batches if we exceed max events."""
         # This is a simplified rotation - in production, you'd want
@@ -414,52 +435,49 @@ class EventLedger:
         if len(batches) > 10:  # Keep at most 10 batches
             for batch in batches[:-5]:  # Delete oldest batches
                 batch.unlink()
-    
+
     def query_by_correlation(self, correlation_id: str) -> List[Event]:
         """Query events by correlation ID (trade reconstruction)."""
         event_ids = self._correlation_index.get(correlation_id, [])
         return self._query_by_ids(event_ids)
-    
+
     def query_by_position(self, position_ticket: int) -> List[Event]:
         """Query events by position ticket."""
         event_ids = self._position_index.get(position_ticket, [])
         return self._query_by_ids(event_ids)
-    
+
     def query_by_symbol(self, symbol: str) -> List[Event]:
         """Query events by symbol."""
         event_ids = self._symbol_index.get(symbol, [])
         return self._query_by_ids(event_ids)
-    
+
     def query_by_type(self, event_type: EventType) -> List[Event]:
         """Query events by type."""
         return [e for e in self._events if e.event_type == event_type.value]
-    
+
     def query_by_time_range(
         self,
         start_time: str,
         end_time: str,
     ) -> List[Event]:
         """Query events within time range."""
-        return [
-            e for e in self._events
-            if start_time <= e.timestamp <= end_time
-        ]
-    
+        return [e for e in self._events if start_time <= e.timestamp <= end_time]
+
     def _query_by_ids(self, event_ids: List[str]) -> List[Event]:
         """Query events by IDs (from index)."""
         # For now, scan current batch
         # In production, you'd query persisted batches too
         return [e for e in self._events if e.event_id in event_ids]
-    
+
     def get_trade_chain(self, correlation_id: str) -> List[Event]:
         """Get complete event chain for a trade.
-        
+
         Returns events in chronological order, suitable for
         reconstructing the full trade lifecycle.
         """
         events = self.query_by_correlation(correlation_id)
         return sorted(events, key=lambda e: e.timestamp)
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Get ledger statistics."""
         return {
@@ -473,6 +491,7 @@ class EventLedger:
 
 
 # Convenience functions for common event patterns
+
 
 def signal_computed(
     ledger: EventLedger,

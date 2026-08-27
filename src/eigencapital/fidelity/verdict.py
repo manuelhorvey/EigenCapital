@@ -98,32 +98,40 @@ class FidelityReport:
             status = "✅" if gate.passed else "❌"
             lines.append(f"- {status} **{gate.gate.value}**: {gate.reason}")
 
-        lines.extend([
-            "",
-            "## Parity Summary",
-            "",
-            f"- Total checks: {self.parity_summary.get('total_checks', 0)}",
-            f"- Exact matches: {self.parity_summary.get('exact_matches', 0)}",
-            f"- Expected differences: {self.parity_summary.get('expected_differences', 0)}",
-            f"- Tolerable divergences: {self.parity_summary.get('tolerable_divergences', 0)}",
-            f"- Unexplained divergences: {self.parity_summary.get('unexplained_divergences', 0)}",
-            f"- Critical divergences: {self.parity_summary.get('critical_divergences', 0)}",
-            f"- Match rate: {self.parity_summary.get('match_rate', 0.0):.1%}",
-            "",
-            "## Summary",
-            "",
-            f"- Passed gates: {self.passed_gates}/{self.total_checks}",
-            f"- Failed gates: {self.failed_gates}/{self.total_checks}",
-            f"- Report hash: {self.report_hash[:16]}...",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## Parity Summary",
+                "",
+                f"- Total checks: {self.parity_summary.get('total_checks', 0)}",
+                f"- Exact matches: {self.parity_summary.get('exact_matches', 0)}",
+                f"- Expected differences: {self.parity_summary.get('expected_differences', 0)}",
+                f"- Tolerable divergences: {self.parity_summary.get('tolerable_divergences', 0)}",
+                f"- Unexplained divergences: {self.parity_summary.get('unexplained_divergences', 0)}",
+                f"- Critical divergences: {self.parity_summary.get('critical_divergences', 0)}",
+                f"- Match rate: {self.parity_summary.get('match_rate', 0.0):.1%}",
+                "",
+                "## Summary",
+                "",
+                f"- Passed gates: {self.passed_gates}/{self.total_checks}",
+                f"- Failed gates: {self.failed_gates}/{self.total_checks}",
+                f"- Report hash: {self.report_hash[:16]}...",
+                "",
+            ]
+        )
 
         if self.verdict == FidelityVerdict.PAPER_FIDELITY_PASS:
-            lines.append("**The paper implementation reproduces the validated R4 research.**")
+            lines.append(
+                "**The paper implementation reproduces the validated R4 research.**"
+            )
         elif self.verdict == FidelityVerdict.BLOCKED:
-            lines.append("**CRITICAL: Paper implementation does NOT reproduce research.**")
+            lines.append(
+                "**CRITICAL: Paper implementation does NOT reproduce research.**"
+            )
         else:
-            lines.append("**CONDITIONAL: Some gates failed but no critical divergence.**")
+            lines.append(
+                "**CONDITIONAL: Some gates failed but no critical divergence.**"
+            )
 
         return "\n".join(lines)
 
@@ -136,11 +144,11 @@ class FidelityEvaluator:
     """
 
     # Pre-registered thresholds (frozen before campaign)
-    MIN_MATCH_RATE: float = 0.95          # 95% exact match required
-    MAX_UNEXPLAINED: int = 5              # max 5 unexplained divergences
-    MAX_CRITICAL: int = 0                 # zero critical divergences
-    MAX_COST_DRAG_BPS: float = 20.0       # max 20bp total cost drag
-    MAX_SLIPPAGE_BPS: float = 10.0        # max 10bp slippage
+    MIN_MATCH_RATE: float = 0.95  # 95% exact match required
+    MAX_UNEXPLAINED: int = 5  # max 5 unexplained divergences
+    MAX_CRITICAL: int = 0  # zero critical divergences
+    MAX_COST_DRAG_BPS: float = 20.0  # max 20bp total cost drag
+    MAX_SLIPPAGE_BPS: float = 10.0  # max 10bp slippage
     MAX_RECONCILIATION_FAILURES: int = 0  # zero reconciliation failures
     MIN_RECONCILIATION_RATE: float = 1.0  # 100% reconciliation success
 
@@ -171,13 +179,10 @@ class FidelityEvaluator:
         # Gate 1: Research Parity
         # Expected differences (intentional cost model) are not failures
         non_expected_total = (
-            parity_summary.total_checks
-            - parity_summary.expected_differences
+            parity_summary.total_checks - parity_summary.expected_differences
         )
         if non_expected_total > 0:
-            effective_match_rate = (
-                parity_summary.exact_matches / non_expected_total
-            )
+            effective_match_rate = parity_summary.exact_matches / non_expected_total
         else:
             effective_match_rate = 1.0
 
@@ -234,9 +239,7 @@ class FidelityEvaluator:
                     f"Critical divergences: {parity_summary.critical_divergences} "
                     f"({'PASS' if risk_passed else 'FAIL'})"
                 ),
-                details={
-                    "critical_divergences": parity_summary.critical_divergences
-                },
+                details={"critical_divergences": parity_summary.critical_divergences},
             )
         )
 
@@ -283,8 +286,7 @@ class FidelityEvaluator:
                 gate=FidelityGate.COST_SLIPPAGE_ENVELOPE,
                 passed=cost_envelope_passed,
                 reason=(
-                    f"Within envelope "
-                    f"({'PASS' if cost_envelope_passed else 'FAIL'})"
+                    f"Within envelope ({'PASS' if cost_envelope_passed else 'FAIL'})"
                 ),
                 details={
                     "cost_bps": total_cost_drag_bps,
@@ -303,9 +305,7 @@ class FidelityEvaluator:
                     f"Critical divergences: {parity_summary.critical_divergences} "
                     f"({'PASS' if no_critical_passed else 'FAIL'})"
                 ),
-                details={
-                    "critical_count": parity_summary.critical_divergences
-                },
+                details={"critical_count": parity_summary.critical_divergences},
             )
         )
 

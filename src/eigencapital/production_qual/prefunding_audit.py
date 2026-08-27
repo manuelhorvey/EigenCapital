@@ -11,7 +11,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 
 class AuditVerdict(str, Enum):
@@ -144,8 +144,14 @@ class AuditReport:
         lines.extend(["", "## Detailed Checks", ""])
 
         for check in self.checks:
-            icon = "✅" if check.passed else ("❌" if check.severity == "CRITICAL" else "⚠️")
-            lines.append(f"- {icon} **[{check.category}] {check.check_id}**: {check.description}")
+            icon = (
+                "✅"
+                if check.passed
+                else ("❌" if check.severity == "CRITICAL" else "⚠️")
+            )
+            lines.append(
+                f"- {icon} **[{check.category}] {check.check_id}**: {check.description}"
+            )
             if not check.passed:
                 lines.append(f"  - Expected: {check.expected}")
                 lines.append(f"  - Observed: {check.observed}")
@@ -206,78 +212,94 @@ class PrefundingGateAuditor:
 
         # 1.1 Frozen manifest fingerprint is present
         has_fingerprint = bool(frozen_manifest_fingerprint)
-        self._add_check(AuditCheck(
-            check_id="ID-01",
-            category=cat,
-            description="Frozen R4 manifest fingerprint is non-empty",
-            passed=has_fingerprint,
-            expected="non-empty fingerprint",
-            observed=frozen_manifest_fingerprint[:16] if frozen_manifest_fingerprint else "(empty)",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="ID-01",
+                category=cat,
+                description="Frozen R4 manifest fingerprint is non-empty",
+                passed=has_fingerprint,
+                expected="non-empty fingerprint",
+                observed=frozen_manifest_fingerprint[:16]
+                if frozen_manifest_fingerprint
+                else "(empty)",
+            )
+        )
         checks.append(self._checks[-1])
 
         # 1.2 Production config hashes to frozen identity
-        config_matches = (
-            production_config_fingerprint == frozen_manifest_fingerprint
+        config_matches = production_config_fingerprint == frozen_manifest_fingerprint
+        self._add_check(
+            AuditCheck(
+                check_id="ID-02",
+                category=cat,
+                description="Production configuration matches frozen identity",
+                passed=config_matches,
+                expected=frozen_manifest_fingerprint[:16],
+                observed=production_config_fingerprint[:16]
+                if production_config_fingerprint
+                else "(empty)",
+                details="Production config must hash to the same fingerprint as the frozen manifest",
+            )
         )
-        self._add_check(AuditCheck(
-            check_id="ID-02",
-            category=cat,
-            description="Production configuration matches frozen identity",
-            passed=config_matches,
-            expected=frozen_manifest_fingerprint[:16],
-            observed=production_config_fingerprint[:16] if production_config_fingerprint else "(empty)",
-            details="Production config must hash to the same fingerprint as the frozen manifest",
-        ))
         checks.append(self._checks[-1])
 
         # 1.3 Manifest computed identity matches frozen fingerprint
         identity_matches = manifest_computed_identity == frozen_manifest_fingerprint
-        self._add_check(AuditCheck(
-            check_id="ID-03",
-            category=cat,
-            description="Manifest computed identity matches frozen fingerprint",
-            passed=identity_matches,
-            expected=frozen_manifest_fingerprint[:16],
-            observed=manifest_computed_identity[:16] if manifest_computed_identity else "(empty)",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="ID-03",
+                category=cat,
+                description="Manifest computed identity matches frozen fingerprint",
+                passed=identity_matches,
+                expected=frozen_manifest_fingerprint[:16],
+                observed=manifest_computed_identity[:16]
+                if manifest_computed_identity
+                else "(empty)",
+            )
+        )
         checks.append(self._checks[-1])
 
         # 1.4 Strategy version is frozen
         version_ok = strategy_version == "R4.0"
-        self._add_check(AuditCheck(
-            check_id="ID-04",
-            category=cat,
-            description="Strategy version is frozen at R4.0",
-            passed=version_ok,
-            expected="R4.0",
-            observed=strategy_version,
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="ID-04",
+                category=cat,
+                description="Strategy version is frozen at R4.0",
+                passed=version_ok,
+                expected="R4.0",
+                observed=strategy_version,
+            )
+        )
         checks.append(self._checks[-1])
 
         # 1.5 Golden manifest guard passes
-        self._add_check(AuditCheck(
-            check_id="ID-05",
-            category=cat,
-            description="Golden manifest guard passes",
-            passed=golden_manifest_guard_passes,
-            expected="guard pass",
-            observed="pass" if golden_manifest_guard_passes else "FAIL",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="ID-05",
+                category=cat,
+                description="Golden manifest guard passes",
+                passed=golden_manifest_guard_passes,
+                expected="guard pass",
+                observed="pass" if golden_manifest_guard_passes else "FAIL",
+            )
+        )
         checks.append(self._checks[-1])
 
         # 1.6 No strategy/risk/execution parameter drift
         # (Drift is detected if config fingerprint != frozen fingerprint)
         no_drift = config_matches and identity_matches
-        self._add_check(AuditCheck(
-            check_id="ID-06",
-            category=cat,
-            description="No strategy/risk/execution parameter drift",
-            passed=no_drift,
-            expected="no drift detected",
-            observed="clean" if no_drift else "DRIFT DETECTED",
-            severity="CRITICAL",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="ID-06",
+                category=cat,
+                description="No strategy/risk/execution parameter drift",
+                passed=no_drift,
+                expected="no drift detected",
+                observed="clean" if no_drift else "DRIFT DETECTED",
+                severity="CRITICAL",
+            )
+        )
         checks.append(self._checks[-1])
 
         return checks
@@ -302,104 +324,141 @@ class PrefundingGateAuditor:
         checks: List[AuditCheck] = []
         cat = AuditCategory.RISK.value
 
-        self._add_check(AuditCheck(
-            check_id="RK-01", category=cat,
-            description="RiskPolicy is sole account-level authority",
-            passed=risk_policy_is_authority,
-            expected="RiskPolicy sole authority",
-            observed="sole authority" if risk_policy_is_authority else "NOT sole authority",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="RK-01",
+                category=cat,
+                description="RiskPolicy is sole account-level authority",
+                passed=risk_policy_is_authority,
+                expected="RiskPolicy sole authority",
+                observed="sole authority"
+                if risk_policy_is_authority
+                else "NOT sole authority",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="RK-02", category=cat,
-            description="Position and asset-class exposure maps populated from broker state",
-            passed=exposure_maps_populated,
-            expected="exposure maps populated",
-            observed="populated" if exposure_maps_populated else "EMPTY",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="RK-02",
+                category=cat,
+                description="Position and asset-class exposure maps populated from broker state",
+                passed=exposure_maps_populated,
+                expected="exposure maps populated",
+                observed="populated" if exposure_maps_populated else "EMPTY",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="RK-03", category=cat,
-            description="Concentration limits enforced (not diagnostic-only)",
-            passed=concentration_enforced,
-            expected="enforced",
-            observed="enforced" if concentration_enforced else "diagnostic-only",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="RK-03",
+                category=cat,
+                description="Concentration limits enforced (not diagnostic-only)",
+                passed=concentration_enforced,
+                expected="enforced",
+                observed="enforced" if concentration_enforced else "diagnostic-only",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="RK-04", category=cat,
-            description="Asset-class limits enforced (not diagnostic-only)",
-            passed=asset_class_enforced,
-            expected="enforced",
-            observed="enforced" if asset_class_enforced else "diagnostic-only",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="RK-04",
+                category=cat,
+                description="Asset-class limits enforced (not diagnostic-only)",
+                passed=asset_class_enforced,
+                expected="enforced",
+                observed="enforced" if asset_class_enforced else "diagnostic-only",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="RK-05", category=cat,
-            description="Drawdown limits verified",
-            passed=drawdown_verified,
-            expected="verified",
-            observed="verified" if drawdown_verified else "NOT verified",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="RK-05",
+                category=cat,
+                description="Drawdown limits verified",
+                passed=drawdown_verified,
+                expected="verified",
+                observed="verified" if drawdown_verified else "NOT verified",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="RK-06", category=cat,
-            description="Daily loss limits verified",
-            passed=daily_loss_verified,
-            expected="verified",
-            observed="verified" if daily_loss_verified else "NOT verified",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="RK-06",
+                category=cat,
+                description="Daily loss limits verified",
+                passed=daily_loss_verified,
+                expected="verified",
+                observed="verified" if daily_loss_verified else "NOT verified",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="RK-07", category=cat,
-            description="Leverage limits verified",
-            passed=leverage_verified,
-            expected="verified",
-            observed="verified" if leverage_verified else "NOT verified",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="RK-07",
+                category=cat,
+                description="Leverage limits verified",
+                passed=leverage_verified,
+                expected="verified",
+                observed="verified" if leverage_verified else "NOT verified",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="RK-08", category=cat,
-            description="Position count limits verified",
-            passed=position_limit_verified,
-            expected="verified",
-            observed="verified" if position_limit_verified else "NOT verified",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="RK-08",
+                category=cat,
+                description="Position count limits verified",
+                passed=position_limit_verified,
+                expected="verified",
+                observed="verified" if position_limit_verified else "NOT verified",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="RK-09", category=cat,
-            description="Order frequency limits verified",
-            passed=order_limit_verified,
-            expected="verified",
-            observed="verified" if order_limit_verified else "NOT verified",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="RK-09",
+                category=cat,
+                description="Order frequency limits verified",
+                passed=order_limit_verified,
+                expected="verified",
+                observed="verified" if order_limit_verified else "NOT verified",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="RK-10", category=cat,
-            description="Kill switch verified",
-            passed=kill_switch_verified,
-            expected="verified",
-            observed="verified" if kill_switch_verified else "NOT verified",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="RK-10",
+                category=cat,
+                description="Kill switch verified",
+                passed=kill_switch_verified,
+                expected="verified",
+                observed="verified" if kill_switch_verified else "NOT verified",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="RK-11", category=cat,
-            description="Missing state fails closed",
-            passed=missing_state_fails_closed,
-            expected="fail closed on missing state",
-            observed="fail closed" if missing_state_fails_closed else "FAIL OPEN (unsafe)",
-            severity="CRITICAL",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="RK-11",
+                category=cat,
+                description="Missing state fails closed",
+                passed=missing_state_fails_closed,
+                expected="fail closed on missing state",
+                observed="fail closed"
+                if missing_state_fails_closed
+                else "FAIL OPEN (unsafe)",
+                severity="CRITICAL",
+            )
+        )
         checks.append(self._checks[-1])
 
         return checks
@@ -419,58 +478,82 @@ class PrefundingGateAuditor:
         checks: List[AuditCheck] = []
         cat = AuditCategory.EXECUTION.value
 
-        self._add_check(AuditCheck(
-            check_id="EX-01", category=cat,
-            description="Partial-fill state machine active",
-            passed=partial_fill_active,
-            expected="active",
-            observed="active" if partial_fill_active else "INACTIVE",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="EX-01",
+                category=cat,
+                description="Partial-fill state machine active",
+                passed=partial_fill_active,
+                expected="active",
+                observed="active" if partial_fill_active else "INACTIVE",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="EX-02", category=cat,
-            description="Broker-authoritative reconciliation",
-            passed=broker_reconciliation_authoritative,
-            expected="broker authoritative",
-            observed="authoritative" if broker_reconciliation_authoritative else "NOT authoritative",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="EX-02",
+                category=cat,
+                description="Broker-authoritative reconciliation",
+                passed=broker_reconciliation_authoritative,
+                expected="broker authoritative",
+                observed="authoritative"
+                if broker_reconciliation_authoritative
+                else "NOT authoritative",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="EX-03", category=cat,
-            description="Duplicate fill protection",
-            passed=duplicate_fill_protection,
-            expected="protected",
-            observed="protected" if duplicate_fill_protection else "UNPROTECTED",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="EX-03",
+                category=cat,
+                description="Duplicate fill protection",
+                passed=duplicate_fill_protection,
+                expected="protected",
+                observed="protected" if duplicate_fill_protection else "UNPROTECTED",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="EX-04", category=cat,
-            description="Disconnect → reconcile → resume sequence enforced",
-            passed=disconnect_reconcile_resume_enforced,
-            expected="sequence enforced",
-            observed="enforced" if disconnect_reconcile_resume_enforced else "NOT enforced",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="EX-04",
+                category=cat,
+                description="Disconnect → reconcile → resume sequence enforced",
+                passed=disconnect_reconcile_resume_enforced,
+                expected="sequence enforced",
+                observed="enforced"
+                if disconnect_reconcile_resume_enforced
+                else "NOT enforced",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="EX-05", category=cat,
-            description="No reconnect-only trading",
-            passed=no_reconnect_only_trading,
-            expected="reconnect alone does not grant permission",
-            observed="safe" if no_reconnect_only_trading else "UNSAFE: reconnect grants trading",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="EX-05",
+                category=cat,
+                description="No reconnect-only trading",
+                passed=no_reconnect_only_trading,
+                expected="reconnect alone does not grant permission",
+                observed="safe"
+                if no_reconnect_only_trading
+                else "UNSAFE: reconnect grants trading",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="EX-06", category=cat,
-            description="Kill/freeze mechanisms independently tested",
-            passed=kill_freeze_independently_tested,
-            expected="tested",
-            observed="tested" if kill_freeze_independently_tested else "UNTESTED",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="EX-06",
+                category=cat,
+                description="Kill/freeze mechanisms independently tested",
+                passed=kill_freeze_independently_tested,
+                expected="tested",
+                observed="tested" if kill_freeze_independently_tested else "UNTESTED",
+            )
+        )
         checks.append(self._checks[-1])
 
         return checks
@@ -492,76 +575,102 @@ class PrefundingGateAuditor:
         checks: List[AuditCheck] = []
         cat = AuditCategory.HEALTH.value
 
-        self._add_check(AuditCheck(
-            check_id="HL-01", category=cat,
-            description="HEALTHY → TRADE",
-            passed=healthy_permits_trade,
-            expected="TRADE action",
-            observed="TRADE" if healthy_permits_trade else "NOT TRADE",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="HL-01",
+                category=cat,
+                description="HEALTHY → TRADE",
+                passed=healthy_permits_trade,
+                expected="TRADE action",
+                observed="TRADE" if healthy_permits_trade else "NOT TRADE",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="HL-02", category=cat,
-            description="DEGRADED → MANAGE_ONLY",
-            passed=degraded_manage_only,
-            expected="MANAGE_ONLY action",
-            observed="MANAGE_ONLY" if degraded_manage_only else "NOT MANAGE_ONLY",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="HL-02",
+                category=cat,
+                description="DEGRADED → MANAGE_ONLY",
+                passed=degraded_manage_only,
+                expected="MANAGE_ONLY action",
+                observed="MANAGE_ONLY" if degraded_manage_only else "NOT MANAGE_ONLY",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="HL-03", category=cat,
-            description="CRITICAL → HALT",
-            passed=critical_halts,
-            expected="HALT action",
-            observed="HALT" if critical_halts else "NOT HALT",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="HL-03",
+                category=cat,
+                description="CRITICAL → HALT",
+                passed=critical_halts,
+                expected="HALT action",
+                observed="HALT" if critical_halts else "NOT HALT",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="HL-04", category=cat,
-            description="FROZEN → HALT",
-            passed=frozen_halts,
-            expected="HALT action",
-            observed="HALT" if frozen_halts else "NOT HALT",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="HL-04",
+                category=cat,
+                description="FROZEN → HALT",
+                passed=frozen_halts,
+                expected="HALT action",
+                observed="HALT" if frozen_halts else "NOT HALT",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="HL-05", category=cat,
-            description="Stale health snapshot → HALT",
-            passed=stale_halts,
-            expected="HALT",
-            observed="HALT" if stale_halts else "NOT HALT",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="HL-05",
+                category=cat,
+                description="Stale health snapshot → HALT",
+                passed=stale_halts,
+                expected="HALT",
+                observed="HALT" if stale_halts else "NOT HALT",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="HL-06", category=cat,
-            description="Unparseable health state → HALT",
-            passed=unparseable_halts,
-            expected="HALT",
-            observed="HALT" if unparseable_halts else "NOT HALT",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="HL-06",
+                category=cat,
+                description="Unparseable health state → HALT",
+                passed=unparseable_halts,
+                expected="HALT",
+                observed="HALT" if unparseable_halts else "NOT HALT",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="HL-07", category=cat,
-            description="Monitor exception → HALT (fail closed)",
-            passed=exception_halts,
-            expected="HALT",
-            observed="HALT" if exception_halts else "NOT HALT",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="HL-07",
+                category=cat,
+                description="Monitor exception → HALT (fail closed)",
+                passed=exception_halts,
+                expected="HALT",
+                observed="HALT" if exception_halts else "NOT HALT",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="HL-08", category=cat,
-            description="Manual reset required for frozen state",
-            passed=manual_reset_required,
-            expected="manual reset required",
-            observed="manual reset" if manual_reset_required else "auto-reset (unsafe)",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="HL-08",
+                category=cat,
+                description="Manual reset required for frozen state",
+                passed=manual_reset_required,
+                expected="manual reset required",
+                observed="manual reset"
+                if manual_reset_required
+                else "auto-reset (unsafe)",
+            )
+        )
         checks.append(self._checks[-1])
 
         return checks
@@ -579,41 +688,55 @@ class PrefundingGateAuditor:
         checks: List[AuditCheck] = []
         cat = AuditCategory.OBSERVABILITY.value
 
-        self._add_check(AuditCheck(
-            check_id="OB-01", category=cat,
-            description="Critical events durably recorded",
-            passed=events_durably_recorded,
-            expected="durably recorded",
-            observed="recorded" if events_durably_recorded else "NOT recorded",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="OB-01",
+                category=cat,
+                description="Critical events durably recorded",
+                passed=events_durably_recorded,
+                expected="durably recorded",
+                observed="recorded" if events_durably_recorded else "NOT recorded",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="OB-02", category=cat,
-            description="Alert delivery works",
-            passed=alert_delivery_works,
-            expected="delivery functional",
-            observed="functional" if alert_delivery_works else "BROKEN",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="OB-02",
+                category=cat,
+                description="Alert delivery works",
+                passed=alert_delivery_works,
+                expected="delivery functional",
+                observed="functional" if alert_delivery_works else "BROKEN",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="OB-03", category=cat,
-            description="Alert failure cannot weaken safety state",
-            passed=alert_failure_cannot_weaken_safety,
-            expected="safety state unchanged on alert failure",
-            observed="safety preserved" if alert_failure_cannot_weaken_safety else "SAFETY COMPROMISED",
-            severity="CRITICAL",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="OB-03",
+                category=cat,
+                description="Alert failure cannot weaken safety state",
+                passed=alert_failure_cannot_weaken_safety,
+                expected="safety state unchanged on alert failure",
+                observed="safety preserved"
+                if alert_failure_cannot_weaken_safety
+                else "SAFETY COMPROMISED",
+                severity="CRITICAL",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="OB-04", category=cat,
-            description="Tamper-evident health history verifies correctly",
-            passed=tamper_evident_log_verifies,
-            expected="chain verifies",
-            observed="verified" if tamper_evident_log_verifies else "CHAIN BROKEN",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="OB-04",
+                category=cat,
+                description="Tamper-evident health history verifies correctly",
+                passed=tamper_evident_log_verifies,
+                expected="chain verifies",
+                observed="verified" if tamper_evident_log_verifies else "CHAIN BROKEN",
+            )
+        )
         checks.append(self._checks[-1])
 
         return checks
@@ -634,68 +757,91 @@ class PrefundingGateAuditor:
         checks: List[AuditCheck] = []
         cat = AuditCategory.BROKER.value
 
-        self._add_check(AuditCheck(
-            check_id="BB-01", category=cat,
-            description="Correct MT5 account",
-            passed=correct_account,
-            expected="correct account",
-            observed="correct" if correct_account else "WRONG ACCOUNT",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="BB-01",
+                category=cat,
+                description="Correct MT5 account",
+                passed=correct_account,
+                expected="correct account",
+                observed="correct" if correct_account else "WRONG ACCOUNT",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="BB-02", category=cat,
-            description="Correct environment (demo vs live)",
-            passed=correct_environment,
-            expected="correct environment",
-            observed="correct" if correct_environment else "WRONG ENVIRONMENT",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="BB-02",
+                category=cat,
+                description="Correct environment (demo vs live)",
+                passed=correct_environment,
+                expected="correct environment",
+                observed="correct" if correct_environment else "WRONG ENVIRONMENT",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="BB-03", category=cat,
-            description="Correct symbol mapping",
-            passed=correct_symbol_mapping,
-            expected="correct mapping",
-            observed="correct" if correct_symbol_mapping else "WRONG MAPPING",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="BB-03",
+                category=cat,
+                description="Correct symbol mapping",
+                passed=correct_symbol_mapping,
+                expected="correct mapping",
+                observed="correct" if correct_symbol_mapping else "WRONG MAPPING",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="BB-04", category=cat,
-            description="Correct contract specifications",
-            passed=correct_contract_specs,
-            expected="correct specs",
-            observed="correct" if correct_contract_specs else "WRONG SPECS",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="BB-04",
+                category=cat,
+                description="Correct contract specifications",
+                passed=correct_contract_specs,
+                expected="correct specs",
+                observed="correct" if correct_contract_specs else "WRONG SPECS",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="BB-05", category=cat,
-            description="Correct volume/price constraints",
-            passed=correct_volume_price_constraints,
-            expected="correct constraints",
-            observed="correct" if correct_volume_price_constraints else "WRONG CONSTRAINTS",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="BB-05",
+                category=cat,
+                description="Correct volume/price constraints",
+                passed=correct_volume_price_constraints,
+                expected="correct constraints",
+                observed="correct"
+                if correct_volume_price_constraints
+                else "WRONG CONSTRAINTS",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="BB-06", category=cat,
-            description="Spread/slippage controls active",
-            passed=spread_slippage_controls,
-            expected="controls active",
-            observed="active" if spread_slippage_controls else "INACTIVE",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="BB-06",
+                category=cat,
+                description="Spread/slippage controls active",
+                passed=spread_slippage_controls,
+                expected="controls active",
+                observed="active" if spread_slippage_controls else "INACTIVE",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="BB-07", category=cat,
-            description="No accidental demo/live/environment confusion",
-            passed=no_environment_confusion,
-            expected="no confusion",
-            observed="clean" if no_environment_confusion else "CONFUSION DETECTED",
-            severity="CRITICAL",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="BB-07",
+                category=cat,
+                description="No accidental demo/live/environment confusion",
+                passed=no_environment_confusion,
+                expected="no confusion",
+                observed="clean" if no_environment_confusion else "CONFUSION DETECTED",
+                severity="CRITICAL",
+            )
+        )
         checks.append(self._checks[-1])
 
         return checks
@@ -715,59 +861,81 @@ class PrefundingGateAuditor:
         checks: List[AuditCheck] = []
         cat = AuditCategory.CAPITAL.value
 
-        self._add_check(AuditCheck(
-            check_id="CB-01", category=cat,
-            description="$5K is maximum authorized campaign equity",
-            passed=max_capital_enforced,
-            expected="$5,000 max",
-            observed="$5,000 enforced" if max_capital_enforced else "NOT enforced",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="CB-01",
+                category=cat,
+                description="$5K is maximum authorized campaign equity",
+                passed=max_capital_enforced,
+                expected="$5,000 max",
+                observed="$5,000 enforced" if max_capital_enforced else "NOT enforced",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="CB-02", category=cat,
-            description="Campaign duration pre-registered",
-            passed=campaign_duration_preregistered,
-            expected="duration registered",
-            observed="registered" if campaign_duration_preregistered else "NOT registered",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="CB-02",
+                category=cat,
+                description="Campaign duration pre-registered",
+                passed=campaign_duration_preregistered,
+                expected="duration registered",
+                observed="registered"
+                if campaign_duration_preregistered
+                else "NOT registered",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="CB-03", category=cat,
-            description="Risk envelope pre-registered for MINIMAL scale",
-            passed=risk_envelope_preregistered,
-            expected="envelope registered",
-            observed="registered" if risk_envelope_preregistered else "NOT registered",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="CB-03",
+                category=cat,
+                description="Risk envelope pre-registered for MINIMAL scale",
+                passed=risk_envelope_preregistered,
+                expected="envelope registered",
+                observed="registered"
+                if risk_envelope_preregistered
+                else "NOT registered",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="CB-04", category=cat,
-            description="R4-owned positions explicitly separated",
-            passed=r4_positions_separated,
-            expected="separated",
-            observed="separated" if r4_positions_separated else "NOT separated",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="CB-04",
+                category=cat,
+                description="R4-owned positions explicitly separated",
+                passed=r4_positions_separated,
+                expected="separated",
+                observed="separated" if r4_positions_separated else "NOT separated",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="CB-05", category=cat,
-            description="Pre-existing positions separated from R4",
-            passed=pre_existing_separated,
-            expected="separated",
-            observed="separated" if pre_existing_separated else "NOT separated",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="CB-05",
+                category=cat,
+                description="Pre-existing positions separated from R4",
+                passed=pre_existing_separated,
+                expected="separated",
+                observed="separated" if pre_existing_separated else "NOT separated",
+            )
+        )
         checks.append(self._checks[-1])
 
-        self._add_check(AuditCheck(
-            check_id="CB-06", category=cat,
-            description="No manual trading during qualification",
-            passed=no_manual_trading,
-            expected="zero manual trades",
-            observed="zero" if no_manual_trading else "MANUAL TRADES DETECTED",
-            severity="CRITICAL",
-        ))
+        self._add_check(
+            AuditCheck(
+                check_id="CB-06",
+                category=cat,
+                description="No manual trading during qualification",
+                passed=no_manual_trading,
+                expected="zero manual trades",
+                observed="zero" if no_manual_trading else "MANUAL TRADES DETECTED",
+                severity="CRITICAL",
+            )
+        )
         checks.append(self._checks[-1])
 
         return checks

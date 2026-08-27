@@ -68,9 +68,7 @@ class UniverseMembership:
 
     def __post_init__(self) -> None:
         if not self.instrument_id or not self.universe_id:
-            raise MembershipError(
-                "instrument_id and universe_id must be non-empty"
-            )
+            raise MembershipError("instrument_id and universe_id must be non-empty")
         _validate_date(self.effective_from, "effective_from")
         if self.effective_to is not None:
             _validate_date(self.effective_to, "effective_to")
@@ -104,9 +102,7 @@ class UniverseMembership:
             instrument_id=str(d["instrument_id"]),
             universe_id=str(d["universe_id"]),
             effective_from=str(d["effective_from"]),
-            effective_to=(
-                str(d["effective_to"]) if d.get("effective_to") else None
-            ),
+            effective_to=(str(d["effective_to"]) if d.get("effective_to") else None),
             reason=str(d.get("reason", "")),
         )
 
@@ -190,8 +186,7 @@ class UniverseMembershipRegistry:
                 self._records[i] = closed
                 return closed
         raise MembershipError(
-            f"No open membership for {instrument_id} in {universe_id}; "
-            f"cannot delist."
+            f"No open membership for {instrument_id} in {universe_id}; cannot delist."
         )
 
     def members_as_of(self, universe_id: str, date: str) -> List[str]:
@@ -225,9 +220,7 @@ class UniverseMembershipRegistry:
         ]
         return sorted(records, key=lambda m: m.effective_from)
 
-    def is_member_at(
-        self, instrument_id: str, universe_id: str, date: str
-    ) -> bool:
+    def is_member_at(self, instrument_id: str, universe_id: str, date: str) -> bool:
         """Point-in-time membership predicate."""
         return instrument_id in self.members_as_of(universe_id, date)
 

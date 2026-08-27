@@ -7,24 +7,18 @@ order lifecycle, reconciliation, and operational failures.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
-import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Any
 
 import numpy as np
-import pandas as pd
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.fidelity.parity import (
     ResearchPaperParityEngine,
-    ParityBoundary,
-    ParitySummary,
 )
-from eigencapital.fidelity.verdict import FidelityEvaluator, FidelityVerdict, FidelityReport
+from eigencapital.fidelity.verdict import FidelityEvaluator, FidelityReport
 
 logger = logging.getLogger(__name__)
 
@@ -400,7 +394,9 @@ class ForwardPaperCampaign:
         for inst, pos in self._internal_positions.items():
             # For now, check that position is reasonable (not negative for long-only, etc.)
             if abs(pos) > 1e6:  # unreasonable position size
-                discrepancies.append(f"{inst}: position {pos} exceeds reasonable bounds")
+                discrepancies.append(
+                    f"{inst}: position {pos} exceeds reasonable bounds"
+                )
 
         matched = len(discrepancies) == 0
         if not matched:

@@ -6,11 +6,8 @@ Alpha Research Map with failure mode distribution.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
-from dataclasses import dataclass
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 
 import numpy as np
 import pandas as pd
@@ -18,10 +15,8 @@ import pandas as pd
 from eigencapital.data.mt5_provider import MT5DataProvider
 from eigencapital.research.alpha.staged_executor import (
     HypothesisComputer,
-    DataIntegrityValidator,
-    ASSET_CLASSES,
 )
-from eigencapital.research.alpha.campaign import HypothesisVerdict, HypothesisStatus
+from eigencapital.research.alpha.campaign import HypothesisVerdict
 from eigencapital.research.alpha.scorecard import ScorecardEvaluator
 from eigencapital.research.alpha.research_map import ResearchMapGenerator
 from eigencapital.research.alpha.freeze import CampaignFreezeManifest, FreezeRegistry
@@ -32,6 +27,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # Failure Mode Taxonomy
 # ============================================================
+
 
 class FailureMode:
     COST_SENSITIVITY = "cost_sensitivity"
@@ -81,6 +77,7 @@ def classify_failure(reasons: Dict[str, Any]) -> List[str]:
 # Extended Universe Computation
 # ============================================================
 
+
 class ExtendedHypothesisComputer(HypothesisComputer):
     """Extended hypothesis computer covering all 29 hypotheses."""
 
@@ -98,10 +95,13 @@ class ExtendedHypothesisComputer(HypothesisComputer):
         returns_df = pd.DataFrame(returns)
 
         # Volume normalization (use tick_volume proxy from price range)
-        price_range = pd.DataFrame({
-            sym: df["high"] - df["low"] for sym, df in self._data.items()
-            if "high" in df.columns and "low" in df.columns
-        })
+        price_range = pd.DataFrame(
+            {
+                sym: df["high"] - df["low"]
+                for sym, df in self._data.items()
+                if "high" in df.columns and "low" in df.columns
+            }
+        )
         vol_proxy = price_range.rolling(20).mean()
 
         mom = (1 + returns_df).rolling(252).apply(lambda x: x.prod() - 1, raw=True)
@@ -152,14 +152,20 @@ class ExtendedHypothesisComputer(HypothesisComputer):
             zscore = zscore.dropna()
             # Trade when z-score is extreme
             signal = -np.sign(zscore)
-            port = signal.shift(1) * (r1.reindex(zscore.index) - r2.reindex(zscore.index)) / 2
+            port = (
+                signal.shift(1)
+                * (r1.reindex(zscore.index) - r2.reindex(zscore.index))
+                / 2
+            )
             all_port_returns.append(port)
 
         if not all_port_returns:
             return {"insufficient_data": True, "n_bars": 0}
 
         combined = pd.concat(all_port_returns, axis=1).mean(axis=1).dropna()
-        return self._metrics_from_returns(combined, "HYP-SA-001", 2.0)  # High turnover for pairs
+        return self._metrics_from_returns(
+            combined, "HYP-SA-001", 2.0
+        )  # High turnover for pairs
 
     def compute_low_vol_enhanced(self) -> Dict[str, Any]:
         """VOL-002: Enhanced low volatility (60-day lookback)."""
@@ -200,13 +206,17 @@ class ExtendedHypothesisComputer(HypothesisComputer):
         """CS-003: Forward earnings yield proxy (12m return reversal as proxy)."""
         return self.compute_value()  # Use value as proxy
 
-    def _compute_rolling_momentum(self, lookback: int, skip: int, label: str) -> Dict[str, Any]:
+    def _compute_rolling_momentum(
+        self, lookback: int, skip: int, label: str
+    ) -> Dict[str, Any]:
         """Generic rolling momentum computation."""
         returns = self._get_returns()
         returns_df = pd.DataFrame(returns)
 
         cum = (1 + returns_df).rolling(lookback).apply(lambda x: x.prod(), raw=True) - 1
-        skip_cum = (1 + returns_df).rolling(skip).apply(lambda x: x.prod(), raw=True) - 1
+        skip_cum = (1 + returns_df).rolling(skip).apply(
+            lambda x: x.prod(), raw=True
+        ) - 1
         signal = cum - skip_cum
         signal = signal.dropna(how="all")
 
@@ -220,9 +230,13 @@ class ExtendedHypothesisComputer(HypothesisComputer):
     def _compute_breakout_signal(self, lookback: int, label: str) -> Dict[str, Any]:
         """Generic breakout signal."""
         returns = self._get_returns()
-        prices = pd.DataFrame({
-            sym: df["close"] for sym, df in self._data.items() if "close" in df.columns
-        })
+        prices = pd.DataFrame(
+            {
+                sym: df["close"]
+                for sym, df in self._data.items()
+                if "close" in df.columns
+            }
+        )
 
         high_n = prices.rolling(lookback).max()
         dist = (prices - high_n) / high_n
@@ -253,6 +267,7 @@ class ExtendedHypothesisComputer(HypothesisComputer):
 # ============================================================
 # Full Campaign Executor
 # ============================================================
+
 
 class FullCampaignExecutor:
     """Runs all 29 hypotheses and produces the final Alpha Research Map."""
@@ -296,29 +311,83 @@ class FullCampaignExecutor:
             # Trend
             ("HYP-TREND-001", "trend", "12-1m Momentum", computer.compute_trend),
             ("HYP-TREND-002", "trend", "3m Momentum", computer.compute_trend_short),
-            ("HYP-TREND-003", "trend", "52w Breakout Continuation", computer.compute_trend_distance),
+            (
+                "HYP-TREND-003",
+                "trend",
+                "52w Breakout Continuation",
+                computer.compute_trend_distance,
+            ),
             # Momentum
-            ("HYP-MOM-001", "momentum", "Cross-Sectional Momentum", computer.compute_momentum),
-            ("HYP-MOM-002", "momentum", "Vol-Normalized Momentum", computer.compute_momentum_vol_norm),
+            (
+                "HYP-MOM-001",
+                "momentum",
+                "Cross-Sectional Momentum",
+                computer.compute_momentum,
+            ),
+            (
+                "HYP-MOM-002",
+                "momentum",
+                "Vol-Normalized Momentum",
+                computer.compute_momentum_vol_norm,
+            ),
             # Breakout
             ("HYP-BRK-001", "breakout", "52w Breakout", computer.compute_breakout),
             # Mean Reversion
-            ("HYP-MR-001", "mean_reversion", "5d Reversal", computer.compute_reversal_5d),
-            ("HYP-MR-002", "mean_reversion", "1m Reversal", computer.compute_reversal_1m),
+            (
+                "HYP-MR-001",
+                "mean_reversion",
+                "5d Reversal",
+                computer.compute_reversal_5d,
+            ),
+            (
+                "HYP-MR-002",
+                "mean_reversion",
+                "1m Reversal",
+                computer.compute_reversal_1m,
+            ),
             # Statistical Arbitrage
-            ("HYP-SA-001", "statistical_arbitrage", "Pairs Cointegration", computer.compute_pairs_cointegration),
+            (
+                "HYP-SA-001",
+                "statistical_arbitrage",
+                "Pairs Cointegration",
+                computer.compute_pairs_cointegration,
+            ),
             # Volatility
             ("HYP-VOL-001", "volatility", "Low Volatility", computer.compute_low_vol),
-            ("HYP-VOL-002", "volatility", "Enhanced Low Vol", computer.compute_low_vol_enhanced),
+            (
+                "HYP-VOL-002",
+                "volatility",
+                "Enhanced Low Vol",
+                computer.compute_low_vol_enhanced,
+            ),
             # Cross-Sectional
-            ("HYP-CS-001", "cross_sectional", "Quality Tilt", computer.compute_quality_tilt),
-            ("HYP-CS-003", "cross_sectional", "Earnings Yield Proxy", computer.compute_earnings_yield),
+            (
+                "HYP-CS-001",
+                "cross_sectional",
+                "Quality Tilt",
+                computer.compute_quality_tilt,
+            ),
+            (
+                "HYP-CS-003",
+                "cross_sectional",
+                "Earnings Yield Proxy",
+                computer.compute_earnings_yield,
+            ),
             # Custom
-            ("HYP-GOLD-MOM", "factor", "Gold vs USD Momentum", computer.compute_gold_momentum),
+            (
+                "HYP-GOLD-MOM",
+                "factor",
+                "Gold vs USD Momentum",
+                computer.compute_gold_momentum,
+            ),
         ]
 
-        print(f"Running {len(hypotheses)} hypotheses against {len(data)} MT5 symbols...")
-        print(f"Data: {manifest.bar_count} bars, {manifest.start_date} to {manifest.end_date}")
+        print(
+            f"Running {len(hypotheses)} hypotheses against {len(data)} MT5 symbols..."
+        )
+        print(
+            f"Data: {manifest.bar_count} bars, {manifest.start_date} to {manifest.end_date}"
+        )
         print(f"Freeze: {freeze.compute_manifest_hash()[:16]}")
         print("=" * 70)
 
@@ -331,26 +400,46 @@ class FullCampaignExecutor:
                 metrics = {"insufficient_data": True, "n_bars": 0}
 
             if metrics.get("insufficient_data"):
-                print(f"    ⚠️  Insufficient data")
-                self._add_verdict(hyp_id, family, {
-                    "net_sharpe": 0, "t_stat": 0, "pbo": 0.5,
-                    "has_economic_rationale": True, "has_expected_mechanism": True,
-                    "walk_forward_passed": False, "parameter_stability": False,
-                    "regime_stability": False, "universe_perturbation_passed": False,
-                    "cost_survived": False, "turnover": 0, "spread_survived": False,
-                    "capacity_adequate": False, "adv_participation": 0.1,
-                    "incremental_value": False, "incremental_sharpe_delta": 0,
-                    "incremental_dd_delta": 0, "correlation_with_existing": 0.5,
-                    "downside_correlation": 0.5, "crisis_behavior_ok": False,
-                    "concentration": 0.5, "breadth_ok": False,
-                }, timestamp, metrics)
+                print("    ⚠️  Insufficient data")
+                self._add_verdict(
+                    hyp_id,
+                    family,
+                    {
+                        "net_sharpe": 0,
+                        "t_stat": 0,
+                        "pbo": 0.5,
+                        "has_economic_rationale": True,
+                        "has_expected_mechanism": True,
+                        "walk_forward_passed": False,
+                        "parameter_stability": False,
+                        "regime_stability": False,
+                        "universe_perturbation_passed": False,
+                        "cost_survived": False,
+                        "turnover": 0,
+                        "spread_survived": False,
+                        "capacity_adequate": False,
+                        "adv_participation": 0.1,
+                        "incremental_value": False,
+                        "incremental_sharpe_delta": 0,
+                        "incremental_dd_delta": 0,
+                        "correlation_with_existing": 0.5,
+                        "downside_correlation": 0.5,
+                        "crisis_behavior_ok": False,
+                        "concentration": 0.5,
+                        "breadth_ok": False,
+                    },
+                    timestamp,
+                    metrics,
+                )
             else:
                 sharpe = metrics.get("net_sharpe", 0)
                 dd = metrics.get("max_drawdown", 0)
                 t = metrics.get("t_stat", 0)
                 turnover = metrics.get("turnover", 0)
                 wf = metrics.get("walk_forward_sharpe", 0)
-                print(f"    Sharpe: {sharpe:.3f} | DD: {dd:.3f} | T: {t:.2f} | Turnover: {turnover:.1f}x | WF: {wf:.3f}")
+                print(
+                    f"    Sharpe: {sharpe:.3f} | DD: {dd:.3f} | T: {t:.2f} | Turnover: {turnover:.1f}x | WF: {wf:.3f}"
+                )
 
                 # Convert metrics to scorecard format
                 sc_metrics = {
@@ -425,7 +514,9 @@ class FullCampaignExecutor:
         )
         self._verdicts.append(verdict)
 
-    def _generate_report(self, freeze: CampaignFreezeManifest, timestamp: str) -> Dict[str, Any]:
+    def _generate_report(
+        self, freeze: CampaignFreezeManifest, timestamp: str
+    ) -> Dict[str, Any]:
         """Generate the forensic Alpha Research Map."""
         map_gen = ResearchMapGenerator()
         research_map = map_gen.generate(
@@ -452,22 +543,24 @@ class FullCampaignExecutor:
         # Family analysis
         family_results = {}
         for v in self._verdicts:
-            family_results.setdefault(v.family, []).append({
-                "id": v.hypothesis_id,
-                "status": v.status,
-                "sharpe": v.net_sharpe,
-                "dd": v.max_drawdown,
-                "turnover": v.turnover,
-            })
+            family_results.setdefault(v.family, []).append(
+                {
+                    "id": v.hypothesis_id,
+                    "status": v.status,
+                    "sharpe": v.net_sharpe,
+                    "dd": v.max_drawdown,
+                    "turnover": v.turnover,
+                }
+            )
 
         # Build the markdown report
         md_lines = [
             "# EIGENCAPITAL ALPHA RESEARCH MAP",
-            f"**Campaign:** 1Q-MT5-FULL",
+            "**Campaign:** 1Q-MT5-FULL",
             f"**Freeze:** {freeze.compute_manifest_hash()[:16]}",
             f"**Data:** MT5 Exness — {len(self._verdicts)} hypotheses tested",
-            f"**Universe:** 15 multi-asset instruments (FX, metals, indices, crypto, oil)",
-            f"**Period:** 2020-01-01 to 2026-08-24 (6.6 years daily)",
+            "**Universe:** 15 multi-asset instruments (FX, metals, indices, crypto, oil)",
+            "**Period:** 2020-01-01 to 2026-08-24 (6.6 years daily)",
             f"**Date:** {timestamp}",
             "",
             "## Verdict Distribution",
@@ -476,30 +569,38 @@ class FullCampaignExecutor:
         ]
         for status, count in sorted(verdict_counts.items()):
             md_lines.append(f"  {status.upper():25s} {count}")
-        md_lines.extend([
-            "```",
-            "",
-            f"**Survival Rate: {research_map.overall_survival_rate:.1%}**",
-            "",
-            "## Failure Mode Distribution",
-            "",
-            "```",
-        ])
+        md_lines.extend(
+            [
+                "```",
+                "",
+                f"**Survival Rate: {research_map.overall_survival_rate:.1%}**",
+                "",
+                "## Failure Mode Distribution",
+                "",
+                "```",
+            ]
+        )
         for mode, count in sorted(mode_counts.items(), key=lambda x: -x[1]):
             md_lines.append(f"  {mode:35s} {count}")
-        md_lines.extend([
-            "```",
-            "",
-            "## Detailed Results by Family",
-            "",
-        ])
+        md_lines.extend(
+            [
+                "```",
+                "",
+                "## Detailed Results by Family",
+                "",
+            ]
+        )
 
         for family in sorted(family_results.keys()):
             results = family_results[family]
             md_lines.append(f"### {family.replace('_', ' ').title()}")
             md_lines.append("")
-            md_lines.append("| Hypothesis | Status | Sharpe | Max DD | Turnover | Failure Modes |")
-            md_lines.append("|------------|--------|--------|--------|----------|---------------|")
+            md_lines.append(
+                "| Hypothesis | Status | Sharpe | Max DD | Turnover | Failure Modes |"
+            )
+            md_lines.append(
+                "|------------|--------|--------|--------|----------|---------------|"
+            )
             for r in results:
                 modes = self._failure_modes.get(r["id"], [])
                 md_lines.append(
@@ -508,14 +609,23 @@ class FullCampaignExecutor:
                 )
             md_lines.append("")
 
-        md_lines.extend([
-            "## Loser Analysis (Forensic Trail)",
-            "",
-            "Every rejected hypothesis has a documented failure mode:",
-            "",
-        ])
+        md_lines.extend(
+            [
+                "## Loser Analysis (Forensic Trail)",
+                "",
+                "Every rejected hypothesis has a documented failure mode:",
+                "",
+            ]
+        )
         for v in self._verdicts:
-            if v.status in ("rejected", "fragile", "capacity_limited", "redundant", "inconclusive", "inconclusive"):
+            if v.status in (
+                "rejected",
+                "fragile",
+                "capacity_limited",
+                "redundant",
+                "inconclusive",
+                "inconclusive",
+            ):
                 modes = self._failure_modes.get(v.hypothesis_id, [])
                 md_lines.append(f"### {v.hypothesis_id} ({v.family})")
                 md_lines.append(f"- **Status:** {v.status}")
@@ -526,28 +636,30 @@ class FullCampaignExecutor:
                 md_lines.append(f"- **Why it failed:** {v.notes}")
                 md_lines.append("")
 
-        md_lines.extend([
-            "## Key Findings",
-            "",
-            f"- **{research_map.total_rejected}** hypotheses rejected or fragile",
-            f"- **{research_map.total_supported}** hypotheses supported",
-            f"- **{research_map.total_production_candidate}** production candidates",
-            "",
-            "### What the data tells us",
-            "",
-            "1. **Cost sensitivity is the dominant killer** — turnover >1x annually destroys most signals",
-            "2. **Drawdown is the second killer** — attractive Sharpe ratios hide catastrophic drawdowns",
-            "3. **Walk-forward validation catches overfitting** — signals that look good in-sample often fail OOS",
-            "4. **Small universes limit cross-sectional signals** — 15 instruments restricts CS strategies",
-            "5. **Conditioning may matter more than raw signals** — regime/timing could add value",
-            "",
-            "### Governance",
-            "",
-            "- No hypothesis was modified after seeing results",
-            "- Campaign was frozen before execution",
-            "- All verdicts are evidence-based through the Alpha Admission Scorecard",
-            "- Rejected hypotheses are permanent research records",
-        ])
+        md_lines.extend(
+            [
+                "## Key Findings",
+                "",
+                f"- **{research_map.total_rejected}** hypotheses rejected or fragile",
+                f"- **{research_map.total_supported}** hypotheses supported",
+                f"- **{research_map.total_production_candidate}** production candidates",
+                "",
+                "### What the data tells us",
+                "",
+                "1. **Cost sensitivity is the dominant killer** — turnover >1x annually destroys most signals",
+                "2. **Drawdown is the second killer** — attractive Sharpe ratios hide catastrophic drawdowns",
+                "3. **Walk-forward validation catches overfitting** — signals that look good in-sample often fail OOS",
+                "4. **Small universes limit cross-sectional signals** — 15 instruments restricts CS strategies",
+                "5. **Conditioning may matter more than raw signals** — regime/timing could add value",
+                "",
+                "### Governance",
+                "",
+                "- No hypothesis was modified after seeing results",
+                "- Campaign was frozen before execution",
+                "- All verdicts are evidence-based through the Alpha Admission Scorecard",
+                "- Rejected hypotheses are permanent research records",
+            ]
+        )
 
         md_content = "\n".join(md_lines)
 

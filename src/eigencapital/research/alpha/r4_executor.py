@@ -24,7 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -43,10 +43,8 @@ R4_FREEZE = {
     "campaign_id": "R4-risk-transformation",
     "version": "1.0",
     "hypothesis": "Pre-specified risk architecture reduces tail risk while preserving OOS edge",
-
     # Base signal (frozen from R3)
     "signal": {"type": "12_1_momentum", "lookback": 252, "skip": 21},
-
     # Risk transformations (frozen)
     "asset_vol_cap": {"max_annual_vol": 0.50, "vol_lookback": 60},
     "crypto_cap": {"max_weight": 0.10},
@@ -54,7 +52,6 @@ R4_FREEZE = {
     "risk_parity": {"vol_lookback": 60, "target_vol": 0.10},
     "drawdown_reducer": {"dd_threshold": -0.15, "reduction_factor": 0.5},
     "regime_aware": {"risk_lookback": 20, "threshold": "expanding_median"},
-
     # Validation (frozen)
     "walk_forward_folds": 3,
     "min_train_bars": 500,
@@ -67,6 +64,7 @@ R4_FREEZE = {
 # ============================================================
 # Risk Transformers
 # ============================================================
+
 
 class R4RiskTransformers:
     """Individual risk transformations for R4."""
@@ -153,6 +151,7 @@ class R4RiskTransformers:
 # R4 Campaign Executor
 # ============================================================
 
+
 class R4CampaignExecutor:
     """Executes the pre-registered R4 risk transformation campaign."""
 
@@ -162,16 +161,19 @@ class R4CampaignExecutor:
         transformers = R4RiskTransformers()
 
         # Compute base signal
-        returns_df = pd.DataFrame({
-            sym: df["close"].pct_change()
-            for sym, df in data.items() if "close" in df.columns
-        }).dropna(how="all")
+        returns_df = pd.DataFrame(
+            {
+                sym: df["close"].pct_change()
+                for sym, df in data.items()
+                if "close" in df.columns
+            }
+        ).dropna(how="all")
 
         mom_12m = (1 + returns_df).rolling(252).apply(lambda x: x.prod() - 1, raw=True)
         mom_1m = (1 + returns_df).rolling(21).apply(lambda x: x.prod() - 1, raw=True)
         signal = (mom_12m - mom_1m).dropna(how="all")
         ranks = signal.rank(axis=1, pct=True)
-        base_weights = (ranks - 0.5)
+        base_weights = ranks - 0.5
 
         # Regime conditioning (frozen from R3)
         avg_vol = returns_df.rolling(20).std().mean(axis=1) * np.sqrt(252)
@@ -194,7 +196,9 @@ class R4CampaignExecutor:
         base_turnover = rc_weights.diff().abs().sum(axis=1).mean() * 252
         base_wf = wf.validate(base_ret, "A_baseline_rc")
         base_stress = st.stress_test(base_ret, base_turnover, "A_baseline_rc")
-        strategies["A_baseline_rc"] = self._report("A", "Baseline RC", base_ret, base_wf, base_stress)
+        strategies["A_baseline_rc"] = self._report(
+            "A", "Baseline RC", base_ret, base_wf, base_stress
+        )
 
         # ================================================================
         # B. + Asset Vol Cap
@@ -207,7 +211,9 @@ class R4CampaignExecutor:
         b_turnover = b_weights.diff().abs().sum(axis=1).mean() * 252
         b_wf = wf.validate(b_ret, "B_asset_vol_cap")
         b_stress = st.stress_test(b_ret, b_turnover, "B_asset_vol_cap")
-        strategies["B_asset_vol_cap"] = self._report("B", "Asset Vol Cap", b_ret, b_wf, b_stress)
+        strategies["B_asset_vol_cap"] = self._report(
+            "B", "Asset Vol Cap", b_ret, b_wf, b_stress
+        )
 
         # ================================================================
         # C. + Crypto Cap (10%)
@@ -220,7 +226,9 @@ class R4CampaignExecutor:
         c_turnover = c_weights.diff().abs().sum(axis=1).mean() * 252
         c_wf = wf.validate(c_ret, "C_crypto_cap")
         c_stress = st.stress_test(c_ret, c_turnover, "C_crypto_cap")
-        strategies["C_crypto_cap"] = self._report("C", "Crypto Cap", c_ret, c_wf, c_stress)
+        strategies["C_crypto_cap"] = self._report(
+            "C", "Crypto Cap", c_ret, c_wf, c_stress
+        )
 
         # ================================================================
         # D. + Single Asset Cap (20%)
@@ -233,7 +241,9 @@ class R4CampaignExecutor:
         d_turnover = d_weights.diff().abs().sum(axis=1).mean() * 252
         d_wf = wf.validate(d_ret, "D_single_asset_cap")
         d_stress = st.stress_test(d_ret, d_turnover, "D_single_asset_cap")
-        strategies["D_single_asset_cap"] = self._report("D", "Single Asset Cap", d_ret, d_wf, d_stress)
+        strategies["D_single_asset_cap"] = self._report(
+            "D", "Single Asset Cap", d_ret, d_wf, d_stress
+        )
 
         # ================================================================
         # E. Risk Parity (alternative allocation)
@@ -246,7 +256,9 @@ class R4CampaignExecutor:
         e_turnover = e_weights.diff().abs().sum(axis=1).mean() * 252
         e_wf = wf.validate(e_ret, "E_risk_parity")
         e_stress = st.stress_test(e_ret, e_turnover, "E_risk_parity")
-        strategies["E_risk_parity"] = self._report("E", "Risk Parity", e_ret, e_wf, e_stress)
+        strategies["E_risk_parity"] = self._report(
+            "E", "Risk Parity", e_ret, e_wf, e_stress
+        )
 
         # ================================================================
         # F. Drawdown Reducer
@@ -260,7 +272,9 @@ class R4CampaignExecutor:
         f_turnover = f_weights.diff().abs().sum(axis=1).mean() * 252
         f_wf = wf.validate(f_ret, "F_dd_reducer")
         f_stress = st.stress_test(f_ret, f_turnover, "F_dd_reducer")
-        strategies["F_dd_reducer"] = self._report("F", "DD Reducer", f_ret, f_wf, f_stress)
+        strategies["F_dd_reducer"] = self._report(
+            "F", "DD Reducer", f_ret, f_wf, f_stress
+        )
 
         # ================================================================
         # G. Combined (B + C + D + F)
@@ -270,7 +284,9 @@ class R4CampaignExecutor:
         print("=" * 70)
         g_weights = transformers.drawdown_reducer(
             self._portfolio_return(d_weights, returns_df),
-            d_weights, -0.15, 0.5,
+            d_weights,
+            -0.15,
+            0.5,
         )
         g_ret = self._portfolio_return(g_weights, returns_df)
         g_turnover = g_weights.diff().abs().sum(axis=1).mean() * 252
@@ -285,7 +301,9 @@ class R4CampaignExecutor:
         print("R4 EVIDENCE GATE")
         print("=" * 70)
 
-        freeze_hash = hashlib.sha256(json.dumps(R4_FREEZE, sort_keys=True).encode()).hexdigest()[:16]
+        freeze_hash = hashlib.sha256(
+            json.dumps(R4_FREEZE, sort_keys=True).encode()
+        ).hexdigest()[:16]
         print(f"  Freeze: {freeze_hash}")
         print()
 
@@ -306,8 +324,16 @@ class R4CampaignExecutor:
                 "stress_passed": s["stress_passed"],
             }
 
-            icon = "✅" if verdict == "VALIDATED" else "⚠️" if verdict == "CONDITIONAL" else "❌"
-            print(f"  {icon} {s['label']:25s} → {verdict:15s} (OOS: {s['oos_sharpe']:.3f}, DD: {s['max_dd']:.3f})")
+            icon = (
+                "✅"
+                if verdict == "VALIDATED"
+                else "⚠️"
+                if verdict == "CONDITIONAL"
+                else "❌"
+            )
+            print(
+                f"  {icon} {s['label']:25s} → {verdict:15s} (OOS: {s['oos_sharpe']:.3f}, DD: {s['max_dd']:.3f})"
+            )
 
         # Best candidate
         best = max(
@@ -324,14 +350,18 @@ class R4CampaignExecutor:
             print(f"  Verdict: {best_v['verdict']}")
 
             if best_v["max_dd"] < -0.25:
-                print(f"\n  NOTE: Stress DD ({best_v['max_dd']:.1%}) exceeds -25% threshold.")
-                print(f"  This may be a higher-risk strategy. The evidence determines the label.")
+                print(
+                    f"\n  NOTE: Stress DD ({best_v['max_dd']:.1%}) exceeds -25% threshold."
+                )
+                print(
+                    "  This may be a higher-risk strategy. The evidence determines the label."
+                )
                 if best_v["verdict"] == "CONDITIONAL":
                     final = f"HIGH_RISK_CONDITIONAL — OOS positive, stress DD {best_v['max_dd']:.1%}"
                 else:
                     final = f"VALIDATED — stress DD {best_v['max_dd']:.1%}"
             else:
-                final = f"VALIDATED — all gates pass"
+                final = "VALIDATED — all gates pass"
         else:
             final = "REJECTED — no candidate survives walk-forward"
 
@@ -346,18 +376,31 @@ class R4CampaignExecutor:
             "best_candidate": best_key if best else None,
         }
 
-    def _portfolio_return(self, weights: pd.DataFrame, returns_df: pd.DataFrame) -> pd.Series:
+    def _portfolio_return(
+        self, weights: pd.DataFrame, returns_df: pd.DataFrame
+    ) -> pd.Series:
         aligned = weights.index.intersection(returns_df.index)
         w = weights.reindex(aligned).shift(1)
         r = returns_df.reindex(aligned)
         port = (w * r).sum(axis=1) / w.abs().sum(axis=1).replace(0, np.nan)
         return port.dropna()
 
-    def _report(self, letter: str, label: str, ret: pd.Series, wf_result: Dict, stress_result: Dict) -> Dict:
+    def _report(
+        self,
+        letter: str,
+        label: str,
+        ret: pd.Series,
+        wf_result: Dict,
+        stress_result: Dict,
+    ) -> Dict:
         oos_sharpe = wf_result.get("overall_oos_sharpe", 0)
         max_dd = stress_result.get("raw_max_dd", 0)
-        print(f"  Walk-forward: {'✅ PASSED' if wf_result['passed'] else '❌ FAILED'} (OOS Sharpe: {oos_sharpe:.3f})")
-        print(f"  Stress: {'✅ PASSED' if stress_result['passed'] else '❌ FAILED'} (Max DD: {max_dd:.3f})")
+        print(
+            f"  Walk-forward: {'✅ PASSED' if wf_result['passed'] else '❌ FAILED'} (OOS Sharpe: {oos_sharpe:.3f})"
+        )
+        print(
+            f"  Stress: {'✅ PASSED' if stress_result['passed'] else '❌ FAILED'} (Max DD: {max_dd:.3f})"
+        )
         return {
             "label": f"{letter}. {label}",
             "oos_sharpe": oos_sharpe,

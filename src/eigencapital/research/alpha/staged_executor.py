@@ -25,13 +25,13 @@ import pandas as pd
 
 from eigencapital.data.mt5_provider import MT5DataProvider, DataManifest
 from eigencapital.research.alpha.campaign import (
-    HypothesisIdentity,
     HypothesisVerdict,
-    HypothesisStatus,
-    HypothesisTrial,
 )
 from eigencapital.research.alpha.scorecard import ScorecardEvaluator
-from eigencapital.research.alpha.incremental import IncrementalAlphaTester, PortfolioBaseline
+from eigencapital.research.alpha.incremental import (
+    IncrementalAlphaTester,
+    PortfolioBaseline,
+)
 from eigencapital.research.alpha.research_map import ResearchMapGenerator
 from eigencapital.research.alpha.freeze import CampaignFreezeManifest, FreezeRegistry
 
@@ -43,12 +43,20 @@ logger = logging.getLogger(__name__)
 # ============================================================
 
 ASSET_CLASSES = {
-    "EURUSDm": "forex_major", "GBPUSDm": "forex_major", "USDJPYm": "forex_major",
-    "AUDUSDm": "forex_major", "USDCADm": "forex_major", "USDCHFm": "forex_major",
+    "EURUSDm": "forex_major",
+    "GBPUSDm": "forex_major",
+    "USDJPYm": "forex_major",
+    "AUDUSDm": "forex_major",
+    "USDCADm": "forex_major",
+    "USDCHFm": "forex_major",
     "NZDUSDm": "forex_major",
-    "XAUUSDm": "metal", "XAGUSDm": "metal",
-    "US500m": "index", "US30m": "index", "USTECm": "index",
-    "BTCUSDm": "crypto", "ETHUSDm": "crypto",
+    "XAUUSDm": "metal",
+    "XAGUSDm": "metal",
+    "US500m": "index",
+    "US30m": "index",
+    "USTECm": "index",
+    "BTCUSDm": "crypto",
+    "ETHUSDm": "crypto",
     "USOILm": "commodity",
 }
 
@@ -64,6 +72,7 @@ CORRELATION_CLUSTERS = {
 # ============================================================
 # Data Integrity Validator
 # ============================================================
+
 
 @dataclass
 class DataIntegrityCheck:
@@ -86,21 +95,25 @@ class DataIntegrityValidator:
 
         # 1. Minimum symbol count
         n_symbols = len(data)
-        checks.append(DataIntegrityCheck(
-            check_name="symbol_count",
-            passed=n_symbols >= 10,
-            details=f"{n_symbols} symbols available (need >=10)",
-            severity="CRITICAL",
-        ))
+        checks.append(
+            DataIntegrityCheck(
+                check_name="symbol_count",
+                passed=n_symbols >= 10,
+                details=f"{n_symbols} symbols available (need >=10)",
+                severity="CRITICAL",
+            )
+        )
 
         # 2. Minimum bar count per symbol
         min_bars = min(len(df) for df in data.values()) if data else 0
-        checks.append(DataIntegrityCheck(
-            check_name="minimum_bars",
-            passed=min_bars >= 500,
-            details=f"Minimum bars per symbol: {min_bars} (need >=500)",
-            severity="CRITICAL",
-        ))
+        checks.append(
+            DataIntegrityCheck(
+                check_name="minimum_bars",
+                passed=min_bars >= 500,
+                details=f"Minimum bars per symbol: {min_bars} (need >=500)",
+                severity="CRITICAL",
+            )
+        )
 
         # 3. Timestamp monotonicity
         monotonic_ok = True
@@ -109,12 +122,16 @@ class DataIntegrityValidator:
             if not df.index.is_monotonic_increasing:
                 monotonic_ok = False
                 bad_syms.append(sym)
-        checks.append(DataIntegrityCheck(
-            check_name="timestamp_monotonicity",
-            passed=monotonic_ok,
-            details=f"Non-monotonic: {bad_syms}" if bad_syms else "All timestamps monotonic",
-            severity="CRITICAL",
-        ))
+        checks.append(
+            DataIntegrityCheck(
+                check_name="timestamp_monotonicity",
+                passed=monotonic_ok,
+                details=f"Non-monotonic: {bad_syms}"
+                if bad_syms
+                else "All timestamps monotonic",
+                severity="CRITICAL",
+            )
+        )
 
         # 4. No duplicate timestamps
         no_dups = True
@@ -123,12 +140,16 @@ class DataIntegrityValidator:
             if df.index.duplicated().any():
                 no_dups = False
                 dup_syms.append(sym)
-        checks.append(DataIntegrityCheck(
-            check_name="no_duplicates",
-            passed=no_dups,
-            details=f"Duplicate timestamps in: {dup_syms}" if dup_syms else "No duplicates",
-            severity="CRITICAL",
-        ))
+        checks.append(
+            DataIntegrityCheck(
+                check_name="no_duplicates",
+                passed=no_dups,
+                details=f"Duplicate timestamps in: {dup_syms}"
+                if dup_syms
+                else "No duplicates",
+                severity="CRITICAL",
+            )
+        )
 
         # 5. OHLC invariants (H >= L, H >= O, H >= C, L <= O, L <= C)
         ohlc_ok = True
@@ -136,21 +157,25 @@ class DataIntegrityValidator:
         for sym, df in data.items():
             if "high" in df.columns and "low" in df.columns:
                 violations = (
-                    (df["high"] < df["low"]) |
-                    (df["high"] < df["open"]) |
-                    (df["high"] < df["close"]) |
-                    (df["low"] > df["open"]) |
-                    (df["low"] > df["close"])
+                    (df["high"] < df["low"])
+                    | (df["high"] < df["open"])
+                    | (df["high"] < df["close"])
+                    | (df["low"] > df["open"])
+                    | (df["low"] > df["close"])
                 )
                 if violations.any():
                     ohlc_ok = False
                     bad_ohlc.append(sym)
-        checks.append(DataIntegrityCheck(
-            check_name="ohlc_invariants",
-            passed=ohlc_ok,
-            details=f"OHLC violations in: {bad_ohlc}" if bad_ohlc else "All OHLC invariants hold",
-            severity="CRITICAL",
-        ))
+        checks.append(
+            DataIntegrityCheck(
+                check_name="ohlc_invariants",
+                passed=ohlc_ok,
+                details=f"OHLC violations in: {bad_ohlc}"
+                if bad_ohlc
+                else "All OHLC invariants hold",
+                severity="CRITICAL",
+            )
+        )
 
         # 6. No zero/negative prices
         prices_ok = True
@@ -161,12 +186,16 @@ class DataIntegrityValidator:
                     if (df[col] <= 0).any():
                         prices_ok = False
                         bad_prices.append(f"{sym}.{col}")
-        checks.append(DataIntegrityCheck(
-            check_name="positive_prices",
-            passed=prices_ok,
-            details=f"Zero/negative prices in: {bad_prices}" if bad_prices else "All prices positive",
-            severity="CRITICAL",
-        ))
+        checks.append(
+            DataIntegrityCheck(
+                check_name="positive_prices",
+                passed=prices_ok,
+                details=f"Zero/negative prices in: {bad_prices}"
+                if bad_prices
+                else "All prices positive",
+                severity="CRITICAL",
+            )
+        )
 
         # 7. No excessive gaps (>5 consecutive missing bars)
         gaps_ok = True
@@ -178,43 +207,53 @@ class DataIntegrityValidator:
                 if max_gap > 10:  # More than 10 calendar days
                     gaps_ok = False
                     gap_syms.append(f"{sym}(max_gap={max_gap}d)")
-        checks.append(DataIntegrityCheck(
-            check_name="gap_analysis",
-            passed=gaps_ok,
-            details=f"Large gaps: {gap_syms}" if gap_syms else "No excessive gaps",
-            severity="WARNING",
-        ))
+        checks.append(
+            DataIntegrityCheck(
+                check_name="gap_analysis",
+                passed=gaps_ok,
+                details=f"Large gaps: {gap_syms}" if gap_syms else "No excessive gaps",
+                severity="WARNING",
+            )
+        )
 
         # 8. Multi-asset-class coverage
         classes_found = set(ASSET_CLASSES.get(sym, "unknown") for sym in data.keys())
-        checks.append(DataIntegrityCheck(
-            check_name="asset_class_coverage",
-            passed=len(classes_found) >= 4,
-            details=f"Asset classes: {classes_found}",
-            severity="WARNING",
-        ))
+        checks.append(
+            DataIntegrityCheck(
+                check_name="asset_class_coverage",
+                passed=len(classes_found) >= 4,
+                details=f"Asset classes: {classes_found}",
+                severity="WARNING",
+            )
+        )
 
         # 9. Date range
         all_dates = []
         for df in data.values():
             if len(df) > 0:
                 all_dates.extend([df.index[0], df.index[-1]])
-        date_span_years = (max(all_dates) - min(all_dates)).days / 365.25 if all_dates else 0
-        checks.append(DataIntegrityCheck(
-            check_name="date_range",
-            passed=date_span_years >= 3.0,
-            details=f"Date span: {date_span_years:.1f} years ({min(all_dates).date()} to {max(all_dates).date()})",
-            severity="WARNING",
-        ))
+        date_span_years = (
+            (max(all_dates) - min(all_dates)).days / 365.25 if all_dates else 0
+        )
+        checks.append(
+            DataIntegrityCheck(
+                check_name="date_range",
+                passed=date_span_years >= 3.0,
+                details=f"Date span: {date_span_years:.1f} years ({min(all_dates).date()} to {max(all_dates).date()})",
+                severity="WARNING",
+            )
+        )
 
         # 10. Dataset hash matches manifest
         hash_ok = True
-        checks.append(DataIntegrityCheck(
-            check_name="manifest_hash",
-            passed=hash_ok,
-            details=f"Manifest hash: {manifest.snapshot_hash}",
-            severity="INFO",
-        ))
+        checks.append(
+            DataIntegrityCheck(
+                check_name="manifest_hash",
+                passed=hash_ok,
+                details=f"Manifest hash: {manifest.snapshot_hash}",
+                severity="INFO",
+            )
+        )
 
         all_passed = all(c.passed for c in checks if c.severity == "CRITICAL")
         return all_passed, checks
@@ -224,11 +263,12 @@ class DataIntegrityValidator:
 # Hypothesis Computation Engine
 # ============================================================
 
+
 class HypothesisComputer:
     """Computes real hypothesis metrics from MT5 data."""
 
     COST_PER_TRADE = 0.001  # 10 bps
-    SPREAD_COST = 0.0005    # 5 bps
+    SPREAD_COST = 0.0005  # 5 bps
 
     def __init__(self, data: Dict[str, pd.DataFrame]) -> None:
         self._data = data
@@ -254,7 +294,9 @@ class HypothesisComputer:
         port = (w * r).sum(axis=1) / w.abs().sum(axis=1).replace(0, np.nan)
         return port.dropna()
 
-    def _metrics_from_returns(self, port_returns: pd.Series, label: str, turnover: float = 0.0) -> Dict[str, Any]:
+    def _metrics_from_returns(
+        self, port_returns: pd.Series, label: str, turnover: float = 0.0
+    ) -> Dict[str, Any]:
         """Compute all metrics from a return series."""
         if len(port_returns) < 50:
             return {"n_bars": len(port_returns), "insufficient_data": True}
@@ -287,7 +329,7 @@ class HypothesisComputer:
         fold_size = len(port_returns) // 3
         wf_sharpes = []
         for i in range(3):
-            fold = port_returns.iloc[i * fold_size:(i + 1) * fold_size]
+            fold = port_returns.iloc[i * fold_size : (i + 1) * fold_size]
             if fold.std() > 0:
                 wf_sharpes.append(fold.mean() / fold.std() * np.sqrt(252))
         wf_sharpe = min(wf_sharpes) if wf_sharpes else 0
@@ -329,7 +371,9 @@ class HypothesisComputer:
 
         # Compute momentum signal
         cum = (1 + returns_df).rolling(lookback).apply(lambda x: x.prod(), raw=True) - 1
-        skip_cum = (1 + returns_df).rolling(skip).apply(lambda x: x.prod(), raw=True) - 1
+        skip_cum = (1 + returns_df).rolling(skip).apply(
+            lambda x: x.prod(), raw=True
+        ) - 1
         signal = cum - skip_cum
         signal = signal.dropna(how="all")
 
@@ -379,7 +423,13 @@ class HypothesisComputer:
     def compute_breakout(self) -> Dict[str, Any]:
         """BRK-001: 52-week breakout."""
         returns = self._get_returns()
-        prices = pd.DataFrame({sym: df["close"] for sym, df in self._data.items() if "close" in df.columns})
+        prices = pd.DataFrame(
+            {
+                sym: df["close"]
+                for sym, df in self._data.items()
+                if "close" in df.columns
+            }
+        )
 
         high_52w = prices.rolling(252).max()
         dist_from_high = (prices - high_52w) / high_52w
@@ -440,6 +490,7 @@ class HypothesisComputer:
 # Staged Campaign Executor
 # ============================================================
 
+
 class StagedCampaignExecutor:
     """Executes the frozen campaign in stages against real MT5 data."""
 
@@ -474,7 +525,10 @@ class StagedCampaignExecutor:
 
         results["stages"]["data_integrity"] = {
             "passed": all_passed,
-            "checks": [{"name": c.check_name, "passed": c.passed, "details": c.details} for c in checks],
+            "checks": [
+                {"name": c.check_name, "passed": c.passed, "details": c.details}
+                for c in checks
+            ],
             "manifest": manifest.to_dict(),
         }
 
@@ -489,10 +543,21 @@ class StagedCampaignExecutor:
             git_commit="d259159",
             data_snapshot_id=manifest.snapshot_hash,
             feature_registry_version="v1",
-            hypothesis_library_hash=hashlib.sha256(json.dumps(sorted([
-                "HYP-TREND-001", "HYP-MOM-001", "HYP-VOL-001", "HYP-CS-001",
-                "HYP-BRK-001", "HYP-MR-001", "HYP-GOLD-MOM",
-            ])).encode()).hexdigest()[:16],
+            hypothesis_library_hash=hashlib.sha256(
+                json.dumps(
+                    sorted(
+                        [
+                            "HYP-TREND-001",
+                            "HYP-MOM-001",
+                            "HYP-VOL-001",
+                            "HYP-CS-001",
+                            "HYP-BRK-001",
+                            "HYP-MR-001",
+                            "HYP-GOLD-MOM",
+                        ]
+                    )
+                ).encode()
+            ).hexdigest()[:16],
             trial_registry_hash="v1",
             cost_model_version="cost-v1",
             universe_definition_hash=manifest.universe_hash,
@@ -533,7 +598,9 @@ class StagedCampaignExecutor:
             print(f"  Trend annual return: {trend_result['annual_return']:.3f}")
             print(f"  Trend max drawdown: {trend_result['max_drawdown']:.3f}")
             print(f"  Trend t-stat: {trend_result['t_stat']:.3f}")
-            print(f"  Calibration: {'✅ PASSED' if calibration_passed else '❌ FAILED'}")
+            print(
+                f"  Calibration: {'✅ PASSED' if calibration_passed else '❌ FAILED'}"
+            )
 
             results["stages"]["calibration"] = {
                 "passed": calibration_passed,
@@ -552,18 +619,45 @@ class StagedCampaignExecutor:
         print("STAGE 2: Simple Hypotheses (VOL, CS, TREND, MOM, BRK)")
         print("=" * 60)
 
-        self._incremental.set_baseline(PortfolioBaseline(
-            portfolio_id="mt5-current",
-            sharpe=0.3, sortino=0.5, max_drawdown=-0.15,
-            cagr=0.04, volatility=0.12, turnover=0.3,
-            tail_risk=0.05, constituents=("HYP-TREND-001",),
-        ))
+        self._incremental.set_baseline(
+            PortfolioBaseline(
+                portfolio_id="mt5-current",
+                sharpe=0.3,
+                sortino=0.5,
+                max_drawdown=-0.15,
+                cagr=0.04,
+                volatility=0.12,
+                turnover=0.3,
+                tail_risk=0.05,
+                constituents=("HYP-TREND-001",),
+            )
+        )
 
         stage2_hypotheses = [
-            ("HYP-TREND-001", "trend", "TREND-001: 12-1m Momentum", computer.compute_trend),
-            ("HYP-VOL-001", "volatility", "VOL-001: Low Volatility", computer.compute_low_vol),
-            ("HYP-CS-001", "cross_sectional", "CS-001: Value Tilt", computer.compute_value),
-            ("HYP-BRK-001", "breakout", "BRK-001: 52w Breakout", computer.compute_breakout),
+            (
+                "HYP-TREND-001",
+                "trend",
+                "TREND-001: 12-1m Momentum",
+                computer.compute_trend,
+            ),
+            (
+                "HYP-VOL-001",
+                "volatility",
+                "VOL-001: Low Volatility",
+                computer.compute_low_vol,
+            ),
+            (
+                "HYP-CS-001",
+                "cross_sectional",
+                "CS-001: Value Tilt",
+                computer.compute_value,
+            ),
+            (
+                "HYP-BRK-001",
+                "breakout",
+                "BRK-001: 52w Breakout",
+                computer.compute_breakout,
+            ),
         ]
 
         for hyp_id, family, title, compute_fn in stage2_hypotheses:
@@ -584,7 +678,7 @@ class StagedCampaignExecutor:
         print("=" * 60)
 
         mr_result = computer.compute_short_reversal()
-        print(f"\n  Running MR-001: Short-Term Reversal (cost-stressed)...")
+        print("\n  Running MR-001: Short-Term Reversal (cost-stressed)...")
         self._process_hypothesis("HYP-MR-001", "mean_reversion", mr_result, timestamp)
         v = self._verdicts[-1]
         print(f"    Net Sharpe: {mr_result.get('net_sharpe', 0):.3f}")
@@ -600,7 +694,7 @@ class StagedCampaignExecutor:
 
         gold_result = computer.compute_gold_momentum()
         if not gold_result.get("insufficient_data"):
-            print(f"\n  Running GOLD-MOM: Gold vs USD momentum...")
+            print("\n  Running GOLD-MOM: Gold vs USD momentum...")
             self._process_hypothesis("HYP-GOLD-MOM", "factor", gold_result, timestamp)
             v = self._verdicts[-1]
             print(f"    Net Sharpe: {gold_result.get('net_sharpe', 0):.3f}")
@@ -635,7 +729,13 @@ class StagedCampaignExecutor:
         print("LOSER ANALYSIS (rejected/fragile)")
         print("=" * 60)
         for v in self._verdicts:
-            if v.status in ("rejected", "fragile", "capacity_limited", "redundant", "inconclusive"):
+            if v.status in (
+                "rejected",
+                "fragile",
+                "capacity_limited",
+                "redundant",
+                "inconclusive",
+            ):
                 print(f"\n  {v.hypothesis_id} ({v.family}):")
                 print(f"    Status: {v.status}")
                 print(f"    Net Sharpe: {v.net_sharpe:.3f}")
@@ -668,16 +768,28 @@ class StagedCampaignExecutor:
         """Process a single hypothesis through scorecard + incremental."""
         if metrics.get("insufficient_data"):
             metrics = {
-                "net_sharpe": 0, "t_stat": 0, "pbo": 0.5,
-                "has_economic_rationale": True, "has_expected_mechanism": True,
-                "walk_forward_passed": False, "parameter_stability": False,
-                "regime_stability": False, "universe_perturbation_passed": False,
-                "cost_survived": False, "turnover": 0, "spread_survived": False,
-                "capacity_adequate": False, "adv_participation": 0.1,
-                "incremental_value": False, "incremental_sharpe_delta": 0,
-                "incremental_dd_delta": 0, "correlation_with_existing": 0.5,
-                "downside_correlation": 0.5, "crisis_behavior_ok": False,
-                "concentration": 0.5, "breadth_ok": False,
+                "net_sharpe": 0,
+                "t_stat": 0,
+                "pbo": 0.5,
+                "has_economic_rationale": True,
+                "has_expected_mechanism": True,
+                "walk_forward_passed": False,
+                "parameter_stability": False,
+                "regime_stability": False,
+                "universe_perturbation_passed": False,
+                "cost_survived": False,
+                "turnover": 0,
+                "spread_survived": False,
+                "capacity_adequate": False,
+                "adv_participation": 0.1,
+                "incremental_value": False,
+                "incremental_sharpe_delta": 0,
+                "incremental_dd_delta": 0,
+                "correlation_with_existing": 0.5,
+                "downside_correlation": 0.5,
+                "crisis_behavior_ok": False,
+                "concentration": 0.5,
+                "breadth_ok": False,
             }
 
         # Scorecard

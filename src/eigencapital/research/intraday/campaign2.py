@@ -12,15 +12,14 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Tuple
 
 import numpy as np
 import pandas as pd
 
-from .hypotheses import HypothesisDefinition, HypothesisFamily, HoldingPeriod, Verdict
+from .hypotheses import Verdict
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +28,11 @@ logger = logging.getLogger(__name__)
 # Campaign 2 Hypothesis Library
 # ============================================================
 
+
 @dataclass(frozen=True)
 class MicroHypothesis:
     """Pre-registered microstructure hypothesis."""
+
     hypothesis_id: str
     name: str
     description: str
@@ -280,11 +281,26 @@ MICRO_HYP_020 = MicroHypothesis(
 )
 
 ALL_MICRO_HYPOTHESES = [
-    MICRO_HYP_001, MICRO_HYP_002, MICRO_HYP_003, MICRO_HYP_004,
-    MICRO_HYP_005, MICRO_HYP_006, MICRO_HYP_007,
-    MICRO_HYP_008, MICRO_HYP_009, MICRO_HYP_010, MICRO_HYP_011,
-    MICRO_HYP_012, MICRO_HYP_013, MICRO_HYP_014, MICRO_HYP_015,
-    MICRO_HYP_016, MICRO_HYP_017, MICRO_HYP_018, MICRO_HYP_019, MICRO_HYP_020,
+    MICRO_HYP_001,
+    MICRO_HYP_002,
+    MICRO_HYP_003,
+    MICRO_HYP_004,
+    MICRO_HYP_005,
+    MICRO_HYP_006,
+    MICRO_HYP_007,
+    MICRO_HYP_008,
+    MICRO_HYP_009,
+    MICRO_HYP_010,
+    MICRO_HYP_011,
+    MICRO_HYP_012,
+    MICRO_HYP_013,
+    MICRO_HYP_014,
+    MICRO_HYP_015,
+    MICRO_HYP_016,
+    MICRO_HYP_017,
+    MICRO_HYP_018,
+    MICRO_HYP_019,
+    MICRO_HYP_020,
 ]
 
 
@@ -296,6 +312,7 @@ def compute_micro_library_hash() -> str:
 # ============================================================
 # Microstructure Signal Generators
 # ============================================================
+
 
 def _vol_avg(df: pd.DataFrame, window: int = 36) -> pd.Series:
     """Average volume over window."""
@@ -343,7 +360,7 @@ def generate_micro_signal(df: pd.DataFrame, hyp: MicroHypothesis) -> pd.Series:
         # Check if in a trend (recent returns)
         recent = df["close"].pct_change().rolling(12).sum()
         signal[vol_dry & (recent > 0)] = -1  # reverse uptrend
-        signal[vol_dry & (recent < 0)] = 1   # reverse downtrend
+        signal[vol_dry & (recent < 0)] = 1  # reverse downtrend
 
     elif fid == "MIC-VOL-003":
         # Volume-price divergence
@@ -351,7 +368,7 @@ def generate_micro_signal(df: pd.DataFrame, hyp: MicroHypothesis) -> pd.Series:
         vol_declining = vol < vol_avg * 0.8
         signal[price_high & vol_declining] = -1  # bearish divergence
         price_low = df["close"] == df["close"].rolling(36).min()
-        signal[price_low & vol_declining] = 1   # bullish divergence
+        signal[price_low & vol_declining] = 1  # bullish divergence
 
     elif fid == "MIC-VOL-004":
         # Volume-weighted momentum
@@ -367,7 +384,7 @@ def generate_micro_signal(df: pd.DataFrame, hyp: MicroHypothesis) -> pd.Series:
         spread_wide = spr > spr_avg * 2
         recent = df["close"].pct_change().rolling(6).sum()
         signal[spread_wide & (recent > 0)] = -1  # contrarian short
-        signal[spread_wide & (recent < 0)] = 1   # contrarian long
+        signal[spread_wide & (recent < 0)] = 1  # contrarian long
 
     elif fid == "MIC-SPR-002":
         # Spread tightening continuation
@@ -410,7 +427,7 @@ def generate_micro_signal(df: pd.DataFrame, hyp: MicroHypothesis) -> pd.Series:
         upper_reject = upper_shadow > body_abs * 2
         lower_reject = lower_shadow > body_abs * 2
         signal[upper_reject] = -1  # rejected at high → short
-        signal[lower_reject] = 1   # rejected at low → long
+        signal[lower_reject] = 1  # rejected at low → long
 
     elif fid == "MIC-SES-001":
         # London open volume surge
@@ -490,7 +507,7 @@ def generate_micro_signal(df: pd.DataFrame, hyp: MicroHypothesis) -> pd.Series:
         # Predicts upcoming volatility — use as filter, not directional
         # Direction from recent trend
         recent = df["close"].pct_change().rolling(6).sum()
-        signal[withdrawal & (recent > 0)] = 1   # continue trend
+        signal[withdrawal & (recent > 0)] = 1  # continue trend
         signal[withdrawal & (recent < 0)] = -1
 
     elif fid == "MIC-CMP-005":
@@ -509,6 +526,7 @@ def generate_micro_signal(df: pd.DataFrame, hyp: MicroHypothesis) -> pd.Series:
 # Campaign 2 Evaluator
 # ============================================================
 
+
 def _safe_sharpe(returns: pd.Series) -> float:
     r = returns.dropna()
     if len(r) < 10 or r.std() == 0:
@@ -523,8 +541,15 @@ def evaluate_micro_strategy(
 ) -> Dict[str, Any]:
     """Evaluate microstructure signal with realistic costs."""
     if signal.abs().sum() == 0:
-        return {"gross_sharpe": 0, "net_sharpe": 0, "max_dd": 0, "trades": 0,
-                "turnover": 0, "hit_rate": 0, "cost_pct": 100}
+        return {
+            "gross_sharpe": 0,
+            "net_sharpe": 0,
+            "max_dd": 0,
+            "trades": 0,
+            "turnover": 0,
+            "hit_rate": 0,
+            "cost_pct": 100,
+        }
 
     fwd = df["close"].pct_change().shift(-1)
     position = signal.shift(1).fillna(0)
@@ -623,7 +648,9 @@ def classify_micro_verdict(
 
     if result["net_sharpe"] < criteria.get("min_sharpe", 0.3):
         fms.append("statistical_weakness")
-        reasons.append(f"Net Sharpe {result['net_sharpe']:.3f} < {criteria.get('min_sharpe', 0.3)}")
+        reasons.append(
+            f"Net Sharpe {result['net_sharpe']:.3f} < {criteria.get('min_sharpe', 0.3)}"
+        )
 
     if result["cost_pct"] > 50:
         fms.append("cost_sensitivity")
@@ -661,6 +688,7 @@ def classify_micro_verdict(
 # ============================================================
 # Campaign 2 Executor
 # ============================================================
+
 
 class MicroCampaignExecutor:
     """Runs Campaign 2 — microstructure/volume hypothesis evaluation."""
@@ -707,15 +735,25 @@ class MicroCampaignExecutor:
             return self._empty(hyp)
 
         # Aggregate
-        agg = {k: np.mean([r[k] for r in asset_results.values()])
-               for k in ["gross_sharpe", "net_sharpe", "max_dd", "turnover",
-                          "hit_rate", "cost_pct"]}
+        agg = {
+            k: np.mean([r[k] for r in asset_results.values()])
+            for k in [
+                "gross_sharpe",
+                "net_sharpe",
+                "max_dd",
+                "turnover",
+                "hit_rate",
+                "cost_pct",
+            ]
+        }
         agg["trades"] = sum(r["trades"] for r in asset_results.values())
 
         # Walk-forward on symbol with most data
-        best_sym = max(self._prepared.keys(),
-                       key=lambda s: len(self._prepared[s]))
-        sig_func = lambda d: generate_micro_signal(d, hyp)
+        best_sym = max(self._prepared.keys(), key=lambda s: len(self._prepared[s]))
+
+        def sig_func(d):
+            return generate_micro_signal(d, hyp)
+
         wf = walk_forward_micro(self._prepared[best_sym], sig_func)
 
         verdict, fms, reason = classify_micro_verdict(agg, wf, hyp)
@@ -757,13 +795,23 @@ class MicroCampaignExecutor:
 
     def _empty(self, hyp: MicroHypothesis) -> Dict[str, Any]:
         return {
-            "hypothesis_id": hyp.hypothesis_id, "name": hyp.name,
+            "hypothesis_id": hyp.hypothesis_id,
+            "name": hyp.name,
             "signal_source": hyp.signal_source,
-            "verdict": "inconclusive", "gross_sharpe": 0, "net_sharpe": 0,
-            "oos_sharpe": 0, "max_dd": 0, "turnover": 0, "trades": 0,
-            "hit_rate": 0, "wf_consistency": 0, "cost_pct": 100,
-            "failure_modes": ["insufficient_data"], "reason": "No data",
-            "asset_sharpes": {}, "session_sharpes": {},
+            "verdict": "inconclusive",
+            "gross_sharpe": 0,
+            "net_sharpe": 0,
+            "oos_sharpe": 0,
+            "max_dd": 0,
+            "turnover": 0,
+            "trades": 0,
+            "hit_rate": 0,
+            "wf_consistency": 0,
+            "cost_pct": 100,
+            "failure_modes": ["insufficient_data"],
+            "reason": "No data",
+            "asset_sharpes": {},
+            "session_sharpes": {},
         }
 
     def produce_map(self, results: List[Dict[str, Any]]) -> str:
@@ -791,7 +839,7 @@ class MicroCampaignExecutor:
             f"**Data Snapshot:** {self._manifest.snapshot_hash}",
             f"**Broker:** {self._manifest.broker} (Terminal {self._manifest.terminal_id})",
             f"**Universe:** {', '.join(self._manifest.symbols)}",
-            f"**Timeframe:** M5",
+            "**Timeframe:** M5",
             f"**Total Bars:** {self._manifest.total_bars}",
             f"**Hypotheses Tested:** {len(results)}",
             "",
@@ -800,16 +848,33 @@ class MicroCampaignExecutor:
             "```",
         ]
 
-        for verdict in ["supported", "incremental", "fragile", "regime_dependent",
-                         "cost_sensitive", "inconclusive", "rejected"]:
+        for verdict in [
+            "supported",
+            "incremental",
+            "fragile",
+            "regime_dependent",
+            "cost_sensitive",
+            "inconclusive",
+            "rejected",
+        ]:
             group = by_verdict.get(verdict, [])
             if group:
                 bar = "█" * len(group) * 3
                 lines.append(f"{verdict.upper():30s} {len(group):3d}  {bar}")
 
         total = len(results)
-        survivors = len(by_verdict.get("supported", [])) + len(by_verdict.get("incremental", []))
-        lines.extend(["```", f"**Survival Rate: {survivors/total*100:.1f}%**" if total else "N/A", ""])
+        survivors = len(by_verdict.get("supported", [])) + len(
+            by_verdict.get("incremental", [])
+        )
+        lines.extend(
+            [
+                "```",
+                f"**Survival Rate: {survivors / total * 100:.1f}%**"
+                if total
+                else "N/A",
+                "",
+            ]
+        )
 
         # Failure modes
         lines.extend(["## Failure Mode Distribution", "", "```"])
@@ -819,12 +884,14 @@ class MicroCampaignExecutor:
         lines.extend(["```", ""])
 
         # Results table
-        lines.extend([
-            "## Detailed Results",
-            "",
-            "| ID | Name | Source | Verdict | Net Sharpe | OOS | Max DD | Turnover | WF | Cost% | Failure Modes |",
-            "|---|---|---|---|---:|---:|---:|---:|---:|---:|---|",
-        ])
+        lines.extend(
+            [
+                "## Detailed Results",
+                "",
+                "| ID | Name | Source | Verdict | Net Sharpe | OOS | Max DD | Turnover | WF | Cost% | Failure Modes |",
+                "|---|---|---|---|---:|---:|---:|---:|---:|---:|---|",
+            ]
+        )
         for r in sorted(results, key=lambda x: -x["net_sharpe"]):
             fms = ", ".join(r["failure_modes"][:2]) if r["failure_modes"] else "—"
             lines.append(
@@ -837,25 +904,33 @@ class MicroCampaignExecutor:
         lines.append("")
 
         # Survivors
-        survivors_list = [r for r in results if r["verdict"] in ("supported", "incremental")]
+        survivors_list = [
+            r for r in results if r["verdict"] in ("supported", "incremental")
+        ]
         if survivors_list:
             lines.extend(["## Survivors — Detailed Analysis", ""])
             for r in survivors_list:
-                lines.extend([
-                    f"### {r['hypothesis_id']}: {r['name']}",
-                    f"- **Signal Source:** {r['signal_source']}",
-                    f"- **Net Sharpe:** {r['net_sharpe']:.3f}",
-                    f"- **OOS Sharpe:** {r['oos_sharpe']:.3f}",
-                    f"- **Max DD:** {r['max_dd']:.1f}%",
-                    f"- **Turnover:** {r['turnover']:.1f}x/year",
-                    f"- **WF Consistency:** {r['wf_consistency']:.0%}",
-                    "",
-                    "**Per-Asset Sharpe:**",
-                ])
-                for sym, sharpe in sorted(r["asset_sharpes"].items(), key=lambda x: -x[1]):
+                lines.extend(
+                    [
+                        f"### {r['hypothesis_id']}: {r['name']}",
+                        f"- **Signal Source:** {r['signal_source']}",
+                        f"- **Net Sharpe:** {r['net_sharpe']:.3f}",
+                        f"- **OOS Sharpe:** {r['oos_sharpe']:.3f}",
+                        f"- **Max DD:** {r['max_dd']:.1f}%",
+                        f"- **Turnover:** {r['turnover']:.1f}x/year",
+                        f"- **WF Consistency:** {r['wf_consistency']:.0%}",
+                        "",
+                        "**Per-Asset Sharpe:**",
+                    ]
+                )
+                for sym, sharpe in sorted(
+                    r["asset_sharpes"].items(), key=lambda x: -x[1]
+                ):
                     lines.append(f"  - {sym}: {sharpe:.3f}")
                 lines.extend(["", "**Session Sharpe:**"])
-                for sess, sharpe in sorted(r["session_sharpes"].items(), key=lambda x: -x[1]):
+                for sess, sharpe in sorted(
+                    r["session_sharpes"].items(), key=lambda x: -x[1]
+                ):
                     lines.append(f"  - {sess}: {sharpe:.3f}")
                 lines.append("")
 
@@ -865,21 +940,25 @@ class MicroCampaignExecutor:
             lines.extend(["## Rejected — Loser Analysis", ""])
             for r in rejected:
                 fms = ", ".join(r["failure_modes"]) if r["failure_modes"] else "unknown"
-                lines.append(f"- **{r['hypothesis_id']}** ({r['name']}): {r['reason']} [{fms}]")
+                lines.append(
+                    f"- **{r['hypothesis_id']}** ({r['name']}): {r['reason']} [{fms}]"
+                )
             lines.append("")
 
-        lines.extend([
-            "## Key Findings",
-            "",
-            "1. Campaign 2 tests a fundamentally different information source than Campaign 1",
-            "2. Volume, spread, and range patterns are tested instead of pure price momentum",
-            "3. The research system maintains the same forensic discipline",
-            "4. A rejection here means: microstructure signals also don't survive at M5",
-            "5. If both Campaign 1 and 2 fail, the conclusion is about the M5 frequency/universe, not the research system",
-            "",
-            "---",
-            f"*Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
-            f"Data: {self._manifest.total_bars} bars | Snapshot: {self._manifest.snapshot_hash}*",
-        ])
+        lines.extend(
+            [
+                "## Key Findings",
+                "",
+                "1. Campaign 2 tests a fundamentally different information source than Campaign 1",
+                "2. Volume, spread, and range patterns are tested instead of pure price momentum",
+                "3. The research system maintains the same forensic discipline",
+                "4. A rejection here means: microstructure signals also don't survive at M5",
+                "5. If both Campaign 1 and 2 fail, the conclusion is about the M5 frequency/universe, not the research system",
+                "",
+                "---",
+                f"*Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
+                f"Data: {self._manifest.total_bars} bars | Snapshot: {self._manifest.snapshot_hash}*",
+            ]
+        )
 
         return "\n".join(lines)

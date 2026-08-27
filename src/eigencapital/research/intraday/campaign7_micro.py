@@ -63,9 +63,9 @@ from eigencapital.research.intraday.campaign5_30m import classify
 
 # ── Constants ───────────────────────────────────────────────────────────
 
-HORIZONS = [1, 2, 3, 6]            # M5 bars: 5m / 10m / 15m / 30m
+HORIZONS = [1, 2, 3, 6]  # M5 bars: 5m / 10m / 15m / 30m
 TRADING_DAYS_PER_YEAR = 252
-BARS_PER_TRADING_DAY = 288         # 24h market / 5min
+BARS_PER_TRADING_DAY = 288  # 24h market / 5min
 
 DATA_DIR = "data/tick_micro_m5"
 REPORT_JSON = "reports/campaign7_micro_map.json"
@@ -106,54 +106,138 @@ class MicroHypResult(HypResult):
 
 HYPOTHESES: List[Hypothesis] = [
     # A. Quote-flow imbalance
-    Hypothesis("TF-001", "tick_flow", "Signed quote-flow continuation (1-bar)",
-               "sig_flow_cont", "Uptick imbalance persists one bar"),
-    Hypothesis("TF-002", "tick_flow", "Signed quote-flow continuation (3-bar)",
-               "sig_flow_cont3", "Flow persistence over 15 minutes"),
-    Hypothesis("TF-003", "tick_flow", "Flow-extreme reversal",
-               "sig_flow_fade", "Extreme imbalance mean-reverts"),
-
+    Hypothesis(
+        "TF-001",
+        "tick_flow",
+        "Signed quote-flow continuation (1-bar)",
+        "sig_flow_cont",
+        "Uptick imbalance persists one bar",
+    ),
+    Hypothesis(
+        "TF-002",
+        "tick_flow",
+        "Signed quote-flow continuation (3-bar)",
+        "sig_flow_cont3",
+        "Flow persistence over 15 minutes",
+    ),
+    Hypothesis(
+        "TF-003",
+        "tick_flow",
+        "Flow-extreme reversal",
+        "sig_flow_fade",
+        "Extreme imbalance mean-reverts",
+    ),
     # B. Arrival intensity
-    Hypothesis("AI-001", "intensity", "Tick-intensity anomaly + direction",
-               "sig_intensity_dir", "Activity spikes accompany directional moves"),
-    Hypothesis("AI-002", "intensity", "Intensity spike x flow composite",
-               "sig_intensity_flow", "High-activity flows are informative"),
-    Hypothesis("AI-003", "intensity", "Quiet-market reversion",
-               "sig_quiet_rev", "Low intensity favors reversion"),
-
+    Hypothesis(
+        "AI-001",
+        "intensity",
+        "Tick-intensity anomaly + direction",
+        "sig_intensity_dir",
+        "Activity spikes accompany directional moves",
+    ),
+    Hypothesis(
+        "AI-002",
+        "intensity",
+        "Intensity spike x flow composite",
+        "sig_intensity_flow",
+        "High-activity flows are informative",
+    ),
+    Hypothesis(
+        "AI-003",
+        "intensity",
+        "Quiet-market reversion",
+        "sig_quiet_rev",
+        "Low intensity favors reversion",
+    ),
     # C. Spread dynamics / liquidity
-    Hypothesis("SD-001", "spread", "Spread expansion reversal",
-               "sig_spread_exp_rev", "Liquidity withdrawal precedes reversals"),
-    Hypothesis("SD-002", "spread", "Spread contraction continuation",
-               "sig_spread_contr_cont", "Healthy liquidity favors trends"),
-    Hypothesis("SD-003", "spread", "Spread-spike fade",
-               "sig_spread_spike_fade", "Transient spread spikes revert"),
-
+    Hypothesis(
+        "SD-001",
+        "spread",
+        "Spread expansion reversal",
+        "sig_spread_exp_rev",
+        "Liquidity withdrawal precedes reversals",
+    ),
+    Hypothesis(
+        "SD-002",
+        "spread",
+        "Spread contraction continuation",
+        "sig_spread_contr_cont",
+        "Healthy liquidity favors trends",
+    ),
+    Hypothesis(
+        "SD-003",
+        "spread",
+        "Spread-spike fade",
+        "sig_spread_spike_fade",
+        "Transient spread spikes revert",
+    ),
     # D. Price impact
-    Hypothesis("PI-001", "impact", "High impact-per-tick continuation",
-               "sig_impact_cont", "Large moves per quote are informed"),
-    Hypothesis("PI-002", "impact", "Low-impact move fade",
-               "sig_low_impact_fade", "Drift without quotes is noise"),
-
+    Hypothesis(
+        "PI-001",
+        "impact",
+        "High impact-per-tick continuation",
+        "sig_impact_cont",
+        "Large moves per quote are informed",
+    ),
+    Hypothesis(
+        "PI-002",
+        "impact",
+        "Low-impact move fade",
+        "sig_low_impact_fade",
+        "Drift without quotes is noise",
+    ),
     # E. Persistence
-    Hypothesis("PE-001", "persistence", "Multi-bar directional persistence",
-               "sig_bar_persist", "Consecutive directional M5 bars continue"),
-    Hypothesis("PE-002", "persistence", "Quote-run persistence",
-               "sig_quote_run", "Long same-direction quote runs continue"),
-
+    Hypothesis(
+        "PE-001",
+        "persistence",
+        "Multi-bar directional persistence",
+        "sig_bar_persist",
+        "Consecutive directional M5 bars continue",
+    ),
+    Hypothesis(
+        "PE-002",
+        "persistence",
+        "Quote-run persistence",
+        "sig_quote_run",
+        "Long same-direction quote runs continue",
+    ),
     # F. Cross-instrument lead/lag (quote flow)
-    Hypothesis("LL-001", "lead_lag", "EURUSD flow leads GBPUSD (1-bar lag)",
-               "sig_eur_gbp_flow", "Correlated majors share quote pressure"),
-    Hypothesis("LL-002", "lead_lag", "US500 flow leads USTEC (1-bar lag)",
-               "sig_sp500_nasdac_flow", "Index futures proxies share risk flow"),
-    Hypothesis("LL-003", "lead_lag", "XAUUSD flow leads AUDUSD (1-bar lag)",
-               "sig_gold_aud_flow", "Gold-linked commodity currency"),
-
+    Hypothesis(
+        "LL-001",
+        "lead_lag",
+        "EURUSD flow leads GBPUSD (1-bar lag)",
+        "sig_eur_gbp_flow",
+        "Correlated majors share quote pressure",
+    ),
+    Hypothesis(
+        "LL-002",
+        "lead_lag",
+        "US500 flow leads USTEC (1-bar lag)",
+        "sig_sp500_nasdac_flow",
+        "Index futures proxies share risk flow",
+    ),
+    Hypothesis(
+        "LL-003",
+        "lead_lag",
+        "XAUUSD flow leads AUDUSD (1-bar lag)",
+        "sig_gold_aud_flow",
+        "Gold-linked commodity currency",
+    ),
     # G. Composites (small, structurally motivated)
-    Hypothesis("CO-001", "composite", "Flow x spread-regime composite",
-               "sig_flow_x_spread", "Flow signal conditioned on liquidity state"),
-    Hypothesis("CO-002", "composite", "Intensity spike x micro-breakout",
-               "sig_spike_breakout", "Confirmed micro-range breaks"),
+    Hypothesis(
+        "CO-001",
+        "composite",
+        "Flow x spread-regime composite",
+        "sig_flow_x_spread",
+        "Flow signal conditioned on liquidity state",
+    ),
+    Hypothesis(
+        "CO-002",
+        "composite",
+        "Intensity spike x micro-breakout",
+        "sig_spike_breakout",
+        "Confirmed micro-range breaks",
+    ),
 ]
 
 for h in HYPOTHESES:
@@ -163,6 +247,7 @@ for h in HYPOTHESES:
 # ═══════════════════════════════════════════════════════════════════════
 # SIGNALS (operate on M5 microstructure feature columns; backward-looking)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _z(s: pd.Series, n: int = 96) -> pd.Series:
     return _safe_div(s - _rmean(s, n), _rstd(s, n))
@@ -208,8 +293,9 @@ def sig_spread_contr_cont(df: pd.DataFrame, **kw) -> pd.Series:
 
 
 def sig_spread_spike_fade(df: pd.DataFrame, **kw) -> pd.Series:
-    spike = _safe_div(df["spread_max_bps"],
-                      df["spread_mean_bps"].replace(0, np.nan)) - 1
+    spike = (
+        _safe_div(df["spread_max_bps"], df["spread_mean_bps"].replace(0, np.nan)) - 1
+    )
     return -(spike.fillna(0)) * np.sign(df["mid_ret"])
 
 
@@ -286,6 +372,7 @@ SIGNALS: Dict[str, Callable] = {h.signal: globals()[h.signal] for h in HYPOTHESE
 # ═══════════════════════════════════════════════════════════════════════
 # ENGINE (M5-correct annualization; identical methodology to C4–C6)
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def bt(
     df: pd.DataFrame,
@@ -402,14 +489,17 @@ def regime_analysis(
 # RUNNER
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def run(data_dir: str = DATA_DIR) -> List[HypResult]:
     data: Dict[str, pd.DataFrame] = {}
     for s in UNIVERSE:
         p = os.path.join(data_dir, f"{s}_M5micro.csv")
         if os.path.exists(p):
             data[s] = pd.read_csv(p, parse_dates=["time"])
-            print(f"  Loaded {s}: {len(data[s])} micro bars "
-                  f"({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})")
+            print(
+                f"  Loaded {s}: {len(data[s])} micro bars "
+                f"({data[s]['time'].iloc[0]} → {data[s]['time'].iloc[-1]})"
+            )
     if not data:
         print("ERROR: no microstructure bars found — run tick_data_puller first")
         return []
@@ -418,7 +508,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
     n_evaluations = 0
     for h in HYPOTHESES:
         func = SIGNALS.get(h.signal)
-        print(f"\n{'='*60}\n{h.hid}: {h.description} [{h.family}]")
+        print(f"\n{'=' * 60}\n{h.hid}: {h.description} [{h.family}]")
 
         best, best_score = None, -999
         for hp in HORIZONS:
@@ -451,18 +541,28 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
             ana = float(np.mean(adv_vals))
             mdd = float(min(dd_vals))
 
-            anchor_name = next((s for s in ["EURUSDm", "XAUUSDm"] if s in data),
-                               list(data)[0])
+            anchor_name = next(
+                (s for s in ["EURUSDm", "XAUUSDm"] if s in data), list(data)[0]
+            )
             anchor = data[anchor_name]
             ll_kw = {"all_data": data} if h.family == "lead_lag" else {}
             wf_cons, wf_oos = wf_validate(anchor, func, hp, **ll_kw)
             deg = 1 - anb / ag if abs(ag) > 1e-3 else 1.0
 
             r = MicroHypResult(
-                hid=h.hid, family=h.family, description=h.description, hp=hp,
-                gross_sharpe=ag, net_base=anb, net_adverse=ana, max_dd=mdd,
-                trades=total_trades, wf_consistency=wf_cons, wf_oos_sharpe=wf_oos,
-                degradation=deg, sym_sharpes=sym_net,
+                hid=h.hid,
+                family=h.family,
+                description=h.description,
+                hp=hp,
+                gross_sharpe=ag,
+                net_base=anb,
+                net_adverse=ana,
+                max_dd=mdd,
+                trades=total_trades,
+                wf_consistency=wf_cons,
+                wf_oos_sharpe=wf_oos,
+                degradation=deg,
+                sym_sharpes=sym_net,
             )
 
             try:
@@ -481,18 +581,29 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
 
             r.verdict, r.reasons, r.primary_failure = classify(r)
 
-            print(f"  HP={hp} ({hp*5:2d}m): gross={ag:+.3f} net={anb:+.3f} "
-                  f"adv={ana:+.3f} DD={mdd:.2f} WF={wf_cons:.0%} "
-                  f"perm_p={r.permutation_p:.3f} → {r.verdict.value}")
+            print(
+                f"  HP={hp} ({hp * 5:2d}m): gross={ag:+.3f} net={anb:+.3f} "
+                f"adv={ana:+.3f} DD={mdd:.2f} WF={wf_cons:.0%} "
+                f"perm_p={r.permutation_p:.3f} → {r.verdict.value}"
+            )
 
             score = anb + wf_cons * 0.5 - r.permutation_p * 0.2
             if score > best_score:
                 best_score, best = score, r
 
-        results.append(best if best else MicroHypResult(
-            hid=h.hid, family=h.family, description=h.description, hp=HORIZONS[0],
-            verdict=Verdict.REJECTED, reasons=["no_data"],
-            primary_failure="no_data"))
+        results.append(
+            best
+            if best
+            else MicroHypResult(
+                hid=h.hid,
+                family=h.family,
+                description=h.description,
+                hp=HORIZONS[0],
+                verdict=Verdict.REJECTED,
+                reasons=["no_data"],
+                primary_failure="no_data",
+            )
+        )
 
     # ── Family-wise Bonferroni correction (one family: all hyp × horizon
     #    evaluations in this campaign). Verdicts re-run on the adjusted p;
@@ -508,14 +619,17 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
         r.primary_failure = gated.primary_failure
 
     n_total_trials = PRIOR_EVALUATIONS + n_evaluations
-    print(f"\nFamily: {n_evaluations} evaluations Bonferroni-corrected "
-          f"(cumulative intraday trials incl. frozen branch: {n_total_trials})")
+    print(
+        f"\nFamily: {n_evaluations} evaluations Bonferroni-corrected "
+        f"(cumulative intraday trials incl. frozen branch: {n_total_trials})"
+    )
     return results
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # REPORTS
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def write_reports(results: List[HypResult]) -> None:
     now = time.strftime("%Y-%m-%d %H:%M UTC")
@@ -533,51 +647,78 @@ def write_reports(results: List[HypResult]) -> None:
         "**Universe:** 8 instruments",
         f"**Generated:** {now}",
         f"**Hypotheses:** {len(results)} pre-registered across 7 families",
-        f"**Costs:** base {CostModel.BASE*10000:.0f}bps / adverse {CostModel.ADVERSE*10000:.0f}bps",
+        f"**Costs:** base {CostModel.BASE * 10000:.0f}bps / adverse {CostModel.ADVERSE * 10000:.0f}bps",
         "**Multiple testing:** all hypothesis × horizon evaluations form one "
         "Bonferroni family; SUPPORTED requires p_adj ≤ 0.05. "
         "Cumulative intraday trials incl. frozen branch: "
         f"{PRIOR_EVALUATIONS} prior + current campaign.",
         "",
-        "---", "",
-        "## VERDICT DISTRIBUTION", "", "| Verdict | Count | IDs |", "|---|---|---|",
+        "---",
+        "",
+        "## VERDICT DISTRIBUTION",
+        "",
+        "| Verdict | Count | IDs |",
+        "|---|---|---|",
     ]
-    for v in ["rejected", "regime_dependent", "cost_sensitive",
-              "fragile", "inconclusive", "supported"]:
+    for v in [
+        "rejected",
+        "regime_dependent",
+        "cost_sensitive",
+        "fragile",
+        "inconclusive",
+        "supported",
+    ]:
         hs = groups.get(v, [])
         if hs:
-            lines.append(f"| **{v.upper()}** | {len(hs)} | "
-                         f"{', '.join(x.hid for x in hs)} |")
+            lines.append(
+                f"| **{v.upper()}** | {len(hs)} | {', '.join(x.hid for x in hs)} |"
+            )
     lines.extend(["", f"**Survivors: {len(surv)}/{len(results)}**", ""])
 
     top = sorted(results, key=lambda r: r.net_base, reverse=True)[:6]
-    lines.extend(["---", "", "## TOP CANDIDATES", "",
-                  "| ID | Family | HP | Net | Adv | DD | WF | Perm p | p_adj | Verdict |",
-                  "|---|---|---|---|---|---|---|---|---|---|"])
+    lines.extend(
+        [
+            "---",
+            "",
+            "## TOP CANDIDATES",
+            "",
+            "| ID | Family | HP | Net | Adv | DD | WF | Perm p | p_adj | Verdict |",
+            "|---|---|---|---|---|---|---|---|---|---|",
+        ]
+    )
     for r in top:
         p_adj = getattr(r, "permutation_p_bonferroni", 1.0)
-        lines.append(f"| {r.hid} | {r.family} | {r.hp*5}m | {r.net_base:+.3f} | "
-                     f"{r.net_adverse:+.3f} | {r.max_dd:.2f} | "
-                     f"{r.wf_consistency:.0%} | {r.permutation_p:.3f} | "
-                     f"{p_adj:.3f} | "
-                     f"{r.verdict.value} |")
+        lines.append(
+            f"| {r.hid} | {r.family} | {r.hp * 5}m | {r.net_base:+.3f} | "
+            f"{r.net_adverse:+.3f} | {r.max_dd:.2f} | "
+            f"{r.wf_consistency:.0%} | {r.permutation_p:.3f} | "
+            f"{p_adj:.3f} | "
+            f"{r.verdict.value} |"
+        )
 
     lines.extend(["---", "", "## DETAILED RESULTS", ""])
     for r in sorted(results, key=lambda x: x.net_base, reverse=True):
-        icon = ("🟢" if r.verdict == Verdict.SUPPORTED else
-                "🟡" if r.verdict != Verdict.REJECTED else "🔴")
+        icon = (
+            "🟢"
+            if r.verdict == Verdict.SUPPORTED
+            else "🟡"
+            if r.verdict != Verdict.REJECTED
+            else "🔴"
+        )
         npos = sum(1 for v in r.sym_sharpes.values() if v > 0)
-        lines.extend([
-            f"### {icon} {r.hid} — {r.description} ({r.hp*5}m, {r.verdict.value})",
-            f"- gross/net/adverse: {r.gross_sharpe:+.3f} / {r.net_base:+.3f} / {r.net_adverse:+.3f}",
-            f"- maxDD {r.max_dd:.2f} · trades {r.trades} · WF {r.wf_consistency:.0%} "
-            f"(OOS {r.wf_oos_sharpe:+.3f}) · perm p {r.permutation_p:.3f} "
-            f"(adj {getattr(r, 'permutation_p_bonferroni', 1.0):.3f}, family "
-            f"{getattr(r, 'bonferroni_family_size', 0)})",
-            f"- instruments positive: {npos}/{len(r.sym_sharpes)}",
-            f"- primary failure: {r.primary_failure}",
-            "",
-        ])
+        lines.extend(
+            [
+                f"### {icon} {r.hid} — {r.description} ({r.hp * 5}m, {r.verdict.value})",
+                f"- gross/net/adverse: {r.gross_sharpe:+.3f} / {r.net_base:+.3f} / {r.net_adverse:+.3f}",
+                f"- maxDD {r.max_dd:.2f} · trades {r.trades} · WF {r.wf_consistency:.0%} "
+                f"(OOS {r.wf_oos_sharpe:+.3f}) · perm p {r.permutation_p:.3f} "
+                f"(adj {getattr(r, 'permutation_p_bonferroni', 1.0):.3f}, family "
+                f"{getattr(r, 'bonferroni_family_size', 0)})",
+                f"- instruments positive: {npos}/{len(r.sym_sharpes)}",
+                f"- primary failure: {r.primary_failure}",
+                "",
+            ]
+        )
 
     md = "\n".join(lines) + "\n"
     with open(REPORT_MD, "w") as f:

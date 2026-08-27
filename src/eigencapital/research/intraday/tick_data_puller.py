@@ -29,8 +29,14 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 TICK_UNIVERSE = [
-    "EURUSDm", "GBPUSDm", "USDJPYm", "AUDUSDm",
-    "XAUUSDm", "US500m", "USTECm", "USOILm",
+    "EURUSDm",
+    "GBPUSDm",
+    "USDJPYm",
+    "AUDUSDm",
+    "XAUUSDm",
+    "US500m",
+    "USTECm",
+    "USOILm",
 ]
 
 BAR_FREQ = "5min"
@@ -44,7 +50,7 @@ class TickDataManifest:
     broker: str
     terminal_id: str
     symbols: List[str]
-    info_source: str          # fixed label: broker-specific microstructure
+    info_source: str  # fixed label: broker-specific microstructure
     bar_freq: str
     days_requested: int
     bars_per_symbol: Dict[str, int]
@@ -100,17 +106,19 @@ def aggregate_tick_chunk(ticks: np.ndarray) -> pd.DataFrame:
     )
 
     g = tdf.resample(BAR_FREQ)
-    agg = pd.DataFrame({
-        "n_ticks": g["mid"].size(),
-        "up_frac": g["up"].mean(),
-        "dn_frac": g["dn"].mean(),
-        "spread_mean_bps": g["spread_bps"].mean(),
-        "spread_max_bps": g["spread_bps"].max(),
-        "mid_open": g["mid"].first(),
-        "mid_high": g["mid"].max(),
-        "mid_low": g["mid"].min(),
-        "mid_close": g["mid"].last(),
-    })
+    agg = pd.DataFrame(
+        {
+            "n_ticks": g["mid"].size(),
+            "up_frac": g["up"].mean(),
+            "dn_frac": g["dn"].mean(),
+            "spread_mean_bps": g["spread_bps"].mean(),
+            "spread_max_bps": g["spread_bps"].max(),
+            "mid_open": g["mid"].first(),
+            "mid_high": g["mid"].max(),
+            "mid_low": g["mid"].min(),
+            "mid_close": g["mid"].last(),
+        }
+    )
     agg = agg.dropna(subset=["mid_close"])
     agg["signed_flow"] = agg["up_frac"] - agg["dn_frac"]
     agg["mid_ret"] = agg["mid_close"] / agg["mid_open"] - 1.0

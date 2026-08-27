@@ -25,6 +25,7 @@ Faults injected:
 Usage:
     python scripts/r4_adversarial_audit.py
 """
+
 from __future__ import annotations
 
 import json
@@ -32,7 +33,7 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import List
 
 sys.path.insert(0, "src")
 
@@ -51,14 +52,14 @@ from eigencapital.live.catastrophic_protection import (
     ActionKind,
 )
 from eigencapital.live.watchdog import Watchdog, ProbeResult, WatchState
-from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope, GateResult
+from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope
 from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
-    VerificationStatus,
 )
 
 
 # ── Audit result types ────────────────────────────────────────────
+
 
 class AuditResult:
     PASS = "PASS"
@@ -85,13 +86,30 @@ class AuditCheck:
 
 # ── Test 1: Foreign position quarantine ──────────────────────────
 
+
 def test_foreign_quarantine():
     """Prove: foreign position → quarantine → block new entries."""
     positions = [
-        {"ticket": 1, "symbol": "EURUSD", "type": 0, "volume": 0.01,
-         "magic": R4_MAGIC, "comment": "R4", "profit": 1.0, "price_open": 1.1},
-        {"ticket": 2, "symbol": "GBPUSD", "type": 1, "volume": 1.0,
-         "magic": 0, "comment": "", "profit": -5.0, "price_open": 1.3},
+        {
+            "ticket": 1,
+            "symbol": "EURUSD",
+            "type": 0,
+            "volume": 0.01,
+            "magic": R4_MAGIC,
+            "comment": "R4",
+            "profit": 1.0,
+            "price_open": 1.1,
+        },
+        {
+            "ticket": 2,
+            "symbol": "GBPUSD",
+            "type": 1,
+            "volume": 1.0,
+            "magic": 0,
+            "comment": "",
+            "profit": -5.0,
+            "price_open": 1.3,
+        },
     ]
     classified = classify_all(positions)
     config = load_config("production")
@@ -113,17 +131,28 @@ def test_foreign_quarantine():
 
 # ── Test 2: Missing SL detection + protection plan ───────────────
 
+
 def test_missing_sl_detection():
     """Prove: position without SL → plan_protection generates SET_STOP_LOSS."""
     positions = [
-        {"ticket": 10, "symbol": "AUDCAD", "type": 0, "volume": 0.01,
-         "magic": R4_MAGIC, "comment": "R4", "profit": 0.5, "price_open": 0.995},
+        {
+            "ticket": 10,
+            "symbol": "AUDCAD",
+            "type": 0,
+            "volume": 0.01,
+            "magic": R4_MAGIC,
+            "comment": "R4",
+            "profit": 0.5,
+            "price_open": 0.995,
+        },
     ]
     classified = classify_all(positions)
 
     atr_pct = {"AUDCAD": 0.004}
     current_sl = {}  # no SL set
-    entry_lookup = lambda cp: 0.995
+
+    def entry_lookup(cp):
+        return 0.995
 
     actions = plan_protection(classified, atr_pct, current_sl, entry_lookup)
     has_set_sl = any(a.kind == ActionKind.SET_STOP_LOSS for a in actions)
@@ -140,21 +169,35 @@ def test_missing_sl_detection():
 
 # ── Test 3: Idempotent SL (already protected) ───────────────────
 
+
 def test_idempotent_sl():
     """Prove: position already at or inside boundary → NO new action."""
     positions = [
-        {"ticket": 11, "symbol": "EURUSD", "type": 1, "volume": 0.01,
-         "magic": R4_MAGIC, "comment": "R4", "profit": 1.0, "price_open": 1.166},
+        {
+            "ticket": 11,
+            "symbol": "EURUSD",
+            "type": 1,
+            "volume": 0.01,
+            "magic": R4_MAGIC,
+            "comment": "R4",
+            "profit": 1.0,
+            "price_open": 1.166,
+        },
     ]
     classified = classify_all(positions)
 
     entry = 1.166
     boundary = disaster_stop_price("SHORT", entry, 0.003, mult=2.0)
     # Set current SL already at or inside boundary
-    current_sl = {11: boundary - 0.0001}  # tighter than boundary for SHORT (lower = better for shorts)
+    current_sl = {
+        11: boundary - 0.0001
+    }  # tighter than boundary for SHORT (lower = better for shorts)
 
     actions = plan_protection(
-        classified, {"EURUSD": 0.003}, current_sl, lambda cp: entry,
+        classified,
+        {"EURUSD": 0.003},
+        current_sl,
+        lambda cp: entry,
     )
 
     passed = len(actions) == 0
@@ -167,6 +210,7 @@ def test_idempotent_sl():
 
 
 # ── Test 4: Watchdog state machine ───────────────────────────────
+
 
 def test_watchdog_state_machine():
     """Prove: NORMAL → DEGRADED → BLIND → CONTAIN → reconciliation."""
@@ -181,48 +225,77 @@ def test_watchdog_state_machine():
 
     # 4a: Healthy → NORMAL
     probe_healthy = ProbeResult(
-        process_alive=True, trail_age_seconds=1.0,
-        equity_read_ok=True, broker_reachable=True,
+        process_alive=True,
+        trail_age_seconds=1.0,
+        equity_read_ok=True,
+        broker_reachable=True,
         evidence_hash="abc",
     )
     d = wd.evaluate(probe_healthy)
-    results.append(("4a_healthy_is_normal", d.state == WatchState.NORMAL and d.authorize_trading))
+    results.append(
+        ("4a_healthy_is_normal", d.state == WatchState.NORMAL and d.authorize_trading)
+    )
 
     # 4b: Dead process → DEGRADED
     probe_dead = ProbeResult(
-        process_alive=False, trail_age_seconds=1.0,
-        equity_read_ok=True, broker_reachable=True,
+        process_alive=False,
+        trail_age_seconds=1.0,
+        equity_read_ok=True,
+        broker_reachable=True,
         evidence_hash="def",
     )
     d = wd.evaluate(probe_dead)
-    results.append(("4b_dead_process_degraded", d.state == WatchState.DEGRADED and not d.authorize_trading))
+    results.append(
+        (
+            "4b_dead_process_degraded",
+            d.state == WatchState.DEGRADED and not d.authorize_trading,
+        )
+    )
 
     # 4c: Stale trail past blind threshold → BLIND
     # Advance time past blind threshold
     import time as _time
+
     _time.sleep(0.05)
     probe_stale = ProbeResult(
-        process_alive=False, trail_age_seconds=35.0,
-        equity_read_ok=False, broker_reachable=False,
+        process_alive=False,
+        trail_age_seconds=35.0,
+        equity_read_ok=False,
+        broker_reachable=False,
         evidence_hash="ghi",
     )
     d = wd.evaluate(probe_stale)
     # May be DEGRADED, BLIND, or CONTAIN depending on timing
-    results.append(("4c_stale_escalates", d.state in (WatchState.DEGRADED, WatchState.BLIND, WatchState.CONTAIN)))
+    results.append(
+        (
+            "4c_stale_escalates",
+            d.state in (WatchState.DEGRADED, WatchState.BLIND, WatchState.CONTAIN),
+        )
+    )
 
     # 4d: CONTAIN → reconciliation clean → RESUMED
     wd2 = Watchdog(10, 30, 60, now=lambda: time.monotonic())
     wd2.state = WatchState.CONTAIN
     wd2._contain_since = time.monotonic() - 100
     d = wd2.complete_reconciliation(clean=True)
-    results.append(("4d_reconcile_clean_resumed", d.state == WatchState.RESUMED and d.authorize_trading))
+    results.append(
+        (
+            "4d_reconcile_clean_resumed",
+            d.state == WatchState.RESUMED and d.authorize_trading,
+        )
+    )
 
     # 4e: CONTAIN → reconciliation dirty → HALTED
     wd3 = Watchdog(10, 30, 60, now=lambda: time.monotonic())
     wd3.state = WatchState.CONTAIN
     wd3._contain_since = time.monotonic() - 100
     d = wd3.complete_reconciliation(clean=False)
-    results.append(("4e_reconcile_dirty_halted", d.state == WatchState.HALTED and not d.authorize_trading))
+    results.append(
+        (
+            "4e_reconcile_dirty_halted",
+            d.state == WatchState.HALTED and not d.authorize_trading,
+        )
+    )
 
     # 4f: HALTED is sticky
     wd4 = Watchdog(10, 30, 60, now=lambda: time.monotonic())
@@ -242,6 +315,7 @@ def test_watchdog_state_machine():
 
 # ── Test 5: Catastrophic flatten with retry ──────────────────────
 
+
 def test_flatten_retry():
     """Prove: flatten retries across passes, handles partial failures."""
     # Simulate 3 positions, first pass closes 2, second pass closes the rest
@@ -250,7 +324,9 @@ def test_flatten_retry():
     call_count = [0]
 
     def list_positions():
-        return [{"ticket": t, "volume": 0.01} for t in remaining if t not in closed_tickets]
+        return [
+            {"ticket": t, "volume": 0.01} for t in remaining if t not in closed_tickets
+        ]
 
     def close_position(ticket):
         call_count[0] += 1
@@ -271,6 +347,7 @@ def test_flatten_retry():
 
 # ── Test 6: Risk enforcement gates ───────────────────────────────
 
+
 def test_risk_enforcement():
     """Prove: risk gates detect breaches and block appropriately."""
     config = load_config("production")
@@ -290,8 +367,17 @@ def test_risk_enforcement():
 
     # Normal state → all pass
     positions_normal = [
-        {"symbol": "EURUSD", "volume": 0.01, "type": 0, "price_open": 1.1,
-         "sl": 1.09, "tp": 0, "profit": 1.0, "magic": R4_MAGIC, "comment": "R4"}
+        {
+            "symbol": "EURUSD",
+            "volume": 0.01,
+            "type": 0,
+            "price_open": 1.1,
+            "sl": 1.09,
+            "tp": 0,
+            "profit": 1.0,
+            "magic": R4_MAGIC,
+            "comment": "R4",
+        }
     ]
     all_pass, gates = enforcer.check_all(
         broker_positions=positions_normal,
@@ -333,11 +419,20 @@ def test_risk_enforcement():
 
 # ── Test 7: Position count enforcement ───────────────────────────
 
+
 def test_position_count():
     """Prove: max_concurrent blocks when at limit."""
     positions = [
-        {"ticket": i, "symbol": f"SYM{i}", "type": 0, "volume": 0.01,
-         "magic": R4_MAGIC, "comment": "R4", "profit": 0.0, "price_open": 1.0}
+        {
+            "ticket": i,
+            "symbol": f"SYM{i}",
+            "type": 0,
+            "volume": 0.01,
+            "magic": R4_MAGIC,
+            "comment": "R4",
+            "profit": 0.0,
+            "price_open": 1.0,
+        }
         for i in range(1, 20)  # 19 positions
     ]
     classified = classify_all(positions)
@@ -358,6 +453,7 @@ def test_position_count():
 
 # ── Test 8: Stale snapshot hash detection ────────────────────────
 
+
 def test_snapshot_hash():
     """Prove: different broker states produce different hashes."""
     h1 = snapshot_hash([{"ticket": 1}], 5000.0, 4000.0)
@@ -375,6 +471,7 @@ def test_snapshot_hash():
 
 # ── Test 9: Fingerprint verification fail-closed ─────────────────
 
+
 def test_fingerprint_fail_closed():
     """Prove: fingerprint mismatch blocks all trading."""
     config = load_config("production")
@@ -383,7 +480,9 @@ def test_fingerprint_fail_closed():
 
     # If all verified (which they should be with unchanged config), the system allows trading
     # The test is that verify_all() returns a structured result with all checks
-    has_checks = len(result.checks) >= 4  # manifest, risk, live_risk, strategy, optionally config
+    has_checks = (
+        len(result.checks) >= 4
+    )  # manifest, risk, live_risk, strategy, optionally config
     has_timestamp = bool(result.timestamp)
     structured = hasattr(result, "all_verified") and hasattr(result, "checks")
 
@@ -398,18 +497,35 @@ def test_fingerprint_fail_closed():
 
 # ── Test 10: Full pipeline integration ───────────────────────────
 
+
 def test_full_pipeline():
     """Prove: attribution → capacity → quarantine → risk gates → protection."""
     config = load_config("production")
 
     # Simulate: 19 R4 + 1 foreign
     positions = [
-        {"ticket": i, "symbol": f"SYM{i}", "type": i % 2, "volume": 0.01,
-         "magic": R4_MAGIC, "comment": "R4", "profit": 0.0, "price_open": 1.0}
+        {
+            "ticket": i,
+            "symbol": f"SYM{i}",
+            "type": i % 2,
+            "volume": 0.01,
+            "magic": R4_MAGIC,
+            "comment": "R4",
+            "profit": 0.0,
+            "price_open": 1.0,
+        }
         for i in range(1, 20)
     ] + [
-        {"ticket": 99, "symbol": "FOREIGN", "type": 0, "volume": 1.0,
-         "magic": 0, "comment": "", "profit": -10.0, "price_open": 1.5}
+        {
+            "ticket": 99,
+            "symbol": "FOREIGN",
+            "type": 0,
+            "volume": 1.0,
+            "magic": 0,
+            "comment": "",
+            "profit": -10.0,
+            "price_open": 1.5,
+        }
     ]
 
     # Step 1: Classification
@@ -425,7 +541,9 @@ def test_full_pipeline():
 
     # Step 4: Protection plan for R4 positions without SL
     no_sl = [c for c in classified if c.pclass.value == "R4_BOT"]
-    actions = plan_protection(no_sl, {f"SYM{i}": 0.004 for i in range(1, 20)}, {}, lambda cp: 1.0)
+    actions = plan_protection(
+        no_sl, {f"SYM{i}": 0.004 for i in range(1, 20)}, {}, lambda cp: 1.0
+    )
 
     passed = (
         r4_count == 19
@@ -445,6 +563,7 @@ def test_full_pipeline():
 
 
 # ── Main ──────────────────────────────────────────────────────────
+
 
 def run_all_tests() -> List[AuditCheck]:
     """Run all adversarial tests."""
@@ -468,10 +587,14 @@ def run_all_tests() -> List[AuditCheck]:
             result = test_fn()
             results.append(result)
         except Exception as e:
-            results.append(AuditCheck(
-                name, AuditResult.FAIL, "PASS",
-                f"EXCEPTION: {e}",
-            ))
+            results.append(
+                AuditCheck(
+                    name,
+                    AuditResult.FAIL,
+                    "PASS",
+                    f"EXCEPTION: {e}",
+                )
+            )
 
     return results
 

@@ -51,8 +51,21 @@ COST_PER_SIDE_BPS = 10.0
 SLIPPAGE_SENS_BPS = 5.0
 
 NATIVE = {
-    "AUDUSD", "EURUSD", "GBPUSD", "USDJPY", "USDCAD", "USDCHF", "NZDUSD",
-    "XAUUSD", "XAGUSD", "US500", "US30", "USTEC", "BTCUSD", "ETHUSD", "USOIL",
+    "AUDUSD",
+    "EURUSD",
+    "GBPUSD",
+    "USDJPY",
+    "USDCAD",
+    "USDCHF",
+    "NZDUSD",
+    "XAUUSD",
+    "XAGUSD",
+    "US500",
+    "US30",
+    "USTEC",
+    "BTCUSD",
+    "ETHUSD",
+    "USOIL",
 }
 
 LOOKBACK, SKIP, RISK_LB, VOL_LB = 252, 21, 20, 60
@@ -84,20 +97,31 @@ def ratio_frames(num: pd.DataFrame, den: pd.DataFrame) -> pd.DataFrame:
     hi = np.maximum(n["high"] / d["low"], n["low"] / d["high"])
     lo = np.minimum(n["high"] / d["low"], n["low"] / d["high"])
     return pd.DataFrame(
-        {"open": n["open"] / d["open"], "high": hi, "low": lo, "close": n["close"] / d["close"]},
+        {
+            "open": n["open"] / d["open"],
+            "high": hi,
+            "low": lo,
+            "close": n["close"] / d["close"],
+        },
         index=idx,
     )
 
 
 def invert_frames(f: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(
-        {"open": 1.0 / f["open"], "high": 1.0 / f["low"],
-         "low": 1.0 / f["high"], "close": 1.0 / f["close"]},
+        {
+            "open": 1.0 / f["open"],
+            "high": 1.0 / f["low"],
+            "low": 1.0 / f["high"],
+            "close": 1.0 / f["close"],
+        },
         index=f.index,
     )
 
 
-def build_universe(allowed: dict[str, str]) -> tuple[dict[str, pd.DataFrame], list[str]]:
+def build_universe(
+    allowed: dict[str, str],
+) -> tuple[dict[str, pd.DataFrame], list[str]]:
     frames: dict[str, pd.DataFrame] = {}
     derived: list[str] = []
     for sym in allowed:
@@ -177,7 +201,9 @@ def replicate_signal(close_wide: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]
     return fin, regime_on
 
 
-def _update_open_paths(holdings, t, close_wide, high_wide, low_wide, regime_off_day: bool) -> None:
+def _update_open_paths(
+    holdings, t, close_wide, high_wide, low_wide, regime_off_day: bool
+) -> None:
     for s, h in holdings.items():
         try:
             c = float(close_wide[s].loc[t])
@@ -242,8 +268,14 @@ def _close_episode(holdings, s, t, exit_px, reason, label) -> dict:
 
 
 def build_episodes(
-    fin, regime_on, high_wide, low_wide, close_wide,
-    eligible, decision_mask=None, label="daily",
+    fin,
+    regime_on,
+    high_wide,
+    low_wide,
+    close_wide,
+    eligible,
+    decision_mask=None,
+    label="daily",
 ) -> pd.DataFrame:
     dates = fin.index
     mask = decision_mask if decision_mask is not None else pd.Series(True, index=dates)
@@ -265,8 +297,11 @@ def build_episodes(
             continue
 
         active = [
-            (s, float(w_row[s])) for s in eligible
-            if s in w_row.index and np.isfinite(w_row[s]) and abs(float(w_row[s])) > 0.005
+            (s, float(w_row[s]))
+            for s in eligible
+            if s in w_row.index
+            and np.isfinite(w_row[s])
+            and abs(float(w_row[s])) > 0.005
         ]
         active.sort(key=lambda x: abs(x[1]), reverse=True)
         target = dict(active[:8])
@@ -278,11 +313,17 @@ def build_episodes(
             if s not in target_syms:
                 px = close_wide[s].get(t, np.nan)
                 if np.isfinite(px):
-                    closed.append(_close_episode(holdings, s, t, float(px), "rotated_out_top8", label))
+                    closed.append(
+                        _close_episode(
+                            holdings, s, t, float(px), "rotated_out_top8", label
+                        )
+                    )
             elif np.sign(target[s]) != np.sign(h["w_entry"]):
                 px = close_wide[s].get(t, np.nan)
                 if np.isfinite(px):
-                    closed.append(_close_episode(holdings, s, t, float(px), "sign_flip", label))
+                    closed.append(
+                        _close_episode(holdings, s, t, float(px), "sign_flip", label)
+                    )
 
         for s in target_syms:
             if s in holdings:
@@ -334,11 +375,13 @@ def main() -> None:
     missing = [s for s in allowed if s not in frames]
     signal_syms = [s for s in sorted(frames.keys()) if s in allowed]
 
-    close_wide = pd.DataFrame(
-        {s: frames[s]["close"] for s in signal_syms}
-    ).sort_index()
-    high_wide = pd.DataFrame({s: frames[s]["high"] for s in signal_syms}).reindex(close_wide.index)
-    low_wide = pd.DataFrame({s: frames[s]["low"] for s in signal_syms}).reindex(close_wide.index)
+    close_wide = pd.DataFrame({s: frames[s]["close"] for s in signal_syms}).sort_index()
+    high_wide = pd.DataFrame({s: frames[s]["high"] for s in signal_syms}).reindex(
+        close_wide.index
+    )
+    low_wide = pd.DataFrame({s: frames[s]["low"] for s in signal_syms}).reindex(
+        close_wide.index
+    )
 
     fin, regime_on = replicate_signal(close_wide)
 
@@ -350,13 +393,16 @@ def main() -> None:
     parity_detail = []
     for _ in range(3):
         cut = int(rng.integers(len(close_wide) // 2, len(close_wide)))
-        sub = {s: close_wide[[s]].iloc[:cut].rename(columns={s: "close"}).copy()
-               for s in probe_syms}
+        sub = {
+            s: close_wide[[s]].iloc[:cut].rename(columns={s: "close"}).copy()
+            for s in probe_syms
+        }
         latest_mod, diag_mod = mod.compute_r4_signal(sub)
         # align on the frozen function's own last-valid-return row
         r_sub_idx = (
             pd.DataFrame({s: sub[s]["close"].pct_change() for s in probe_syms})
-            .dropna(how="all").index
+            .dropna(how="all")
+            .index
         )
         target_ts = r_sub_idx[-1]
         latest_rep = fin.loc[target_ts]
@@ -364,25 +410,45 @@ def main() -> None:
         eq = np.allclose(
             latest_mod[common].astype(float).to_numpy(),
             latest_rep[common].astype(float).to_numpy(),
-            atol=1e-9, equal_nan=True,
+            atol=1e-9,
+            equal_nan=True,
         )
         # regime parity: recompute avg_vol over identical input
-        rets_sub = close_wide[probe_syms].iloc[:cut].pct_change().dropna(how="all").ffill().fillna(0)
+        rets_sub = (
+            close_wide[probe_syms]
+            .iloc[:cut]
+            .pct_change()
+            .dropna(how="all")
+            .ffill()
+            .fillna(0)
+        )
         av = rets_sub.rolling(RISK_LB).std().mean(axis=1) * np.sqrt(252)
         rm = av.expanding().median()
         reg_eq = bool(av.iloc[-1] < rm.iloc[-1]) == bool(diag_mod["regime_on"])
-        parity_detail.append({"cut_row": cut, "weights_equal": bool(eq), "regime_equal": bool(reg_eq)})
+        parity_detail.append(
+            {"cut_row": cut, "weights_equal": bool(eq), "regime_equal": bool(reg_eq)}
+        )
         if not (eq and reg_eq):
             parity_ok = False
     print(f"parity_vs_frozen_compute_r4_signal: {parity_ok}")
     print(json.dumps(parity_detail))
 
-    trades = build_episodes(fin, regime_on, high_wide, low_wide, close_wide, eligible, label="daily")
+    trades = build_episodes(
+        fin, regime_on, high_wide, low_wide, close_wide, eligible, label="daily"
+    )
 
     wk_mask = pd.Series(False, index=fin.index)
     wk_mask.iloc[::5] = True
-    trades_weekly = build_episodes(fin, regime_on, high_wide, low_wide, close_wide, eligible,
-                                   decision_mask=wk_mask, label="weekly")
+    trades_weekly = build_episodes(
+        fin,
+        regime_on,
+        high_wide,
+        low_wide,
+        close_wide,
+        eligible,
+        decision_mask=wk_mask,
+        label="weekly",
+    )
 
     # ── Portfolio curve (exact w-path) ─────────────────────────────
     rets = close_wide.reindex(fin.index).pct_change()
@@ -390,29 +456,42 @@ def main() -> None:
     port_gross = (expo * rets).sum(axis=1)
     turnover = fin.diff().abs().sum(axis=1).fillna(0.0)
     port_net = port_gross - turnover * COST_PER_SIDE_BPS / 1e4
-    curve = pd.DataFrame({
-        "gross_exposure": expo.abs().sum(axis=1),
-        "net_exposure": expo.sum(axis=1),
-        "n_positions": (expo.abs() > 0.005).sum(axis=1),
-        "ret_gross_weighted": port_gross,
-        "ret_net_weighted": port_net,
-        "turnover_weight_units": turnover,
-        "regime_on": regime_on.reindex(fin.index).astype(float),
-    })
+    curve = pd.DataFrame(
+        {
+            "gross_exposure": expo.abs().sum(axis=1),
+            "net_exposure": expo.sum(axis=1),
+            "n_positions": (expo.abs() > 0.005).sum(axis=1),
+            "ret_gross_weighted": port_gross,
+            "ret_net_weighted": port_net,
+            "turnover_weight_units": turnover,
+            "regime_on": regime_on.reindex(fin.index).astype(float),
+        }
+    )
     curve.to_csv(OUT / "portfolio_curve_daily.csv")
 
     trades_out = trades.drop(columns=["_path"]) if "_path" in trades else trades
     trades_out.to_csv(OUT / "trades.csv", index=False)
     trades_out.to_parquet(OUT / "trades.parquet", index=False)
-    tw = trades_weekly.drop(columns=["_path"]) if "_path" in trades_weekly else trades_weekly
+    tw = (
+        trades_weekly.drop(columns=["_path"])
+        if "_path" in trades_weekly
+        else trades_weekly
+    )
     tw.to_csv(OUT / "trades_weekly.csv", index=False)
 
     path_rows = []
     if "_path" in trades:
         for i, tr in trades.iterrows():
             for dt, px, cr in tr["_path"]:
-                path_rows.append({"trade_id": int(i), "symbol": tr["symbol"], "date": dt,
-                                  "price": px, "cum_return": round(cr, 6)})
+                path_rows.append(
+                    {
+                        "trade_id": int(i),
+                        "symbol": tr["symbol"],
+                        "date": dt,
+                        "price": px,
+                        "cum_return": round(cr, 6),
+                    }
+                )
     pd.DataFrame(path_rows).to_parquet(OUT / "trades_pathdata.parquet", index=False)
 
     schema = {
@@ -426,14 +505,18 @@ def main() -> None:
             "C4_cadence_sensitivity": "every_5th_trading_day",
             "C5_regime_off_behavior": "positions ride unmanaged (live-faithful)",
             "C6_episode_rule": "top-8 eligible |w|>0.005; exits rotated_out_top8/sign_flip/end_of_data; weight frozen at entry for stats",
-            "C7_costs": {"per_side_bps": COST_PER_SIDE_BPS,
-                         "slippage_sensitivity_bps_per_side": SLIPPAGE_SENS_BPS},
+            "C7_costs": {
+                "per_side_bps": COST_PER_SIDE_BPS,
+                "slippage_sensitivity_bps_per_side": SLIPPAGE_SENS_BPS,
+            },
             "C8_execution_price": "decision-day close",
             "C9_mae_mfe_space": "price-return vs entry, D1 high/low path",
             "C10_lookahead": "none",
         },
-        "data_window": {"start": str(close_wide.index.min().date()),
-                        "end": str(close_wide.index.max().date())},
+        "data_window": {
+            "start": str(close_wide.index.min().date()),
+            "end": str(close_wide.index.max().date()),
+        },
         "universe_available": sorted(frames.keys()),
         "universe_missing_locally": sorted(missing),
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),

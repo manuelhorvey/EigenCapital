@@ -52,6 +52,7 @@ class BlockReason(str, Enum):
 @dataclass(frozen=True)
 class RiskGateResult:
     """Result of a single risk gate check."""
+
     gate_name: str
     result: GateResult
     reason: BlockReason
@@ -74,6 +75,7 @@ class RiskGateResult:
 @dataclass(frozen=True)
 class RiskEnvelope:
     """Hard risk limits — these are invariant, not tunable."""
+
     max_concurrent_positions: int = 19
     max_position_notional: float = 5_000.0
     max_order_notional: float = 5_000.0
@@ -89,6 +91,7 @@ class RiskEnvelope:
         """Create RiskEnvelope from production config."""
         try:
             from eigencapital.config import load_config
+
             config = load_config("production")
             return cls(
                 max_concurrent_positions=config.live_risk.max_concurrent_positions,
@@ -112,7 +115,9 @@ class RiskEnforcer:
     Returns PASS or BLOCK with exact reason.
     """
 
-    def __init__(self, envelope: Optional[RiskEnvelope] = None, *, max_audit_entries: int = 1000) -> None:
+    def __init__(
+        self, envelope: Optional[RiskEnvelope] = None, *, max_audit_entries: int = 1000
+    ) -> None:
         self._envelope = envelope or RiskEnvelope()
         self._t0_equity = self._envelope.t0_equity
         self._peak_equity = self._t0_equity
@@ -140,16 +145,22 @@ class RiskEnforcer:
         now = datetime.now(timezone.utc).isoformat()
         results: List[RiskGateResult] = []
         import hashlib
+
         state_hash = hashlib.sha256(
-            json.dumps({
-                "positions": len(broker_positions),
-                "equity": account_equity,
-                "free_margin": account_free_margin,
-            }, sort_keys=True).encode()
+            json.dumps(
+                {
+                    "positions": len(broker_positions),
+                    "equity": account_equity,
+                    "free_margin": account_free_margin,
+                },
+                sort_keys=True,
+            ).encode()
         ).hexdigest()[:16]
 
         # Gate 1: Broker connectivity (fail-closed)
-        r = self._check_broker_connectivity(account_equity, account_free_margin, now, state_hash)
+        r = self._check_broker_connectivity(
+            account_equity, account_free_margin, now, state_hash
+        )
         results.append(r)
         if r.result != GateResult.PASS:
             return False, results
@@ -276,7 +287,12 @@ class RiskEnforcer:
                 result=GateResult.BLOCK,
                 reason=BlockReason.ACCOUNT_DRAWDOWN,
                 message=f"Drawdown {dd_pct:.1%} exceeds limit {self._envelope.max_account_drawdown_pct:.0%}",
-                details={"drawdown": drawdown, "drawdown_pct": dd_pct, "peak": self._peak_equity, "current": equity},
+                details={
+                    "drawdown": drawdown,
+                    "drawdown_pct": dd_pct,
+                    "peak": self._peak_equity,
+                    "current": equity,
+                },
                 broker_state_hash=state_hash,
                 timestamp=now,
             )
@@ -286,7 +302,11 @@ class RiskEnforcer:
             result=GateResult.PASS,
             reason=BlockReason.ACCOUNT_DRAWDOWN,
             message=f"Drawdown {dd_pct:.1%} within limit {self._envelope.max_account_drawdown_pct:.0%}",
-            details={"drawdown_pct": dd_pct, "peak": self._peak_equity, "current": equity},
+            details={
+                "drawdown_pct": dd_pct,
+                "peak": self._peak_equity,
+                "current": equity,
+            },
             broker_state_hash=state_hash,
             timestamp=now,
         )
@@ -305,7 +325,10 @@ class RiskEnforcer:
                 result=GateResult.BLOCK,
                 reason=BlockReason.DAILY_LOSS,
                 message=f"Daily loss ${daily_loss:.2f} exceeds limit ${self._envelope.max_daily_loss:.2f}",
-                details={"daily_loss": daily_loss, "limit": self._envelope.max_daily_loss},
+                details={
+                    "daily_loss": daily_loss,
+                    "limit": self._envelope.max_daily_loss,
+                },
                 broker_state_hash=state_hash,
                 timestamp=now,
             )
@@ -419,7 +442,7 @@ class RiskEnforcer:
         self._audit_log.append(entry)
         # Bounded retention: keep only recent entries
         if len(self._audit_log) > self._max_audit_entries:
-            self._audit_log = self._audit_log[-self._max_audit_entries:]
+            self._audit_log = self._audit_log[-self._max_audit_entries :]
 
     def get_audit_log(self) -> List[Dict[str, Any]]:
         return list(self._audit_log)

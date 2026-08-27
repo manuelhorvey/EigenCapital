@@ -13,11 +13,12 @@ Design rules:
 - Every verification result is auditable
 - Mutations to any component must be detected
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -36,6 +37,7 @@ class VerificationStatus(str, Enum):
 @dataclass(frozen=True)
 class FingerprintCheck:
     """Result of a single fingerprint verification."""
+
     component: str
     status: str
     expected: str
@@ -55,6 +57,7 @@ class FingerprintCheck:
 @dataclass(frozen=True)
 class FingerprintVerificationResult:
     """Complete fingerprint verification result."""
+
     all_verified: bool
     checks: tuple  # tuple of FingerprintCheck
     timestamp: str = ""
@@ -116,6 +119,7 @@ class FingerprintVerifier:
     def verify_all(self) -> FingerprintVerificationResult:
         """Run all fingerprint verifications. Fail closed on any error."""
         from datetime import datetime, timezone
+
         now = datetime.now(timezone.utc).isoformat()
         checks: List[FingerprintCheck] = []
 
@@ -123,94 +127,134 @@ class FingerprintVerifier:
         try:
             current_fp = self._manifest.compute_identity()
             match = current_fp == self._frozen_manifest_fp
-            checks.append(FingerprintCheck(
-                component="r4_manifest",
-                status=VerificationStatus.VERIFIED.value if match else VerificationStatus.MISMATCH.value,
-                expected=self._frozen_manifest_fp,
-                observed=current_fp,
-                message="R4 manifest fingerprint matches" if match else "R4 manifest fingerprint MISMATCH",
-            ))
+            checks.append(
+                FingerprintCheck(
+                    component="r4_manifest",
+                    status=VerificationStatus.VERIFIED.value
+                    if match
+                    else VerificationStatus.MISMATCH.value,
+                    expected=self._frozen_manifest_fp,
+                    observed=current_fp,
+                    message="R4 manifest fingerprint matches"
+                    if match
+                    else "R4 manifest fingerprint MISMATCH",
+                )
+            )
         except Exception as e:
-            checks.append(FingerprintCheck(
-                component="r4_manifest",
-                status=VerificationStatus.ERROR.value,
-                expected=self._frozen_manifest_fp,
-                observed="",
-                message=f"Cannot compute manifest fingerprint: {e}",
-            ))
+            checks.append(
+                FingerprintCheck(
+                    component="r4_manifest",
+                    status=VerificationStatus.ERROR.value,
+                    expected=self._frozen_manifest_fp,
+                    observed="",
+                    message=f"Cannot compute manifest fingerprint: {e}",
+                )
+            )
 
         # 2. RiskPolicy fingerprint
         try:
             current_risk_fp = self._compute_risk_fingerprint()
             match = current_risk_fp == self._frozen_risk_fp
-            checks.append(FingerprintCheck(
-                component="risk_policy",
-                status=VerificationStatus.VERIFIED.value if match else VerificationStatus.MISMATCH.value,
-                expected=self._frozen_risk_fp,
-                observed=current_risk_fp,
-                message="RiskPolicy fingerprint matches" if match else "RiskPolicy fingerprint MISMATCH",
-            ))
+            checks.append(
+                FingerprintCheck(
+                    component="risk_policy",
+                    status=VerificationStatus.VERIFIED.value
+                    if match
+                    else VerificationStatus.MISMATCH.value,
+                    expected=self._frozen_risk_fp,
+                    observed=current_risk_fp,
+                    message="RiskPolicy fingerprint matches"
+                    if match
+                    else "RiskPolicy fingerprint MISMATCH",
+                )
+            )
         except Exception as e:
-            checks.append(FingerprintCheck(
-                component="risk_policy",
-                status=VerificationStatus.ERROR.value,
-                expected=self._frozen_risk_fp,
-                observed="",
-                message=f"Cannot compute risk fingerprint: {e}",
-            ))
+            checks.append(
+                FingerprintCheck(
+                    component="risk_policy",
+                    status=VerificationStatus.ERROR.value,
+                    expected=self._frozen_risk_fp,
+                    observed="",
+                    message=f"Cannot compute risk fingerprint: {e}",
+                )
+            )
 
         # 3. LiveRiskConfig fingerprint
         try:
             current_lr_fp = self._live_risk.compute_fingerprint()
             match = current_lr_fp == self._frozen_live_risk_fp
-            checks.append(FingerprintCheck(
-                component="live_risk",
-                status=VerificationStatus.VERIFIED.value if match else VerificationStatus.MISMATCH.value,
-                expected=self._frozen_live_risk_fp,
-                observed=current_lr_fp,
-                message="LiveRiskConfig fingerprint matches" if match else "LiveRiskConfig fingerprint MISMATCH",
-            ))
+            checks.append(
+                FingerprintCheck(
+                    component="live_risk",
+                    status=VerificationStatus.VERIFIED.value
+                    if match
+                    else VerificationStatus.MISMATCH.value,
+                    expected=self._frozen_live_risk_fp,
+                    observed=current_lr_fp,
+                    message="LiveRiskConfig fingerprint matches"
+                    if match
+                    else "LiveRiskConfig fingerprint MISMATCH",
+                )
+            )
         except Exception as e:
-            checks.append(FingerprintCheck(
-                component="live_risk",
-                status=VerificationStatus.ERROR.value,
-                expected=self._frozen_live_risk_fp,
-                observed="",
-                message=f"Cannot compute live risk fingerprint: {e}",
-            ))
+            checks.append(
+                FingerprintCheck(
+                    component="live_risk",
+                    status=VerificationStatus.ERROR.value,
+                    expected=self._frozen_live_risk_fp,
+                    observed="",
+                    message=f"Cannot compute live risk fingerprint: {e}",
+                )
+            )
 
         # 4. Strategy version
         version_ok = self._manifest.strategy_version == "R4.0"
-        checks.append(FingerprintCheck(
-            component="strategy_version",
-            status=VerificationStatus.VERIFIED.value if version_ok else VerificationStatus.MISMATCH.value,
-            expected="R4.0",
-            observed=self._manifest.strategy_version,
-            message="Strategy version frozen at R4.0" if version_ok else "Strategy version MISMATCH",
-        ))
+        checks.append(
+            FingerprintCheck(
+                component="strategy_version",
+                status=VerificationStatus.VERIFIED.value
+                if version_ok
+                else VerificationStatus.MISMATCH.value,
+                expected="R4.0",
+                observed=self._manifest.strategy_version,
+                message="Strategy version frozen at R4.0"
+                if version_ok
+                else "Strategy version MISMATCH",
+            )
+        )
 
         # 5. Config fingerprint (if config loaded)
         if self._config is not None:
             try:
                 current_cfg_fp = self._compute_config_fingerprint()
                 match = current_cfg_fp == self._frozen_config_fp
-                checks.append(FingerprintCheck(
-                    component="config",
-                    status=VerificationStatus.VERIFIED.value if match else VerificationStatus.MISMATCH.value,
-                    expected=self._frozen_config_fp,
-                    observed=current_cfg_fp,
-                    message="Config fingerprint matches" if match else "Config fingerprint MISMATCH — configuration drift detected",
-                ))
+                checks.append(
+                    FingerprintCheck(
+                        component="config",
+                        status=VerificationStatus.VERIFIED.value
+                        if match
+                        else VerificationStatus.MISMATCH.value,
+                        expected=self._frozen_config_fp,
+                        observed=current_cfg_fp,
+                        message="Config fingerprint matches"
+                        if match
+                        else "Config fingerprint MISMATCH — configuration drift detected",
+                    )
+                )
             except Exception as e:
-                checks.append(FingerprintCheck(
-                    component="config",
-                    status=VerificationStatus.ERROR.value,
-                    expected=self._frozen_config_fp,
-                    observed="",
-                    message=f"Cannot compute config fingerprint: {e}",
-                ))
+                checks.append(
+                    FingerprintCheck(
+                        component="config",
+                        status=VerificationStatus.ERROR.value,
+                        expected=self._frozen_config_fp,
+                        observed="",
+                        message=f"Cannot compute config fingerprint: {e}",
+                    )
+                )
 
-        all_verified = all(c.status == VerificationStatus.VERIFIED.value for c in checks)
+        all_verified = all(
+            c.status == VerificationStatus.VERIFIED.value for c in checks
+        )
         result = FingerprintVerificationResult(
             all_verified=all_verified,
             checks=tuple(checks),
@@ -220,7 +264,7 @@ class FingerprintVerifier:
         self._verification_log.append(result.to_dict())
         # Bounded retention
         if len(self._verification_log) > self._max_log_entries:
-            self._verification_log = self._verification_log[-self._max_log_entries:]
+            self._verification_log = self._verification_log[-self._max_log_entries :]
         return result
 
     @property

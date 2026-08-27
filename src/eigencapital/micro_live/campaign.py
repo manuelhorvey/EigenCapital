@@ -68,23 +68,23 @@ class MicroLiveEnvelope:
     """
 
     # Capital limits
-    max_account_equity: float = 1000.0          # $1,000 max equity
-    max_position_size: float = 100.0            # $100 max position
-    max_order_notional: float = 50.0            # $50 max order
-    max_concurrent_positions: int = 5           # max 5 positions
-    max_daily_loss: float = 50.0                # $50 max daily loss
-    max_total_drawdown: float = 200.0           # $200 max total drawdown
-    max_drawdown_pct: float = 0.20              # 20% max drawdown
+    max_account_equity: float = 1000.0  # $1,000 max equity
+    max_position_size: float = 100.0  # $100 max position
+    max_order_notional: float = 50.0  # $50 max order
+    max_concurrent_positions: int = 5  # max 5 positions
+    max_daily_loss: float = 50.0  # $50 max daily loss
+    max_total_drawdown: float = 200.0  # $200 max total drawdown
+    max_drawdown_pct: float = 0.20  # 20% max drawdown
 
     # Execution limits
-    max_order_frequency: int = 10               # max 10 orders per hour
-    max_spread: float = 0.0020                  # 20 pips max spread
-    max_slippage: float = 0.0010                # 10 pips max slippage
-    max_execution_divergence: float = 0.005     # 50 pips max divergence
+    max_order_frequency: int = 10  # max 10 orders per hour
+    max_spread: float = 0.0020  # 20 pips max spread
+    max_slippage: float = 0.0010  # 10 pips max slippage
+    max_execution_divergence: float = 0.005  # 50 pips max divergence
 
     # Time limits
-    max_campaign_duration_hours: int = 168      # 7 days max
-    max_position_duration_hours: int = 72       # 3 days max position
+    max_campaign_duration_hours: int = 168  # 7 days max
+    max_position_duration_hours: int = 72  # 3 days max position
 
     def compute_identity(self) -> str:
         data = {
@@ -258,13 +258,17 @@ class MicroLiveCampaign:
             return False
 
         self._state.status = MicroLiveStatus.ACTIVE
-        self._audit_log.append({
-            "event": "activated",
-            "authorization_id": self._authorization.authorization_id,
-        })
+        self._audit_log.append(
+            {
+                "event": "activated",
+                "authorization_id": self._authorization.authorization_id,
+            }
+        )
         return True
 
-    def check_kill_conditions(self, current_equity: float = 0.0) -> Optional[KillReason]:
+    def check_kill_conditions(
+        self, current_equity: float = 0.0
+    ) -> Optional[KillReason]:
         """Check if any automatic kill condition is triggered."""
         # Drawdown limit
         if self._state.peak_equity > 0:
@@ -304,11 +308,13 @@ class MicroLiveCampaign:
             "state": self._state.to_dict(),
         }
         self._kill_log.append(kill_event)
-        self._audit_log.append({
-            "event": "killed",
-            "reason": reason.value,
-            "details": details,
-        })
+        self._audit_log.append(
+            {
+                "event": "killed",
+                "reason": reason.value,
+                "details": details,
+            }
+        )
 
     def record_fill(
         self,
@@ -361,7 +367,7 @@ class MicroLiveCampaign:
             self._state.reconciliation_failures += 1
             self.execute_kill(
                 KillReason.RECONCILIATION_MISMATCH,
-                f"Position mismatch detected",
+                "Position mismatch detected",
             )
 
         return matched

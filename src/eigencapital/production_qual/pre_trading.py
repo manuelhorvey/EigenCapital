@@ -25,29 +25,24 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.production_qual.broker_boundary import (
-    BrokerBoundaryCheck,
     BrokerBoundaryConfig,
     BrokerBoundaryValidator,
 )
 from eigencapital.production_qual.capital_boundary import (
     CapitalBoundaryConfig,
-    CapitalBoundaryValidator,
 )
 from eigencapital.production_qual.campaign_boundary import (
     CampaignBoundary,
     TradeOrigin,
 )
-from eigencapital.production_qual.prefunding_audit import AuditVerdict
 from eigencapital.production_qual.prefunding_gate import (
     GateDecision,
     GateRecord,
-    PrefundingGate,
 )
-from eigencapital.risk.policy import RiskPolicy
 
 
 class PreTradingStep(str, Enum):
@@ -239,8 +234,8 @@ class PreTradingAuthorization:
             "",
             "## Position Classification",
             "",
-            f"| Origin | Count |",
-            f"|---|---|",
+            "| Origin | Count |",
+            "|---|---|",
             f"| R4 Campaign | {self.r4_positions} |",
             f"| Pre-existing | {self.pre_existing_positions} |",
             f"| Manual | {self.manual_positions} |",
@@ -251,8 +246,14 @@ class PreTradingAuthorization:
         ]
 
         for check in self.checks:
-            icon = "✅" if check.passed else ("❌" if check.severity == "CRITICAL" else "⚠️")
-            lines.append(f"- {icon} **[{check.step}] {check.check_id}**: {check.description}")
+            icon = (
+                "✅"
+                if check.passed
+                else ("❌" if check.severity == "CRITICAL" else "⚠️")
+            )
+            lines.append(
+                f"- {icon} **[{check.step}] {check.check_id}**: {check.description}"
+            )
             if not check.passed:
                 lines.append(f"  - Expected: {check.expected}")
                 lines.append(f"  - Observed: {check.observed}")
@@ -326,38 +327,44 @@ class PreTradingValidator:
 
         # 1.1 Equity within authorized maximum
         equity_ok = broker_state.equity <= self._capital_config.max_equity
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-FUND-01",
-            passed=equity_ok,
-            description="Account equity within authorized maximum",
-            expected=f"<= ${self._capital_config.max_equity:,.0f}",
-            observed=f"${broker_state.equity:,.2f}",
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-FUND-01",
+                passed=equity_ok,
+                description="Account equity within authorized maximum",
+                expected=f"<= ${self._capital_config.max_equity:,.0f}",
+                observed=f"${broker_state.equity:,.2f}",
+            )
+        )
         checks.append(self._checks[-1])
 
         # 1.2 Equity above minimum (account was actually funded)
         equity_min = broker_state.equity > 0
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-FUND-02",
-            passed=equity_min,
-            description="Account has positive equity (funded)",
-            expected="> $0",
-            observed=f"${broker_state.equity:,.2f}",
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-FUND-02",
+                passed=equity_min,
+                description="Account has positive equity (funded)",
+                expected="> $0",
+                observed=f"${broker_state.equity:,.2f}",
+            )
+        )
         checks.append(self._checks[-1])
 
         # 1.3 Free margin sufficient for initial positions
         margin_ok = broker_state.free_margin > 0
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-FUND-03",
-            passed=margin_ok,
-            description="Free margin available for trading",
-            expected="> $0",
-            observed=f"${broker_state.free_margin:,.2f}",
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-FUND-03",
+                passed=margin_ok,
+                description="Free margin available for trading",
+                expected="> $0",
+                observed=f"${broker_state.free_margin:,.2f}",
+            )
+        )
         checks.append(self._checks[-1])
 
         return checks
@@ -384,51 +391,59 @@ class PreTradingValidator:
             broker_state.broker_name,
             broker_state.platform,
         )
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-BROKER-01",
-            passed=acct_check.passed,
-            description="MT5 account matches authorized account",
-            expected=self._broker_config.expected_account_id,
-            observed=broker_state.account_id,
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-BROKER-01",
+                passed=acct_check.passed,
+                description="MT5 account matches authorized account",
+                expected=self._broker_config.expected_account_id,
+                observed=broker_state.account_id,
+            )
+        )
         checks.append(self._checks[-1])
 
         # 2.2 Environment
         env_check = validator.validate_environment(broker_state.environment)
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-BROKER-02",
-            passed=env_check.passed,
-            description="Connected to correct environment (not demo/live confusion)",
-            expected=self._broker_config.expected_environment,
-            observed=broker_state.environment,
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-BROKER-02",
+                passed=env_check.passed,
+                description="Connected to correct environment (not demo/live confusion)",
+                expected=self._broker_config.expected_environment,
+                observed=broker_state.environment,
+            )
+        )
         checks.append(self._checks[-1])
 
         # 2.3 Symbol availability
         sym_check = validator.validate_symbols(broker_state.available_symbols)
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-BROKER-03",
-            passed=sym_check.passed,
-            description="All required symbols available",
-            expected=f"{len(self._broker_config.expected_symbols)} symbols",
-            observed=f"{len(broker_state.available_symbols)} symbols",
-            details=sym_check.observed,
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-BROKER-03",
+                passed=sym_check.passed,
+                description="All required symbols available",
+                expected=f"{len(self._broker_config.expected_symbols)} symbols",
+                observed=f"{len(broker_state.available_symbols)} symbols",
+                details=sym_check.observed,
+            )
+        )
         checks.append(self._checks[-1])
 
         # 2.4 Contract specifications
         contract_check = validator.validate_contract_specs(broker_state.symbol_specs)
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-BROKER-04",
-            passed=contract_check.passed,
-            description="Contract specifications within bounds",
-            expected="all specs valid",
-            observed=contract_check.observed,
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-BROKER-04",
+                passed=contract_check.passed,
+                description="Contract specifications within bounds",
+                expected="all specs valid",
+                observed=contract_check.observed,
+            )
+        )
         checks.append(self._checks[-1])
 
         # 2.5 Spread/slippage — per-symbol check (points, not decimal)
@@ -457,14 +472,18 @@ class PreTradingValidator:
             if spread_pts > max_spread_pts:
                 spread_issues.append(f"{sym}: {spread_pts} pts (max {max_spread_pts})")
         spread_ok = len(spread_issues) == 0
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-BROKER-05",
-            passed=spread_ok,
-            description="Current spread within per-symbol bounds",
-            expected="all spreads within per-symbol limits",
-            observed="; ".join(spread_issues) if spread_issues else "all within bounds",
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-BROKER-05",
+                passed=spread_ok,
+                description="Current spread within per-symbol bounds",
+                expected="all spreads within per-symbol limits",
+                observed="; ".join(spread_issues)
+                if spread_issues
+                else "all within bounds",
+            )
+        )
         checks.append(self._checks[-1])
 
         # 2.6 No environment confusion (final safety check)
@@ -473,15 +492,17 @@ class PreTradingValidator:
             broker_state.environment,
             broker_state.broker_name,
         )
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-BROKER-06",
-            passed=confusion_check.passed,
-            description="No demo/live/environment confusion",
-            expected="account, environment, broker all match",
-            observed=confusion_check.observed,
-            severity="CRITICAL",
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-BROKER-06",
+                passed=confusion_check.passed,
+                description="No demo/live/environment confusion",
+                expected="account, environment, broker all match",
+                observed=confusion_check.observed,
+                severity="CRITICAL",
+            )
+        )
         checks.append(self._checks[-1])
 
         return checks
@@ -543,62 +564,74 @@ class PreTradingValidator:
 
         # 3.1 No unclassified positions
         no_unclassified = unclassified_count == 0
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-RECON-01",
-            passed=no_unclassified,
-            description="No unclassified positions",
-            expected="0 unclassified",
-            observed=f"{unclassified_count} unclassified",
-            severity="CRITICAL",
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-RECON-01",
+                passed=no_unclassified,
+                description="No unclassified positions",
+                expected="0 unclassified",
+                observed=f"{unclassified_count} unclassified",
+                severity="CRITICAL",
+            )
+        )
         checks.append(self._checks[-1])
 
         # 3.2 No manual trades during qualification
         no_manual = manual_count == 0
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-RECON-02",
-            passed=no_manual,
-            description="No manual trades during qualification",
-            expected="0 manual trades",
-            observed=f"{manual_count} manual trades",
-            severity="CRITICAL",
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-RECON-02",
+                passed=no_manual,
+                description="No manual trades during qualification",
+                expected="0 manual trades",
+                observed=f"{manual_count} manual trades",
+                severity="CRITICAL",
+            )
+        )
         checks.append(self._checks[-1])
 
         # 3.3 Position count within limits
-        count_ok = broker_state.position_count <= self._capital_config.max_concurrent_positions
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-RECON-03",
-            passed=count_ok,
-            description="Position count within authorized limit",
-            expected=f"<= {self._capital_config.max_concurrent_positions}",
-            observed=str(broker_state.position_count),
-        ))
+        count_ok = (
+            broker_state.position_count <= self._capital_config.max_concurrent_positions
+        )
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-RECON-03",
+                passed=count_ok,
+                description="Position count within authorized limit",
+                expected=f"<= {self._capital_config.max_concurrent_positions}",
+                observed=str(broker_state.position_count),
+            )
+        )
         checks.append(self._checks[-1])
 
         # 3.4 Pre-existing positions documented (if any)
         if pre_count > 0:
-            self._add_check(PreTradingCheck(
-                step=step,
-                check_id="PT-RECON-04",
-                passed=True,  # Pre-existing is OK if documented
-                description="Pre-existing positions documented and separated",
-                expected="all pre-existing classified",
-                observed=f"{pre_count} pre-existing positions documented",
-                severity="WARNING",
-            ))
+            self._add_check(
+                PreTradingCheck(
+                    step=step,
+                    check_id="PT-RECON-04",
+                    passed=True,  # Pre-existing is OK if documented
+                    description="Pre-existing positions documented and separated",
+                    expected="all pre-existing classified",
+                    observed=f"{pre_count} pre-existing positions documented",
+                    severity="WARNING",
+                )
+            )
         else:
-            self._add_check(PreTradingCheck(
-                step=step,
-                check_id="PT-RECON-04",
-                passed=True,
-                description="No pre-existing positions (clean start)",
-                expected="0 pre-existing",
-                observed="0 pre-existing",
-            ))
+            self._add_check(
+                PreTradingCheck(
+                    step=step,
+                    check_id="PT-RECON-04",
+                    passed=True,
+                    description="No pre-existing positions (clean start)",
+                    expected="0 pre-existing",
+                    observed="0 pre-existing",
+                )
+            )
         checks.append(self._checks[-1])
 
         return checks
@@ -620,38 +653,44 @@ class PreTradingValidator:
         # 4.1 Frozen fingerprint is still valid
         current_fingerprint = self._frozen_manifest.compute_identity()
         fingerprint_match = current_fingerprint == self._frozen_fingerprint
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-FP-01",
-            passed=fingerprint_match,
-            description="Frozen R4 manifest fingerprint unchanged",
-            expected=self._frozen_fingerprint[:16],
-            observed=current_fingerprint[:16],
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-FP-01",
+                passed=fingerprint_match,
+                description="Frozen R4 manifest fingerprint unchanged",
+                expected=self._frozen_fingerprint[:16],
+                observed=current_fingerprint[:16],
+            )
+        )
         checks.append(self._checks[-1])
 
         # 4.2 Strategy version still frozen
         version_ok = self._frozen_manifest.strategy_version == "R4.0"
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-FP-02",
-            passed=version_ok,
-            description="Strategy version still frozen at R4.0",
-            expected="R4.0",
-            observed=self._frozen_manifest.strategy_version,
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-FP-02",
+                passed=version_ok,
+                description="Strategy version still frozen at R4.0",
+                expected="R4.0",
+                observed=self._frozen_manifest.strategy_version,
+            )
+        )
         checks.append(self._checks[-1])
 
         # 4.3 Data terminal ID matches
         terminal_ok = self._frozen_manifest.data_terminal_id == broker_state.account_id
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-FP-03",
-            passed=terminal_ok,
-            description="Data terminal ID matches broker account",
-            expected=self._frozen_manifest.data_terminal_id,
-            observed=broker_state.account_id,
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-FP-03",
+                passed=terminal_ok,
+                description="Data terminal ID matches broker account",
+                expected=self._frozen_manifest.data_terminal_id,
+                observed=broker_state.account_id,
+            )
+        )
         checks.append(self._checks[-1])
 
         return checks
@@ -675,60 +714,70 @@ class PreTradingValidator:
             gate_authorized = (
                 pre_funding_gate_record.decision == GateDecision.AUTHORIZED.value
             )
-            self._add_check(PreTradingCheck(
-                step=step,
-                check_id="PT-AUTH-01",
-                passed=gate_authorized,
-                description="Pre-funding gate was AUTHORIZED",
-                expected="AUTHORIZED",
-                observed=pre_funding_gate_record.decision,
-            ))
+            self._add_check(
+                PreTradingCheck(
+                    step=step,
+                    check_id="PT-AUTH-01",
+                    passed=gate_authorized,
+                    description="Pre-funding gate was AUTHORIZED",
+                    expected="AUTHORIZED",
+                    observed=pre_funding_gate_record.decision,
+                )
+            )
         else:
-            self._add_check(PreTradingCheck(
-                step=step,
-                check_id="PT-AUTH-01",
-                passed=False,
-                description="Pre-funding gate record required",
-                expected="GateRecord",
-                observed="None",
-            ))
+            self._add_check(
+                PreTradingCheck(
+                    step=step,
+                    check_id="PT-AUTH-01",
+                    passed=False,
+                    description="Pre-funding gate record required",
+                    expected="GateRecord",
+                    observed="None",
+                )
+            )
         checks.append(self._checks[-1])
 
         # 5.2 No critical failures in any previous step
         all_critical = [c for c in self._checks if c.severity == "CRITICAL"]
         no_critical_failures = all(c.passed for c in all_critical)
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-AUTH-02",
-            passed=no_critical_failures,
-            description="No critical failures in any validation step",
-            expected="0 critical failures",
-            observed=f"{sum(1 for c in all_critical if not c.passed)} critical failures",
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-AUTH-02",
+                passed=no_critical_failures,
+                description="No critical failures in any validation step",
+                expected="0 critical failures",
+                observed=f"{sum(1 for c in all_critical if not c.passed)} critical failures",
+            )
+        )
         checks.append(self._checks[-1])
 
         # 5.3 No unclassified positions
         no_unclassified = self._unclassified_positions == 0
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-AUTH-03",
-            passed=no_unclassified,
-            description="All positions classified (no orphans)",
-            expected="0 unclassified",
-            observed=f"{self._unclassified_positions} unclassified",
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-AUTH-03",
+                passed=no_unclassified,
+                description="All positions classified (no orphans)",
+                expected="0 unclassified",
+                observed=f"{self._unclassified_positions} unclassified",
+            )
+        )
         checks.append(self._checks[-1])
 
         # 5.4 No manual trades
         no_manual = self._manual_positions == 0
-        self._add_check(PreTradingCheck(
-            step=step,
-            check_id="PT-AUTH-04",
-            passed=no_manual,
-            description="No manual trades during qualification",
-            expected="0 manual",
-            observed=f"{self._manual_positions} manual",
-        ))
+        self._add_check(
+            PreTradingCheck(
+                step=step,
+                check_id="PT-AUTH-04",
+                passed=no_manual,
+                description="No manual trades during qualification",
+                expected="0 manual",
+                observed=f"{self._manual_positions} manual",
+            )
+        )
         checks.append(self._checks[-1])
 
         return checks
@@ -783,7 +832,9 @@ class PreTradingValidator:
         self.authorize_trading(pre_funding_gate_record)
 
         # Compute decision
-        critical_failures = [c for c in self._checks if not c.passed and c.severity == "CRITICAL"]
+        critical_failures = [
+            c for c in self._checks if not c.passed and c.severity == "CRITICAL"
+        ]
         decision = (
             PreTradingDecision.TRADING_AUTHORIZED
             if not critical_failures
@@ -810,8 +861,6 @@ class PreTradingValidator:
             ),
         )
         # Compute fingerprint after construction
-        object.__setattr__(
-            auth, "authorization_fingerprint", auth.compute_hash()
-        )
+        object.__setattr__(auth, "authorization_fingerprint", auth.compute_hash())
 
         return auth

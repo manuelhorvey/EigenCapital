@@ -6,13 +6,11 @@ different information sources (order-flow, liquidity, session microstructure).
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import time
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -20,7 +18,6 @@ import pandas as pd
 from eigencapital.research.intraday.campaign3_hypotheses import (
     CAMPAIGN3_HYPOTHESES,
     SIGNAL_REGISTRY,
-    Hypothesis,
     HypothesisVerdict,
 )
 
@@ -79,13 +76,16 @@ class Campaign3Result:
 
 # ── Cost model ─────────────────────────────────────────────────────────
 
+
 class Campaign3CostModel:
     """Pre-registered cost model for Campaign 3 M1 research."""
 
-    SPREAD_BPS: float = 8.0       # 8 bps average spread
-    SLIPPAGE_BPS: float = 3.0     # 3 bps slippage
-    COMMISSION_BPS: float = 2.0   # 2 bps commission
-    COST_PER_TRADE_BPS: float = SPREAD_BPS + SLIPPAGE_BPS + COMMISSION_BPS  # 13 bps total
+    SPREAD_BPS: float = 8.0  # 8 bps average spread
+    SLIPPAGE_BPS: float = 3.0  # 3 bps slippage
+    COMMISSION_BPS: float = 2.0  # 2 bps commission
+    COST_PER_TRADE_BPS: float = (
+        SPREAD_BPS + SLIPPAGE_BPS + COMMISSION_BPS
+    )  # 13 bps total
 
     # Stress multipliers
     STRESS_MULTIPLIERS = {
@@ -96,6 +96,7 @@ class Campaign3CostModel:
 
 
 # ── Signal generation ──────────────────────────────────────────────────
+
 
 def generate_signal(
     df: pd.DataFrame,
@@ -165,6 +166,7 @@ def signal_volatility_regime(df: pd.DataFrame, lookback: int = 60) -> pd.Series:
 
 # ── Backtest engine ────────────────────────────────────────────────────
 
+
 def run_simple_backtest(
     df: pd.DataFrame,
     signal: pd.Series,
@@ -205,8 +207,12 @@ def run_simple_backtest(
             "gross_to_net_degradation": 1.0,
         }
 
-    gross_sharpe = float(gross_ret.mean() / gross_ret.std() * np.sqrt(252 * 24 * 60 / holding_period))
-    net_sharpe = float(net_ret.mean() / net_ret.std() * np.sqrt(252 * 24 * 60 / holding_period))
+    gross_sharpe = float(
+        gross_ret.mean() / gross_ret.std() * np.sqrt(252 * 24 * 60 / holding_period)
+    )
+    net_sharpe = float(
+        net_ret.mean() / net_ret.std() * np.sqrt(252 * 24 * 60 / holding_period)
+    )
 
     # Drawdown
     cum = (1 + gross_ret).cumprod()
@@ -236,6 +242,7 @@ def run_simple_backtest(
 
 
 # ── Walk-forward validation ────────────────────────────────────────────
+
 
 def run_walk_forward(
     df: pd.DataFrame,
@@ -281,6 +288,7 @@ def run_walk_forward(
 
 # ── Verdict classification ─────────────────────────────────────────────
 
+
 def classify_verdict(result: Campaign3Result) -> Tuple[HypothesisVerdict, List[str]]:
     """Classify hypothesis verdict based on pre-registered criteria."""
     reasons = []
@@ -312,7 +320,11 @@ def classify_verdict(result: Campaign3Result) -> Tuple[HypothesisVerdict, List[s
     if len(reasons) == 0 and result.net_sharpe > 0.3 and result.wf_consistency >= 0.75:
         return HypothesisVerdict.SUPPORTED, reasons
 
-    if result.net_sharpe > 0 and result.wf_consistency >= 0.50 and result.gross_to_net_degradation < 0.50:
+    if (
+        result.net_sharpe > 0
+        and result.wf_consistency >= 0.50
+        and result.gross_to_net_degradation < 0.50
+    ):
         if result.max_drawdown > -0.20:
             return HypothesisVerdict.FRAGILE, reasons
         return HypothesisVerdict.COST_SENSITIVE, reasons
@@ -325,13 +337,22 @@ def classify_verdict(result: Campaign3Result) -> Tuple[HypothesisVerdict, List[s
 
 # ── Campaign runner ─────────────────────────────────────────────────────
 
+
 def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
     """Run full Campaign 3 against M1 data."""
     results: List[Campaign3Result] = []
 
     # Load data
-    symbols = ["EURUSDm", "GBPUSDm", "USDJPYm", "AUDUSDm",
-               "XAUUSDm", "US500m", "USTECm", "USOILm"]
+    symbols = [
+        "EURUSDm",
+        "GBPUSDm",
+        "USDJPYm",
+        "AUDUSDm",
+        "XAUUSDm",
+        "US500m",
+        "USTECm",
+        "USOILm",
+    ]
 
     all_data: Dict[str, pd.DataFrame] = {}
     for sym in symbols:
@@ -347,7 +368,7 @@ def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
 
     # Run each hypothesis
     for hyp in CAMPAIGN3_HYPOTHESES:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Testing {hyp.hypothesis_id}: {hyp.description}")
         print(f"  Family: {hyp.family} | Hash: {hyp.pre_registered_hash[:12]}")
 
@@ -373,7 +394,7 @@ def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
                     all_dds.append(result["max_drawdown"])
                     all_trades += result["num_trades"]
                     all_costs += result["cost_total"]
-                except Exception as e:
+                except Exception:
                     continue
 
             if not all_gross_sharpes:
@@ -404,7 +425,9 @@ def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
                 turnover=all_trades / len(all_data),
                 num_trades=all_trades,
                 cost_total=all_costs,
-                gross_to_net_degradation=1 - (avg_net / avg_gross) if abs(avg_gross) > 0.001 else 1.0,
+                gross_to_net_degradation=1 - (avg_net / avg_gross)
+                if abs(avg_gross) > 0.001
+                else 1.0,
                 wf_consistency=wf["wf_consistency"],
                 wf_oos_sharpe=wf["wf_oos_sharpe"],
             )
@@ -412,8 +435,10 @@ def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
             # Classify verdict
             cr.verdict, cr.failure_reasons = classify_verdict(cr)
 
-            print(f"  HP={hp}: gross={avg_gross:.4f} net={avg_net:.4f} "
-                  f"DD={worst_dd:.4f} WF={wf['wf_consistency']:.0%} → {cr.verdict.value}")
+            print(
+                f"  HP={hp}: gross={avg_gross:.4f} net={avg_net:.4f} "
+                f"DD={worst_dd:.4f} WF={wf['wf_consistency']:.0%} → {cr.verdict.value}"
+            )
 
             if avg_net > best_sharpe:
                 best_sharpe = avg_net
@@ -421,24 +446,31 @@ def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
 
         if best_result is not None:
             results.append(best_result)
-            print(f"  BEST: HP={best_result.holding_period} net={best_result.net_sharpe:.4f} → {best_result.verdict.value}")
+            print(
+                f"  BEST: HP={best_result.holding_period} net={best_result.net_sharpe:.4f} → {best_result.verdict.value}"
+            )
         else:
             # All holding periods failed
-            results.append(Campaign3Result(
-                hypothesis_id=hyp.hypothesis_id,
-                family=hyp.family,
-                description=hyp.description,
-                pre_registered_hash=hyp.pre_registered_hash,
-                holding_period=hyp.holding_periods[0],
-                verdict=HypothesisVerdict.REJECTED,
-                failure_reasons=["no_valid_results"],
-            ))
-            print(f"  ALL HOLDING PERIODS FAILED → REJECTED")
+            results.append(
+                Campaign3Result(
+                    hypothesis_id=hyp.hypothesis_id,
+                    family=hyp.family,
+                    description=hyp.description,
+                    pre_registered_hash=hyp.pre_registered_hash,
+                    holding_period=hyp.holding_periods[0],
+                    verdict=HypothesisVerdict.REJECTED,
+                    failure_reasons=["no_valid_results"],
+                )
+            )
+            print("  ALL HOLDING PERIODS FAILED → REJECTED")
 
     return results
 
 
-def produce_research_map(results: List[Campaign3Result], output_path: str = "reports/campaign3_research_map.md") -> str:
+def produce_research_map(
+    results: List[Campaign3Result],
+    output_path: str = "reports/campaign3_research_map.md",
+) -> str:
     """Produce the Campaign 3 Alpha Research Map."""
     lines = [
         "# EigenCapital Intraday Alpha Research Map — Campaign 3",
@@ -446,10 +478,10 @@ def produce_research_map(results: List[Campaign3Result], output_path: str = "rep
         "## M1/Tick-Level Research",
         "",
         f"**Date:** {time.strftime('%Y-%m-%d')}",
-        f"**Timeframe:** 1-minute (M1)",
-        f"**Universe:** 8 instruments (EURUSDm, GBPUSDm, USDJPYm, AUDUSDm, XAUUSDm, US500m, USTECm, USOILm)",
-        f"**Data:** ~100K M1 bars per symbol (~3 months, May-Aug 2026)",
-        f"**Broker:** Exness MT5 (Terminal 168966110)",
+        "**Timeframe:** 1-minute (M1)",
+        "**Universe:** 8 instruments (EURUSDm, GBPUSDm, USDJPYm, AUDUSDm, XAUUSDm, US500m, USTECm, USOILm)",
+        "**Data:** ~100K M1 bars per symbol (~3 months, May-Aug 2026)",
+        "**Broker:** Exness MT5 (Terminal 168966110)",
         f"**Hypotheses:** {len(results)}",
         "",
         "---",
@@ -488,85 +520,127 @@ def produce_research_map(results: List[Campaign3Result], output_path: str = "rep
         ids = ", ".join(h.hypothesis_id for h in hyps)
         lines.append(f"| **{v.upper()}** | {len(hyps)} | {ids} |")
 
-    survival = len([r for r in results if r.verdict in (
-        HypothesisVerdict.SUPPORTED, HypothesisVerdict.INCREMENTAL,
-        HypothesisVerdict.PRODUCTION_CANDIDATE)])
-    lines.append(f"\n**Survival Rate: {survival}/{len(results)} ({survival/len(results)*100:.1f}%)**" if results else "")
+    survival = len(
+        [
+            r
+            for r in results
+            if r.verdict
+            in (
+                HypothesisVerdict.SUPPORTED,
+                HypothesisVerdict.INCREMENTAL,
+                HypothesisVerdict.PRODUCTION_CANDIDATE,
+            )
+        ]
+    )
+    lines.append(
+        f"\n**Survival Rate: {survival}/{len(results)} ({survival / len(results) * 100:.1f}%)**"
+        if results
+        else ""
+    )
 
     # Detailed results
     lines.extend(["", "---", "", "## Detailed Results", ""])
 
     for r in results:
-        icon = "🟢" if r.verdict in (HypothesisVerdict.SUPPORTED, HypothesisVerdict.SUPPORTED) else \
-               "🟡" if r.verdict in (HypothesisVerdict.FRAGILE, HypothesisVerdict.COST_SENSITIVE, HypothesisVerdict.REGIME_DEPENDENT) else \
-               "🔴"
+        icon = (
+            "🟢"
+            if r.verdict in (HypothesisVerdict.SUPPORTED, HypothesisVerdict.SUPPORTED)
+            else "🟡"
+            if r.verdict
+            in (
+                HypothesisVerdict.FRAGILE,
+                HypothesisVerdict.COST_SENSITIVE,
+                HypothesisVerdict.REGIME_DEPENDENT,
+            )
+            else "🔴"
+        )
 
-        lines.extend([
-            f"### {icon} {r.hypothesis_id} — {r.description}",
-            "",
-            f"**Family:** {r.family}",
-            f"**Holding Period:** {r.holding_period} M1 bars",
-            f"**Verdict:** {r.verdict.value}",
-            "",
-            "| Metric | Value |",
-            "|---|---|",
-            f"| Gross Sharpe | {r.gross_sharpe:.4f} |",
-            f"| Net Sharpe | {r.net_sharpe:.4f} |",
-            f"| OOS Sharpe | {r.oos_sharpe:.4f} |",
-            f"| Max Drawdown | {r.max_drawdown:.4f} |",
-            f"| Turnover | {r.turnover:.1f} |",
-            f"| Trades | {r.num_trades} |",
-            f"| Cost | {r.cost_total:.6f} |",
-            f"| Gross→Net Degradation | {r.gross_to_net_degradation:.1%} |",
-            f"| WF Consistency | {r.wf_consistency:.0%} |",
-            f"| Pre-registered Hash | {r.pre_registered_hash[:16]} |",
-            "",
-        ])
+        lines.extend(
+            [
+                f"### {icon} {r.hypothesis_id} — {r.description}",
+                "",
+                f"**Family:** {r.family}",
+                f"**Holding Period:** {r.holding_period} M1 bars",
+                f"**Verdict:** {r.verdict.value}",
+                "",
+                "| Metric | Value |",
+                "|---|---|",
+                f"| Gross Sharpe | {r.gross_sharpe:.4f} |",
+                f"| Net Sharpe | {r.net_sharpe:.4f} |",
+                f"| OOS Sharpe | {r.oos_sharpe:.4f} |",
+                f"| Max Drawdown | {r.max_drawdown:.4f} |",
+                f"| Turnover | {r.turnover:.1f} |",
+                f"| Trades | {r.num_trades} |",
+                f"| Cost | {r.cost_total:.6f} |",
+                f"| Gross→Net Degradation | {r.gross_to_net_degradation:.1%} |",
+                f"| WF Consistency | {r.wf_consistency:.0%} |",
+                f"| Pre-registered Hash | {r.pre_registered_hash[:16]} |",
+                "",
+            ]
+        )
 
         if r.failure_reasons:
             lines.append(f"**Failure Reasons:** {', '.join(r.failure_reasons)}")
             lines.append("")
 
     # Conclusions
-    lines.extend([
-        "---",
-        "",
-        "## Conclusions",
-        "",
-    ])
+    lines.extend(
+        [
+            "---",
+            "",
+            "## Conclusions",
+            "",
+        ]
+    )
 
     if survival == 0:
-        lines.append("**No robust M1 intraday alpha found** in this universe and sample.")
+        lines.append(
+            "**No robust M1 intraday alpha found** in this universe and sample."
+        )
         lines.append("")
-        lines.append("Combined with Campaigns 1-2 (M5 → 44/44 rejected), the total M5+M1 research:")
+        lines.append(
+            "Combined with Campaigns 1-2 (M5 → 44/44 rejected), the total M5+M1 research:"
+        )
         lines.append("")
-        lines.append(f"- **Campaign 1:** M5 price-based → 24/24 rejected")
-        lines.append(f"- **Campaign 2:** M5 microstructure → 20/20 rejected")
-        lines.append(f"- **Campaign 3:** M1 order-flow/liquidity → {len(results)}/{len(results)} rejected or fragile")
+        lines.append("- **Campaign 1:** M5 price-based → 24/24 rejected")
+        lines.append("- **Campaign 2:** M5 microstructure → 20/20 rejected")
+        lines.append(
+            f"- **Campaign 3:** M1 order-flow/liquidity → {len(results)}/{len(results)} rejected or fragile"
+        )
         lines.append("")
-        lines.append("**Total: 44+ M5 hypotheses rejected, M1 hypotheses rejected/fragile.**")
+        lines.append(
+            "**Total: 44+ M5 hypotheses rejected, M1 hypotheses rejected/fragile.**"
+        )
         lines.append("")
-        lines.append("This is a **successful research outcome** — the system correctly identified")
-        lines.append("that conventional intraday information at these resolutions does not contain")
+        lines.append(
+            "This is a **successful research outcome** — the system correctly identified"
+        )
+        lines.append(
+            "that conventional intraday information at these resolutions does not contain"
+        )
         lines.append("robust exploitable alpha in this universe.")
     else:
-        lines.append(f"**{survival} hypothesis(es) survived** — candidates for deeper investigation.")
+        lines.append(
+            f"**{survival} hypothesis(es) survived** — candidates for deeper investigation."
+        )
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## Research Integrity",
-        "",
-        "- All hypotheses pre-registered before evaluation",
-        "- Walk-forward OOS validation",
-        "- Realistic transaction costs (13 bps per trade)",
-        "- Multiple-holding-period testing",
-        "- Cross-asset validation across 8 instruments",
-        "- No post-result tuning",
-        "- Rejection treated as successful research",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## Research Integrity",
+            "",
+            "- All hypotheses pre-registered before evaluation",
+            "- Walk-forward OOS validation",
+            "- Realistic transaction costs (13 bps per trade)",
+            "- Multiple-holding-period testing",
+            "- Cross-asset validation across 8 instruments",
+            "- No post-result tuning",
+            "- Rejection treated as successful research",
+            "",
+        ]
+    )
 
     report = "\n".join(lines)
 

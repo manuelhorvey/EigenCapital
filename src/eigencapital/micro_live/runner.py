@@ -14,18 +14,13 @@ import logging
 import time
 from typing import Dict, List, Optional, Any
 
-import numpy as np
-import pandas as pd
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.micro_live.campaign import (
     MicroLiveCampaign,
     MicroLiveEnvelope,
     MicroLiveAuthorization,
-    MicroLiveStatus,
-    KillReason,
 )
-from eigencapital.micro_live.qualification import MicroLiveEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +37,7 @@ class MT5Connection:
     def connect(self) -> bool:
         try:
             from mt5linux import MetaTrader5
+
             self._mt5 = MetaTrader5(host=self._host, port=self._port)
             self._connected = self._mt5.initialize()
             if self._connected:
@@ -170,8 +166,7 @@ class MT5Connection:
 
         pos = positions[0]
         close_type = (
-            MetaTrader5.ORDER_TYPE_SELL if pos.type == 0
-            else MetaTrader5.ORDER_TYPE_BUY
+            MetaTrader5.ORDER_TYPE_SELL if pos.type == 0 else MetaTrader5.ORDER_TYPE_BUY
         )
 
         request = {
@@ -241,7 +236,9 @@ class MicroLiveRunner:
             created_timestamp=time.strftime("%Y-%m-%dT%H:%M:%S"),
             expiry_timestamp=time.strftime(
                 "%Y-%m-%dT%H:%M:%S",
-                time.gmtime(time.time() + self._envelope.max_campaign_duration_hours * 3600),
+                time.gmtime(
+                    time.time() + self._envelope.max_campaign_duration_hours * 3600
+                ),
             ),
         )
         return self._authorization
@@ -283,7 +280,11 @@ class MicroLiveRunner:
         preflight = self._campaign.preflight()
         print(f"  Preflight: {'PASS' if preflight['all_pass'] else 'FAIL'}")
         if not preflight["all_pass"]:
-            return {"status": "FAILED", "error": "Preflight failed", "preflight": preflight}
+            return {
+                "status": "FAILED",
+                "error": "Preflight failed",
+                "preflight": preflight,
+            }
 
         # 5. Activate and check positions
         print("\n[5/6] Activating campaign...")
@@ -294,7 +295,9 @@ class MicroLiveRunner:
         broker_positions = self._mt5.get_positions()
         print(f"  Current broker positions: {len(broker_positions)}")
         for pos in broker_positions:
-            print(f"    {pos['symbol']}: {pos['type']} {pos['volume']} @ {pos['price_open']}")
+            print(
+                f"    {pos['symbol']}: {pos['type']} {pos['volume']} @ {pos['price_open']}"
+            )
 
         # 6. Check kill conditions
         print("\n[6/6] Checking kill conditions...")
@@ -302,7 +305,9 @@ class MicroLiveRunner:
             current_equity=account.get("equity", 0)
         )
         if kill_reason:
-            self._campaign.execute_kill(kill_reason, f"Pre-execution kill: {kill_reason.value}")
+            self._campaign.execute_kill(
+                kill_reason, f"Pre-execution kill: {kill_reason.value}"
+            )
             print(f"  KILLED: {kill_reason.value}")
         else:
             print("  No kill conditions triggered")

@@ -63,15 +63,15 @@ from eigencapital.research.intraday.campaign8_tf003_confirmation import (
 
 # ── Governance constants ────────────────────────────────────────────────
 
-PRIOR_EVALUATIONS = 133          # C1(24) + C2(20) + C3(16) + C4(31) + C5(18) + C6(24)
-FAMILY_SIZE = len(HYPOTHESES) * len(HORIZONS)      # 18 × 4 = 72
+PRIOR_EVALUATIONS = 133  # C1(24) + C2(20) + C3(16) + C4(31) + C5(18) + C6(24)
+FAMILY_SIZE = len(HYPOTHESES) * len(HORIZONS)  # 18 × 4 = 72
 CUMULATIVE_TRIALS = PRIOR_EVALUATIONS + FAMILY_SIZE  # 205
 
-FAMILY_P_MAX = 0.05              # SUPPORTED gate on family-corrected p
+FAMILY_P_MAX = 0.05  # SUPPORTED gate on family-corrected p
 # SUPPORTED additionally requires cumulative-adjusted p <= 0.05. A larger
 # threshold would be unreachable: family pass caps p_raw at 0.05/72, so
 # max possible cumulative-adj among survivors is 205*0.05/72 ≈ 0.1424.
-CUMULATIVE_DOWNGRADE = 0.05      # downgrade threshold on cumulative-adj p
+CUMULATIVE_DOWNGRADE = 0.05  # downgrade threshold on cumulative-adj p
 
 REPORT_JSON = "reports/campaign7_rerun_hardened.json"
 REPORT_MD = "reports/campaign7_rerun_hardened.md"
@@ -89,6 +89,7 @@ def cumulative_adjust(p_raw: float) -> float:
 # RUNNER
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def run(data_dir: str = DATA_DIR) -> List[HypResult]:
     data: Dict[str, pd.DataFrame] = {}
     for s in UNIVERSE:
@@ -98,11 +99,12 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
     if not data:
         print("ERROR: no microstructure bars")
         return []
-    print(f"Loaded {len(data)} symbols from snapshot "
-          f"(family={FAMILY_SIZE}, cumulative={CUMULATIVE_TRIALS})")
+    print(
+        f"Loaded {len(data)} symbols from snapshot "
+        f"(family={FAMILY_SIZE}, cumulative={CUMULATIVE_TRIALS})"
+    )
 
-    anchor_name = next((s for s in ["EURUSDm", "XAUUSDm"] if s in data),
-                       list(data)[0])
+    anchor_name = next((s for s in ["EURUSDm", "XAUUSDm"] if s in data), list(data)[0])
     anchor = data[anchor_name]
 
     results: List[HypResult] = []
@@ -143,21 +145,35 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
 
             kw_anchor = {"all_data": data} if is_ll else {}
             wf_cons, wf_oos = wf_validate_corrected(
-                anchor, lambda d, f=func, k=kw_anchor: f(d, **k), hp,
+                anchor,
+                lambda d, f=func, k=kw_anchor: f(d, **k),
+                hp,
                 COST_ONE_WAY_BASE,
             )
             perm_p_raw = permutation_test_corrected(
-                anchor, lambda d, f=func, k=kw_anchor: f(d, **k), hp,
-                COST_ONE_WAY_BASE, n_permutations=100,
+                anchor,
+                lambda d, f=func, k=kw_anchor: f(d, **k),
+                hp,
+                COST_ONE_WAY_BASE,
+                n_permutations=100,
             )
             deg = 1 - anb / ag if abs(ag) > 1e-3 else 1.0
 
             # Frozen gates fed with family-corrected p
             hr = HypResult(
-                hid=h.hid, family=h.family, description=h.description, hp=hp,
-                gross_sharpe=ag, net_base=anb, net_adverse=ana, max_dd=mdd,
-                trades=total_flips, wf_consistency=wf_cons, wf_oos_sharpe=wf_oos,
-                degradation=deg, permutation_p=family_adjust(perm_p_raw),
+                hid=h.hid,
+                family=h.family,
+                description=h.description,
+                hp=hp,
+                gross_sharpe=ag,
+                net_base=anb,
+                net_adverse=ana,
+                max_dd=mdd,
+                trades=total_flips,
+                wf_consistency=wf_cons,
+                wf_oos_sharpe=wf_oos,
+                degradation=deg,
+                permutation_p=family_adjust(perm_p_raw),
                 sym_sharpes=sym_net,
             )
             verdict_v, reasons, primary_fail = classify(hr)
@@ -166,10 +182,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
 
             # Cumulative-trial downgrade: passed family gate but the whole-
             # program ledger makes the evidence weak → never SUPPORTED.
-            if (
-                verdict_v == Verdict.SUPPORTED
-                and p_cum > CUMULATIVE_DOWNGRADE
-            ):
+            if verdict_v == Verdict.SUPPORTED and p_cum > CUMULATIVE_DOWNGRADE:
                 verdict_v = Verdict.FRAGILE
                 reasons.append("cumulative_trial_weakness")
                 primary_fail = primary_fail or "cumulative_trial_weakness"
@@ -181,7 +194,8 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
             r.permutation_p = perm_p_raw  # store RAW p in artifact;
             # adjusted values recorded below in extra fields
             object.__setattr__(
-                r, "_governance",
+                r,
+                "_governance",
                 {
                     "p_raw": round(perm_p_raw, 4),
                     "p_adj_family": round(family_adjust(perm_p_raw), 4),
@@ -191,19 +205,30 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
                 },
             )
 
-            print(f"  {h.hid} HP={hp} ({hp*5:>2}m): gross={ag:+.2f} "
-                  f"net={anb:+.2f} adv={ana:+.2f} DD={mdd:.1%} "
-                  f"WF={wf_cons:.0%} p_raw={perm_p_raw:.3f} "
-                  f"p_fam={family_adjust(perm_p_raw):.3f} → {verdict_v.value}")
+            print(
+                f"  {h.hid} HP={hp} ({hp * 5:>2}m): gross={ag:+.2f} "
+                f"net={anb:+.2f} adv={ana:+.2f} DD={mdd:.1%} "
+                f"WF={wf_cons:.0%} p_raw={perm_p_raw:.3f} "
+                f"p_fam={family_adjust(perm_p_raw):.3f} → {verdict_v.value}"
+            )
 
             score = anb + wf_cons * 0.5 - family_adjust(perm_p_raw) * 0.2
             if score > best_score:
                 best_score, best = score, r
 
-        results.append(best if best else HypResult(
-            hid=h.hid, family=h.family, description=h.description,
-            hp=HORIZONS[0], verdict=Verdict.REJECTED,
-            reasons=["no_data"], primary_failure="no_data"))
+        results.append(
+            best
+            if best
+            else HypResult(
+                hid=h.hid,
+                family=h.family,
+                description=h.description,
+                hp=HORIZONS[0],
+                verdict=Verdict.REJECTED,
+                reasons=["no_data"],
+                primary_failure="no_data",
+            )
+        )
 
     print(f"\nEvaluated {eval_count}/{FAMILY_SIZE} combinations")
     return results
@@ -221,6 +246,7 @@ def to_dict_with_governance(r: HypResult) -> dict:
 # REPORTS
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def write_reports(results: List[HypResult]) -> str:
     now = time.strftime("%Y-%m-%d %H:%M UTC")
     os.makedirs("reports", exist_ok=True)
@@ -235,29 +261,45 @@ def write_reports(results: List[HypResult]) -> str:
         f"**Family:** {FAMILY_SIZE} evaluations (18 hyp × 4 horizons); "
         f"Bonferroni within-family",
         f"**Cumulative ledger:** {CUMULATIVE_TRIALS} program evaluations",
-        "", "---", "",
-        "## VERDICT DISTRIBUTION (hardened)", "",
-        "| Verdict | Count | IDs |", "|---|---|---|",
+        "",
+        "---",
+        "",
+        "## VERDICT DISTRIBUTION (hardened)",
+        "",
+        "| Verdict | Count | IDs |",
+        "|---|---|---|",
     ]
-    for v in ["rejected", "regime_dependent", "cost_sensitive",
-              "fragile", "inconclusive", "supported"]:
+    for v in [
+        "rejected",
+        "regime_dependent",
+        "cost_sensitive",
+        "fragile",
+        "inconclusive",
+        "supported",
+    ]:
         hs = [r for r in results if r.verdict.value == v]
         if hs:
-            lines.append(f"| **{v.upper()}** | {len(hs)} | "
-                         f"{', '.join(x.hid for x in hs)} |")
+            lines.append(
+                f"| **{v.upper()}** | {len(hs)} | {', '.join(x.hid for x in hs)} |"
+            )
 
     top = sorted(results, key=lambda r: r.net_base, reverse=True)[:6]
-    lines += ["", "## TOP RESULTS UNDER HARDENED ACCOUNTING", "",
-              "| ID | HP | Gross | Net | Adv | DD | WF | p_raw | p_fam | p_cum | Verdict |",
-              "|---|---|---|---|---|---|---|---|---|---|---|"]
+    lines += [
+        "",
+        "## TOP RESULTS UNDER HARDENED ACCOUNTING",
+        "",
+        "| ID | HP | Gross | Net | Adv | DD | WF | p_raw | p_fam | p_cum | Verdict |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
     for r in top:
         gov = getattr(r, "_governance", {})
         lines.append(
-            f"| {r.hid} | {r.hp*5}m | {r.gross_sharpe:+.2f} | "
+            f"| {r.hid} | {r.hp * 5}m | {r.gross_sharpe:+.2f} | "
             f"{r.net_base:+.2f} | {r.net_adverse:+.2f} | {r.max_dd:.1%} | "
             f"{r.wf_consistency:.0%} | {gov.get('p_raw', 1):.3f} | "
             f"{gov.get('p_adj_family', 1):.3f} | "
-            f"{gov.get('p_adj_cumulative', 1):.3f} | {r.verdict.value} |")
+            f"{gov.get('p_adj_cumulative', 1):.3f} | {r.verdict.value} |"
+        )
 
     tf003 = next((r for r in results if r.hid == "TF-003"), None)
     lines += ["", "## TF-003 DISPOSITION UNDER HARDENED GOVERNANCE", ""]
@@ -302,6 +344,7 @@ def write_reports(results: List[HypResult]) -> str:
 
 if __name__ == "__main__":
     import sys
+
     res = run(sys.argv[1] if len(sys.argv) > 1 else DATA_DIR)
     write_reports(res)
     dist = Counter(r.verdict.value for r in res)

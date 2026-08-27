@@ -204,31 +204,42 @@ def _pct(notional: float, equity: float) -> float:
     return (notional / equity * 100) if equity > 0 else float("inf")
 
 
-def check_max_concentration(
-    state: AccountState, policy: RiskPolicy
-) -> RiskCheckResult:
+def check_max_concentration(state: AccountState, policy: RiskPolicy) -> RiskCheckResult:
     """FAIL if any single instrument exceeds max_concentration_pct of equity."""
     if not getattr(state, "instrument_exposures", None):
-        return RiskCheckResult(check_id="max_concentration", status="PASS",
-                               observed=0, limit=policy.max_concentration_pct,
-                               unit="%", message="No instrument exposures")
+        return RiskCheckResult(
+            check_id="max_concentration",
+            status="PASS",
+            observed=0,
+            limit=policy.max_concentration_pct,
+            unit="%",
+            message="No instrument exposures",
+        )
     worst_sym, worst_notional = max(
         getattr(state, "instrument_exposures", {}).items(),
         key=lambda kv: abs(kv[1]),
     )
     pct = _pct(abs(worst_notional), state.equity)
     if pct > policy.max_concentration_pct:
-        status, msg = "FAIL", (
-            f"{worst_sym} concentration {pct:.1f}% exceeds "
-            f"{policy.max_concentration_pct}% cap")
+        status, msg = (
+            "FAIL",
+            (
+                f"{worst_sym} concentration {pct:.1f}% exceeds "
+                f"{policy.max_concentration_pct}% cap"
+            ),
+        )
     elif pct > policy.warn_concentration_pct:
         status, msg = "WARN", f"{worst_sym} concentration {pct:.1f}% elevated"
     else:
         status, msg = "PASS", f"Max concentration {pct:.1f}% within limits"
-    return RiskCheckResult(check_id="max_concentration", status=status,
-                           observed=round(pct, 2),
-                           limit=policy.max_concentration_pct, unit="%",
-                           message=msg)
+    return RiskCheckResult(
+        check_id="max_concentration",
+        status=status,
+        observed=round(pct, 2),
+        limit=policy.max_concentration_pct,
+        unit="%",
+        message=msg,
+    )
 
 
 def check_asset_class_exposure(
@@ -236,27 +247,39 @@ def check_asset_class_exposure(
 ) -> RiskCheckResult:
     """FAIL if any asset class exceeds max_asset_class_exposure_pct."""
     if not getattr(state, "asset_class_exposures", None):
-        return RiskCheckResult(check_id="asset_class_exposure", status="PASS",
-                               observed=0,
-                               limit=policy.max_asset_class_exposure_pct,
-                               unit="%", message="No asset-class exposures")
+        return RiskCheckResult(
+            check_id="asset_class_exposure",
+            status="PASS",
+            observed=0,
+            limit=policy.max_asset_class_exposure_pct,
+            unit="%",
+            message="No asset-class exposures",
+        )
     worst_cls, worst_notional = max(
         getattr(state, "asset_class_exposures", {}).items(),
         key=lambda kv: abs(kv[1]),
     )
     pct = _pct(abs(worst_notional), state.equity)
     if pct > policy.max_asset_class_exposure_pct:
-        status, msg = "FAIL", (
-            f"{worst_cls} exposure {pct:.1f}% exceeds "
-            f"{policy.max_asset_class_exposure_pct}% cap")
+        status, msg = (
+            "FAIL",
+            (
+                f"{worst_cls} exposure {pct:.1f}% exceeds "
+                f"{policy.max_asset_class_exposure_pct}% cap"
+            ),
+        )
     elif pct > policy.warn_asset_class_exposure_pct:
         status, msg = "WARN", f"{worst_cls} exposure {pct:.1f}% elevated"
     else:
         status, msg = "PASS", f"Max class exposure {pct:.1f}% within limits"
-    return RiskCheckResult(check_id="asset_class_exposure", status=status,
-                           observed=round(pct, 2),
-                           limit=policy.max_asset_class_exposure_pct,
-                           unit="%", message=msg)
+    return RiskCheckResult(
+        check_id="asset_class_exposure",
+        status=status,
+        observed=round(pct, 2),
+        limit=policy.max_asset_class_exposure_pct,
+        unit="%",
+        message=msg,
+    )
 
 
 def run_all_account_checks(

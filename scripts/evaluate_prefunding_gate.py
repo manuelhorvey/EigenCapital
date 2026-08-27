@@ -11,46 +11,34 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
-from eigencapital.monitoring.health import (
-    HealthState,
-    PortfolioHealthMonitor,
-    Severity,
-)
 from eigencapital.production_qual.prefunding_audit import (
     AuditReport,
     AuditVerdict,
     PrefundingGateAuditor,
 )
 from eigencapital.production_qual.prefunding_gate import (
-    GateDecision,
     PrefundingGate,
 )
-from eigencapital.production_qual.campaign_boundary import CampaignBoundary
 from eigencapital.production_qual.broker_boundary import (
     BrokerBoundaryConfig,
     BrokerBoundaryValidator,
 )
 from eigencapital.production_qual.capital_boundary import (
     CapitalBoundaryConfig,
-    CapitalBoundaryValidator,
 )
 from eigencapital.risk.policy import RiskPolicy
-from eigencapital.live.partial_fills import PartialFillManager
 from eigencapital.live.risk import (
     DisconnectRecovery,
     HealthGate,
-    MicroLiveLimits,
     MicroLiveRiskEnvelope,
     RecoveryState,
 )
@@ -114,9 +102,7 @@ def verify_risk_checks(auditor: PrefundingGateAuditor) -> None:
         "max_concentration_pct",
         "max_asset_class_exposure_pct",
     ]
-    risk_policy_is_authority = all(
-        hasattr(policy, f) for f in required_fields
-    )
+    risk_policy_is_authority = all(hasattr(policy, f) for f in required_fields)
 
     # MicroLiveRiskEnvelope enforces RiskPolicy via check_policy_state()
     # Exposure maps are required (require_exposure_maps=True)
@@ -171,9 +157,7 @@ def verify_execution_checks(auditor: PrefundingGateAuditor) -> None:
     # DisconnectRecovery enforces disconnect → reconcile → resume sequence
     dr = DisconnectRecovery()
     # Verify state machine starts in CONNECTED
-    disconnect_reconcile_resume_enforced = (
-        dr.state == RecoveryState.CONNECTED
-    )
+    disconnect_reconcile_resume_enforced = dr.state == RecoveryState.CONNECTED
 
     # Reconnect alone does NOT grant permission:
     # on_reconnect() returns "RECONCILIATION_REQUIRED"
@@ -254,7 +238,7 @@ def verify_broker_checks(
     broker_config: BrokerBoundaryConfig,
 ) -> None:
     """Run Broker Boundary audit against real config."""
-    validator = BrokerBoundaryValidator(broker_config)
+    BrokerBoundaryValidator(broker_config)
 
     # For a pre-deployment audit, we verify the CONFIGURATION is correct
     # (not live broker state, which isn't available yet)
@@ -324,7 +308,7 @@ def run_evaluation(output_dir: str = "reports/") -> AuditReport:
 
     # 1. Compute frozen identity
     frozen_fingerprint = compute_frozen_identity()
-    print(f"Frozen R4 Manifest Fingerprint:")
+    print("Frozen R4 Manifest Fingerprint:")
     print(f"  {frozen_fingerprint}")
     print()
 
@@ -349,7 +333,7 @@ def run_evaluation(output_dir: str = "reports/") -> AuditReport:
     print("Running 7-category audit against actual broker state...")
     print("-" * 40)
     print(f"  Account:        {broker_config.expected_account_id}")
-    print(f"  Server:         Exness-MT5Trial9")
+    print("  Server:         Exness-MT5Trial9")
     print(f"  Environment:    {broker_config.expected_environment}")
     print("-" * 40)
 
@@ -382,8 +366,13 @@ def run_evaluation(output_dir: str = "reports/") -> AuditReport:
     # 7. Build report
     category_results = {}
     for cat in [
-        "identity", "risk", "execution", "health",
-        "observability", "broker_boundary", "capital_boundary",
+        "identity",
+        "risk",
+        "execution",
+        "health",
+        "observability",
+        "broker_boundary",
+        "capital_boundary",
     ]:
         cat_checks = [c for c in auditor._checks if c.category == cat]
         cat_passed = sum(1 for c in cat_checks if c.passed)
@@ -441,7 +430,7 @@ def run_evaluation(output_dir: str = "reports/") -> AuditReport:
     # Category summary
     print("Category Summary:")
     print(f"  {'Category':<20} {'Passed':<8} {'Failed':<8} {'Status'}")
-    print(f"  {'-'*20} {'-'*8} {'-'*8} {'-'*8}")
+    print(f"  {'-' * 20} {'-' * 8} {'-' * 8} {'-' * 8}")
     for cat_name, cat_data in category_results.items():
         p = cat_data["passed"]
         f = cat_data["failed"]
@@ -484,9 +473,7 @@ def run_evaluation(output_dir: str = "reports/") -> AuditReport:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Pre-Funding Gate Evaluation"
-    )
+    parser = argparse.ArgumentParser(description="Pre-Funding Gate Evaluation")
     parser.add_argument(
         "--output-dir",
         default="reports/",

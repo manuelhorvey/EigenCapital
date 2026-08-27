@@ -638,7 +638,16 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         timestamp=datetime.now(timezone.utc).isoformat(),
     )
     internal_state = InternalState(
-        positions={p.ticket: {"symbol": p.symbol, "volume": p.volume} for p in pos_list},
+        positions={
+            p.ticket: {
+                "symbol": p.symbol,
+                "volume": p.volume,
+                "side": "buy" if p.type == 0 else "sell",
+                "type": p.type,
+                "magic": p.magic,
+            }
+            for p in pos_list
+        },
         pending_orders=[],
         last_signal={"weights": target_weights.to_dict() if hasattr(target_weights, 'to_dict') else {}},
         target_weights=target_weights.to_dict() if hasattr(target_weights, 'to_dict') else {},

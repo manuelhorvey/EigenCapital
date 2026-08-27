@@ -1,6 +1,7 @@
 """Security audit tests for production trading system."""
 
 import importlib
+import importlib.util
 import inspect
 import re
 from pathlib import Path
@@ -39,6 +40,10 @@ class TestNoHardcodedCredentials:
                 violations.append(f"{py_file}:{line_no}")
         assert not violations, "Hardcoded API keys:\n" + "\n".join(violations)
 
+    @pytest.mark.skipif(
+        not importlib.util.find_spec("mt5linux"),
+        reason="mt5linux not installed (CI environment)"
+    )
     def test_telegram_tokens_from_env(self):
         monitor = importlib.import_module("scripts.r4_monitor")
         source = inspect.getsource(monitor)

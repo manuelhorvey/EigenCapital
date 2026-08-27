@@ -1,6 +1,6 @@
 # EigenCapital
 
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org) [![Tests](https://img.shields.io/badge/tests-2%2C301%20passing-brightgreen)](https://github.com/yourorg/eigencapital/actions?query=workflow%3A%22Full+test+suite%22) [![codecov](https://codecov.io/gh/yourorg/eigencapital/branch/main/graph/badge.svg)](https://codecov.io/gh/yourorg/eigencapital) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Ruff](https://img.shields.io/badge/code%20style-ruff-fff0f0.svg)](https://github.com/astral-sh/ruff) [![MyPy](https://img.shields.io/badge/type%20checked-mypy-9cf)](https://mypy-lang.org) [![Security](https://img.shields.io/badge/security-reviewed-brightgrey)](https://github.com/yourorg/eigencapital/security)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org) [![Tests](https://img.shields.io/badge/tests-2%2C301%20passing-brightgreen)](https://github.com/manuelhorvey/EigenCapital/actions?query=workflow%3A%22Full+test+suite%22) [![codecov](https://codecov.io/github/manuelhorvey/EigenCapital/graph/badge.svg?token=5eUeOHPHGe)](https://codecov.io/github/manuelhorvey/EigenCapital) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Ruff](https://img.shields.io/badge/code%20style-ruff-fff0f0.svg)](https://github.com/astral-sh/ruff) [![MyPy](https://img.shields.io/badge/type%20checked-mypy-9cf)](https://mypy-lang.org) [![Security](https://img.shields.io/badge/security-reviewed-brightgrey)](https://github.com/manuelhorvey/EigenCapital/security)
 
 ## Table of Contents
 
@@ -296,7 +296,7 @@ pytest --cov=eigencapital --cov-report=term-missing tests/unit/
 make lint && make typecheck
 ```
 
-Coverage is tracked via [Codecov](https://codecov.io/gh/yourorg/eigencapital). The CI workflow uploads coverage reports on every push to `main` and on pull requests.
+Coverage is tracked via [Codecov](https://codecov.io/github/manuelhorvey/EigenCapital). The CI workflow uploads coverage reports on every push to `main` and on pull requests.
 
 ## Limitations
 
@@ -314,7 +314,7 @@ Coverage is tracked via [Codecov](https://codecov.io/gh/yourorg/eigencapital). T
 
 ## Support & Contact
 
-- **Issues**: [GitHub Issues](https://github.com/yourorg/eigencapital/issues)
+- **Issues**: [GitHub Issues](https://github.com/manuelhorvey/EigenCapital/issues)
 - **Documentation**: [docs/](docs/)
 - **Research**: [research/](research/)
 - **Contact**: eigencapital-team@example.com

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import threading
 import time
@@ -179,9 +180,12 @@ class EventLedger:
             max_events: Maximum events before rotation
             flush_after: Flush to disk after N events
         """
-        self._base_path = Path(base_path)
+        self._base_path = Path(base_path).resolve()
         self._max_events = max_events
         self._flush_after = flush_after
+        
+        # Structured logger
+        self._logger = logging.getLogger("eigencapital.event_ledger")
         
         # Thread safety
         self._lock = threading.Lock()
@@ -230,12 +234,20 @@ class EventLedger:
         return "unknown"
     
     def _get_config_fingerprint(self) -> str:
-        """Get config fingerprint."""
+        """Get config fingerprint.
+        
+        Uses the config module to compute a fingerprint directly rather than
+        instantiating FingerprintVerifier without config (which produces an empty fingerprint).
+        """
         try:
-            from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
-            verifier = FingerprintVerifier()
-            return verifier._frozen_config_fp[:16]
-        except (ImportError, AttributeError, FileNotFoundError):
+            from eigencapital.config import EigenCapitalConfig
+            config = EigenCapitalConfig.load()
+            import json
+            data = config.to_dict()
+            data.pop("environment", None)
+            payload = json.dumps(data, sort_keys=True, default=str).encode("utf-8")
+            return hashlib.sha256(payload).hexdigest()[:16]
+        except (ImportError, AttributeError, FileNotFoundError, Exception):
             return "unknown"
     
     def append(
@@ -273,7 +285,23 @@ class EventLedger:
             
         Returns:
             Created event
+            
+        Raises:
+            ValueError: If required fields are empty or contain invalid characters
         """
+        # Input validation
+        if not isinstance(event_type, EventType):
+            raise ValueError(f"event_type must be an EventType, got {type(event_type).__name__}")
+        if not account_id or not isinstance(account_id, str):
+            raise ValueError("account_id must be a non-empty string")
+        if not tier or not isinstance(tier, str):
+            raise ValueError("tier must be a non-empty string")
+        if not campaign_id or not isinstance(campaign_id, str):
+            raise ValueError("campaign_id must be a non-empty string")
+        # Validate symbol contains only allowed characters (alphanumeric, underscore, dot)
+        if symbol is not None and (not isinstance(symbol, str) or not symbol.isidentifier()):
+            raise ValueError(f"symbol must be a valid identifier, got {symbol!r}")
+        
         now = datetime.now(timezone.utc).isoformat()
         
         # Generate event
@@ -316,14 +344,31 @@ class EventLedger:
             if event.symbol:
                 self._symbol_index.setdefault(event.symbol, []).append(event.event_id)
         
+        # Structured logging
+        self._logger.info(json.dumps({
+            "ts": now,
+            "event": "event_appended",
+            "event_type": event_type.value,
+            "event_id": event.event_id,
+            "correlation_id": event.correlation_id,
+            "symbol": symbol,
+            "position_ticket": position_ticket,
+            "total_events": self._total_events,
+        }, default=str))
+        
         # Flush if needed (outside lock to avoid holding during I/O)
         if len(self._events) >= self._flush_after:
             self.flush()
         
         return event
     
-    def flush(self) -> None:
-        """Flush current batch to disk."""
+    def flush(self, max_retries: int = 3, retry_delay: float = 0.1) -> None:
+        """Flush current batch to disk with retry logic.
+        
+        Args:
+            max_retries: Maximum number of retry attempts on failure
+            retry_delay: Initial delay between retries (doubles each retry)
+        """
         with self._lock:
             if not self._events:
                 return
@@ -334,10 +379,28 @@ class EventLedger:
             self._batch_count += 1
             self._total_batches += 1
         
-        # Write events (outside lock)
-        with open(batch_file, "w", encoding="utf-8") as f:
-            for event in events_to_write:
-                f.write(json.dumps(event.to_dict(), default=str) + "\n")
+        # Write events with retry logic (outside lock)
+        last_error: Optional[Exception] = None
+        for attempt in range(max_retries):
+            try:
+                with open(batch_file, "w", encoding="utf-8") as f:
+                    for event in events_to_write:
+                        f.write(json.dumps(event.to_dict(), default=str) + "\n")
+                # Write succeeded
+                break
+            except (OSError, IOError) as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay * (2 ** attempt))
+        else:
+            # All retries failed - restore events to batch
+            with self._lock:
+                self._events = events_to_write + self._events
+                self._batch_count -= 1
+                self._total_batches -= 1
+            raise RuntimeError(
+                f"Failed to flush {len(events_to_write)} events after {max_retries} attempts: {last_error}"
+            ) from last_error
         
         # Check if we need to rotate
         if self._total_events >= self._max_events:

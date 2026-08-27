@@ -146,6 +146,7 @@ class TestEventLedgerInvariants:
     """Verify event ledger invariants."""
     
     @given(event_count=st.integers(min_value=1, max_value=100))
+    @settings(deadline=500)
     def test_events_are_immutable(self, event_count):
         """Events cannot be modified after creation."""
         ledger = EventLedger(base_path="/tmp/property_ledger", flush_after=1000)

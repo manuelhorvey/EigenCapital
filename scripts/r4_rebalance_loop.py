@@ -48,6 +48,12 @@ except ImportError:
 
 from eigencapital.config import load_config
 from eigencapital.live.daily_loss import DailyLossTracker
+from eigencapital.production_qual.evidence_orchestrator import (
+    EvidenceOrchestrator,
+    capture_evidence_snapshot,
+    record_closure,
+    record_operational_event,
+)
 from eigencapital.live.position_attribution import R4_MAGIC, classify_all, snapshot_hash
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope
@@ -112,6 +118,10 @@ AUDIT_FILE = os.path.join(AUDIT_DIR, "decisions.jsonl")
 _shutdown = False
 _risk_enforcer = RiskEnforcer(RISK_ENVELOPE)
 _fingerprint_verifier = FingerprintVerifier(config=_config)
+_evidence_orchestrator = EvidenceOrchestrator(
+    campaign_id="R4-5K-20260827",
+    snapshot_interval_seconds=_config.execution.loop_interval_seconds,
+)
 _daily_loss_tracker = DailyLossTracker(
     max_daily_loss=_lr.max_daily_loss,
     persistence_dir=AUDIT_DIR,
@@ -921,6 +931,34 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
 
     audit({"event": "executed", **cycle_result})
 
+    # ── Evidence collection: capture snapshot after execution ──────────
+    try:
+        positions_after_list = list(mt5.positions_get() or [])
+        evidence_snapshot = capture_evidence_snapshot(
+            positions=[
+                {
+                    "ticket": p.ticket,
+                    "symbol": p.symbol,
+                    "type": p.type,
+                    "volume": p.volume,
+                    "magic": p.magic,
+                    "comment": p.comment,
+                    "profit": p.profit,
+                    "price_open": p.price_open,
+                    "sl": p.sl,
+                    "tp": p.tp,
+                }
+                for p in positions_after_list
+            ],
+            equity=cycle_result["equity_after"],
+            balance=getattr(account_after, "balance", 0) if account_after else 0,
+            free_margin=getattr(account_after, "margin_free", 0) if account_after else 0,
+        )
+        if evidence_snapshot:
+            log(f"📊 Evidence snapshot captured: {evidence_snapshot['position_count']} positions")
+    except Exception as e:
+        log(f"⚠️ Evidence snapshot failed: {e}")
+
     return cycle_result
 
 
@@ -1044,6 +1082,15 @@ def main() -> None:
             _risk_enforcer._peak_equity = saved_peak
             log(f"Restored peak equity: ${saved_peak:,.2f}")
 
+    # Initialize evidence orchestrator
+    log("\nInitializing evidence orchestrator...")
+    _evidence_orchestrator = EvidenceOrchestrator(
+        campaign_id="R4-5K-20260827",
+        snapshot_interval_seconds=interval,
+    )
+    log(f"Evidence orchestrator: campaign={_evidence_orchestrator._campaign_id}")
+    log(f"Evidence dir: {_evidence_orchestrator._evidence_dir}")
+
     # Startup fingerprint verification (fail closed)
     log("\nVerifying configuration fingerprints...")
     fp_result = _fingerprint_verifier.verify_all()
@@ -1158,6 +1205,34 @@ def main() -> None:
     log("🟢 TRADING_AUTHORIZED — all startup gates passed\n")
     audit({"event": "trading_authorized"})
 
+    # Capture initial evidence snapshot
+    try:
+        initial_positions = list(mt5.positions_get() or [])
+        initial_account = mt5.account_info()
+        capture_evidence_snapshot(
+            positions=[
+                {
+                    "ticket": p.ticket,
+                    "symbol": p.symbol,
+                    "type": p.type,
+                    "volume": p.volume,
+                    "magic": p.magic,
+                    "comment": p.comment,
+                    "profit": p.profit,
+                    "price_open": p.price_open,
+                    "sl": p.sl,
+                    "tp": p.tp,
+                }
+                for p in initial_positions
+            ],
+            equity=initial_account.equity if initial_account else 0,
+            balance=getattr(initial_account, "balance", 0) if initial_account else 0,
+            free_margin=getattr(initial_account, "margin_free", 0) if initial_account else 0,
+        )
+        log("📊 Initial evidence snapshot captured")
+    except Exception as e:
+        log(f"⚠️ Initial evidence snapshot failed: {e}")
+
     cycle = 0
     while not _shutdown:
         cycle += 1
@@ -1175,6 +1250,7 @@ def main() -> None:
 
         if not mt5_ok:
             # MT5 disconnected
+            disconnect_start = time.time()
             if _disconnect_recovery.state == RecoveryState.CONNECTED:
                 recovery_msg = _disconnect_recovery.on_disconnect()
                 log(f"🔴 MT5 DISCONNECTED — {recovery_msg}")
@@ -1184,6 +1260,15 @@ def main() -> None:
                         "recovery_state": _disconnect_recovery.state.value,
                     }
                 )
+                # Record evidence: disconnect event
+                try:
+                    record_operational_event(
+                        event_type="disconnect",
+                        detection_time_ms=0.0,
+                        success=False,
+                    )
+                except Exception:
+                    pass
             elif _disconnect_recovery.state == RecoveryState.RESUMED:
                 # Was resumed but now disconnected again
                 recovery_msg = _disconnect_recovery.on_disconnect()
@@ -1194,6 +1279,15 @@ def main() -> None:
                         "recovery_state": _disconnect_recovery.state.value,
                     }
                 )
+                # Record evidence: disconnect event
+                try:
+                    record_operational_event(
+                        event_type="disconnect_from_resumed",
+                        detection_time_ms=0.0,
+                        success=False,
+                    )
+                except Exception:
+                    pass
 
             # Check if frozen
             if _disconnect_recovery.state == RecoveryState.FROZEN:
@@ -1221,6 +1315,7 @@ def main() -> None:
         # ── Reconnection handling ─────────────────────────────────────
         if _disconnect_recovery.state == RecoveryState.DISCONNECTED:
             recovery_msg = _disconnect_recovery.on_reconnect()
+            reconnect_time_ms = (time.time() - disconnect_start) * 1000 if 'disconnect_start' in dir() else 0.0
             log(f"🟢 MT5 RECONNECTED — {recovery_msg}")
             audit(
                 {
@@ -1228,6 +1323,16 @@ def main() -> None:
                     "recovery_state": _disconnect_recovery.state.value,
                 }
             )
+            # Record evidence: reconnect event
+            try:
+                record_operational_event(
+                    event_type="reconnect",
+                    detection_time_ms=reconnect_time_ms,
+                    recovery_time_ms=reconnect_time_ms,
+                    success=True,
+                )
+            except Exception:
+                pass
 
             # Reconcile: verify positions, equity, fingerprint
             try:
@@ -1330,14 +1435,55 @@ def main() -> None:
             continue
 
         # ── Run trading cycle ─────────────────────────────────────────
+        cycle_start_time = time.time()
         try:
-            run_cycle(mt5, force_regime, dry_run)
+            cycle_result = run_cycle(mt5, force_regime, dry_run)
         except Exception as e:
             log(f"❌ Cycle error: {e}")
             audit({"event": "error", "error": str(e)})
+            cycle_result = {"status": "ERROR", "error": str(e)}
 
         # Persist state after each cycle
         _persist_state()
+
+        # ── Evidence collection: capture snapshot for non-executed cycles ──
+        if cycle_result.get("status") != "EXECUTED":
+            try:
+                positions_for_evidence = list(mt5.positions_get() or [])
+                account_for_evidence = mt5.account_info()
+                capture_evidence_snapshot(
+                    positions=[
+                        {
+                            "ticket": p.ticket,
+                            "symbol": p.symbol,
+                            "type": p.type,
+                            "volume": p.volume,
+                            "magic": p.magic,
+                            "comment": p.comment,
+                            "profit": p.profit,
+                            "price_open": p.price_open,
+                            "sl": p.sl,
+                            "tp": p.tp,
+                        }
+                        for p in positions_for_evidence
+                    ],
+                    equity=account_for_evidence.equity if account_for_evidence else 0,
+                    balance=getattr(account_for_evidence, "balance", 0) if account_for_evidence else 0,
+                    free_margin=getattr(account_for_evidence, "margin_free", 0) if account_for_evidence else 0,
+                )
+            except Exception as e:
+                log(f"⚠️ Evidence snapshot failed: {e}")
+
+        # ── Evidence collection: record disconnect/reconnect events ────────
+        if cycle_result.get("status") == "ERROR":
+            try:
+                record_operational_event(
+                    event_type="cycle_error",
+                    detection_time_ms=(time.time() - cycle_start_time) * 1000,
+                    success=False,
+                )
+            except Exception:
+                pass
 
         if not loop_mode:
             break
@@ -1351,9 +1497,12 @@ def main() -> None:
                 break
             time.sleep(1)
 
-    # Shutdown: persist final state
+    # Shutdown: persist final state and disconnect
     _persist_state()
-    mt5.shutdown()
+    try:
+        mt5.shutdown()
+    except Exception:
+        pass
     log("Disconnected. Done.")
 
 

@@ -82,7 +82,27 @@ class RiskEnvelope:
     max_daily_loss: float = 250.0
     min_equity: float = 4_000.0  # absolute floor
     require_sl_on_positions: bool = True
-    t0_equity: float = 5_010.94  # from T=0 snapshot
+    t0_equity: float = 0.0  # Loaded from config at initialization
+
+    @classmethod
+    def from_config(cls) -> "RiskEnvelope":
+        """Create RiskEnvelope from production config."""
+        try:
+            from eigencapital.config import load_config
+            config = load_config("production")
+            return cls(
+                max_concurrent_positions=config.live_risk.max_concurrent_positions,
+                max_position_notional=config.live_risk.max_position_notional,
+                max_order_notional=config.live_risk.max_order_notional,
+                max_per_position_loss_pct=config.live_risk.max_per_position_loss_pct,
+                max_account_drawdown_pct=config.live_risk.max_account_drawdown_pct,
+                max_daily_loss=config.live_risk.max_daily_loss,
+                min_equity=config.live_risk.min_equity,
+                require_sl_on_positions=config.live_risk.require_sl_on_positions,
+                t0_equity=config.live_risk.t0_equity,
+            )
+        except (ImportError, FileNotFoundError, AttributeError):
+            return cls()  # Use defaults if config unavailable
 
 
 class RiskEnforcer:

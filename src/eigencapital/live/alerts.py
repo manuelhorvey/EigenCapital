@@ -1,5 +1,9 @@
 """Alert delivery (Phase 1U item 6) - structured, durable, operator-visible.
 
+DEPRECATED: Use structured_alerts.py instead. This module is retained
+for backward compatibility only. New code should use StructuredAlertDispatcher
+from eigencapital.live.structured_alerts.
+
 Strictly DOWNSTREAM of enforcement: dispatch failures are swallowed and
 reported via return value only. An alerting outage can never alter a
 safety decision (halt/blocked states remain exactly as decided).

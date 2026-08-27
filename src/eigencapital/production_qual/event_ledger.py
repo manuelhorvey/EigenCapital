@@ -31,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -182,6 +183,9 @@ class EventLedger:
         self._max_events = max_events
         self._flush_after = flush_after
         
+        # Thread safety
+        self._lock = threading.Lock()
+        
         # Current batch
         self._events: List[Event] = []
         self._batch_count = 0
@@ -221,7 +225,7 @@ class EventLedger:
             )
             if result.returncode == 0:
                 return hashlib.sha256(result.stdout.strip().encode()).hexdigest()[:16]
-        except Exception:
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
             pass
         return "unknown"
     
@@ -231,7 +235,7 @@ class EventLedger:
             from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
             verifier = FingerprintVerifier()
             return verifier._frozen_config_fp[:16]
-        except Exception:
+        except (ImportError, AttributeError, FileNotFoundError):
             return "unknown"
     
     def append(
@@ -299,19 +303,20 @@ class EventLedger:
         event_hash = self._compute_event_hash(event_data)
         event = Event(**{**event_data, "event_hash": event_hash})
         
-        # Add to batch
-        self._events.append(event)
-        self._total_events += 1
+        # Add to batch with thread safety
+        with self._lock:
+            self._events.append(event)
+            self._total_events += 1
+            
+            # Update indexes
+            if event.correlation_id:
+                self._correlation_index.setdefault(event.correlation_id, []).append(event.event_id)
+            if event.position_ticket:
+                self._position_index.setdefault(event.position_ticket, []).append(event.event_id)
+            if event.symbol:
+                self._symbol_index.setdefault(event.symbol, []).append(event.event_id)
         
-        # Update indexes
-        if event.correlation_id:
-            self._correlation_index.setdefault(event.correlation_id, []).append(event.event_id)
-        if event.position_ticket:
-            self._position_index.setdefault(event.position_ticket, []).append(event.event_id)
-        if event.symbol:
-            self._symbol_index.setdefault(event.symbol, []).append(event.event_id)
-        
-        # Flush if needed
+        # Flush if needed (outside lock to avoid holding during I/O)
         if len(self._events) >= self._flush_after:
             self.flush()
         
@@ -319,21 +324,20 @@ class EventLedger:
     
     def flush(self) -> None:
         """Flush current batch to disk."""
-        if not self._events:
-            return
+        with self._lock:
+            if not self._events:
+                return
+            # Copy events and clear batch atomically
+            events_to_write = self._events[:]
+            batch_file = self._base_path / f"events_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{self._total_batches:06d}.jsonl"
+            self._events = []
+            self._batch_count += 1
+            self._total_batches += 1
         
-        # Generate batch filename
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        batch_file = self._base_path / f"events_{timestamp}_{self._total_batches:06d}.jsonl"
-        
-        # Write events
+        # Write events (outside lock)
         with open(batch_file, "w", encoding="utf-8") as f:
-            for event in self._events:
+            for event in events_to_write:
                 f.write(json.dumps(event.to_dict(), default=str) + "\n")
-        
-        self._batch_count += 1
-        self._total_batches += 1
-        self._events = []
         
         # Check if we need to rotate
         if self._total_events >= self._max_events:

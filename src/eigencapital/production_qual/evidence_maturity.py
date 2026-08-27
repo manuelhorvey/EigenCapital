@@ -66,7 +66,7 @@ class EvidenceState:
             "independent_episodes": self.independent_episodes,
             "max_holding_period_days": self.max_holding_period_days,
             "next_level_requirements": self.next_level_requirements,
-            "assessment": self assessment,
+            "assessment": self.assessment,
         }
 
 

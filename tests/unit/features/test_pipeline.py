@@ -11,20 +11,23 @@ Tests cover:
 """
 
 import random
+
 import pytest
 
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.feature import Feature
-from eigencapital.features.feature_set import (
-    FeatureSet,
-    FeatureEntry,
-    FeatureStatus,
-)
 from eigencapital.features.dependencies import (
     FeatureDAG,
     FeatureDependency,
     build_default_dag,
 )
+from eigencapital.features.feature import Feature
+from eigencapital.features.feature_set import (
+    FeatureEntry,
+    FeatureSet,
+    FeatureStatus,
+)
+from eigencapital.features.momentum.breakout import compute_donchian_position
+from eigencapital.features.momentum.time_series import compute_roc
 from eigencapital.features.pipeline import (
     FeaturePipeline,
     FeatureRequest,
@@ -32,14 +35,11 @@ from eigencapital.features.pipeline import (
 )
 from eigencapital.features.provenance import (
     ProvenanceRecord,
+    build_provenance_record,
     compute_bars_hash,
     compute_config_hash,
-    build_provenance_record,
     verify_provenance,
 )
-from eigencapital.features.momentum.time_series import compute_roc
-from eigencapital.features.momentum.breakout import compute_donchian_position
-
 
 # ───────────────────────────────────────────────
 #  Bar helpers
@@ -195,7 +195,7 @@ class TestFeatureSet:
         assert h1 == h2
 
     def test_timestamp_invariant(self):
-        with pytest.raises(ValueError, match="timestamp_utc.*must be <="):
+        with pytest.raises(ValueError, match=r"timestamp_utc.*must be <="):
             FeatureSet(
                 instrument_id="ES",
                 decision_timestamp="2025-01-14T10:00:00Z",
@@ -568,11 +568,7 @@ class TestPipelineDeterminism:
         _reset()
         pipeline = FeaturePipeline()
         bars = _bars(50)
-        reqs = [
-            FeatureRequest(
-                "roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 10}
-            )
-        ]
+        reqs = [FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 10})]
 
         fs1 = pipeline.compute(bars=bars, instrument_id="ES", requests=reqs)
         _reset()
@@ -584,11 +580,7 @@ class TestPipelineDeterminism:
         pipeline = FeaturePipeline()
         bars1 = _bars(50, seed=42)
         bars2 = _bars(50, seed=99)
-        reqs = [
-            FeatureRequest(
-                "roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 10}
-            )
-        ]
+        reqs = [FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 10})]
 
         fs1 = pipeline.compute(bars=bars1, instrument_id="ES", requests=reqs)
         _reset()
@@ -626,11 +618,7 @@ class TestProvenance:
         _reset()
         pipeline = FeaturePipeline()
         bars = _rising(30)
-        reqs = [
-            FeatureRequest(
-                "roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5}
-            )
-        ]
+        reqs = [FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5})]
         config = PipelineConfig()
 
         fs = pipeline.compute(bars=bars, instrument_id="ES", requests=reqs)
@@ -673,13 +661,8 @@ class TestFutureDataInjection:
         _reset()
         pipeline = FeaturePipeline()
         bars_early = _rising(25)
-        bars_early[-1].timestamp_utc
 
-        reqs = [
-            FeatureRequest(
-                "roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5}
-            )
-        ]
+        reqs = [FeatureRequest("roc", compute_fn=compute_roc, lookback=20, parameters={"lookback": 5})]
 
         # Compute with 25 bars
         fs1 = pipeline.compute(bars=bars_early, instrument_id="ES", requests=reqs)

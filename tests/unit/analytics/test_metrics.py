@@ -5,6 +5,7 @@ large drawdowns, single-trade, etc.
 """
 
 import pytest
+
 from eigencapital.analytics.metrics import (
     compute_metrics,
     compute_returns,

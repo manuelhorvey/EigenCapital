@@ -1,9 +1,15 @@
 """Tests for capital tier governance: tier definitions, promotion gates, evidence requirements, skip prevention."""
 
 import pytest
+
 from eigencapital.production_qual.capital_tier_governance import (
-    ALL_TIERS, CapitalTierGovernor, PromotionEvidence, PromotionVerdict,
-    TIER_1_QUALIFICATION, TIER_2_PROVISIONAL, get_tier_by_id,
+    ALL_TIERS,
+    TIER_1_QUALIFICATION,
+    TIER_2_PROVISIONAL,
+    CapitalTierGovernor,
+    PromotionEvidence,
+    PromotionVerdict,
+    get_tier_by_id,
 )
 
 
@@ -55,9 +61,14 @@ class TestPromotionGates:
     def test_approved_when_all_gates_pass(self):
         gov = CapitalTierGovernor()
         gov.activate_tier("T1-QUALIFICATION")
-        evidence = PromotionEvidence(stable_days=14, critical_incidents=0,
-                                     duplicate_orders=0, unauthorized_orders=0,
-                                     broker_stable=True, max_drawdown_pct=5.0)
+        evidence = PromotionEvidence(
+            stable_days=14,
+            critical_incidents=0,
+            duplicate_orders=0,
+            unauthorized_orders=0,
+            broker_stable=True,
+            max_drawdown_pct=5.0,
+        )
         result = gov.evaluate_promotion("T2-PROVISIONAL", evidence)
         assert result.verdict == PromotionVerdict.APPROVED
 

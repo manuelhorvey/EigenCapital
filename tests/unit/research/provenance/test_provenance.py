@@ -1,10 +1,11 @@
 """Unit tests for provenance hashing and manifest."""
 
 import pytest
+
 from eigencapital.research.provenance.hashing import (
+    canonical_json_dumps,
     compute_provenance_hash,
     verify_provenance,
-    canonical_json_dumps,
 )
 from eigencapital.research.provenance.manifest import ResearchManifest
 

@@ -13,11 +13,10 @@ from eigencapital.production.readiness import (
     ReadinessVerdict,
 )
 from eigencapital.production.security import (
-    SecurityBoundary,
     ConfigurationManifest,
     SecurityAudit,
+    SecurityBoundary,
 )
-
 
 # ═══════════════════════════════════════════════
 #  READINESS GATE
@@ -331,9 +330,7 @@ class TestProperties:
                 field_name: 1,
             }
             result = ReadinessResult.evaluate(metrics)
-            assert result.verdict == ReadinessVerdict.NOT_READY, (
-                f"Field {field_name} should cause NOT_READY"
-            )
+            assert result.verdict == ReadinessVerdict.NOT_READY, f"Field {field_name} should cause NOT_READY"
 
     def test_live_connectivity_blocks_readiness(self):
         """Live connectivity must always block readiness."""

@@ -33,7 +33,7 @@ def test_order_plan_delta_invariant():
     assert op.quantity_delta == 7.0
     try:
         _make_plan(target_quantity=10.0, current_quantity=3.0, quantity_delta=5.0)
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "quantity_delta" in str(e)
 
@@ -44,7 +44,7 @@ def test_order_plan_urgency_validation():
         assert op.urgency == urg
     try:
         _make_plan(urgency="LATER")
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "Invalid urgency" in str(e)
 
@@ -57,12 +57,7 @@ def test_order_plan_fulfillable():
 
 def test_order_plan_delta_sign():
     assert _make_plan(quantity_delta=3.0).delta_sign == "BUY"
-    assert (
-        _make_plan(
-            target_quantity=-2.0, current_quantity=1.0, quantity_delta=-3.0
-        ).delta_sign
-        == "SELL"
-    )
+    assert _make_plan(target_quantity=-2.0, current_quantity=1.0, quantity_delta=-3.0).delta_sign == "SELL"
     op = _make_plan(target_quantity=2.0, current_quantity=2.0, quantity_delta=0.0)
     assert op.delta_sign == "FLAT"
 

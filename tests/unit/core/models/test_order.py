@@ -36,9 +36,7 @@ def test_order_creation_buy():
 
 def test_order_creation_sell():
     """Test Order creation with SELL side."""
-    order = _make_order(
-        order_id="O2", side="SELL", limit_price=18000.0, order_type="LIMIT"
-    )
+    order = _make_order(order_id="O2", side="SELL", limit_price=18000.0, order_type="LIMIT")
     assert order.side == "SELL"
     assert order.quantity == 100
     assert order.limit_price == 18000.0
@@ -55,7 +53,7 @@ def test_order_quantity_always_positive():
 
     try:
         _make_order(order_id="O5", quantity=-10)
-        assert False, "Should reject negative quantity"
+        raise AssertionError("Should reject negative quantity")
     except ValueError:
         pass
 
@@ -100,9 +98,7 @@ def test_order_limit_stop_validation():
     order = _make_order(order_id="O14", order_type="STOP", stop_price=4550.0)
     assert order.stop_price == 4550.0
 
-    order = _make_order(
-        order_id="O15", order_type="STOP_LIMIT", limit_price=4500.0, stop_price=4550.0
-    )
+    order = _make_order(order_id="O15", order_type="STOP_LIMIT", limit_price=4500.0, stop_price=4550.0)
     assert order.limit_price == 4500.0
     assert order.stop_price == 4550.0
 
@@ -134,14 +130,12 @@ def test_order_average_fill_price_matches_filled_price():
 
 def test_order_status_transitions():
     """Test order status validation."""
-    for i, status in enumerate(
-        ["SUBMITTED", "PARTIALLY_FILLED", "FILLED", "CANCELLED", "REJECTED"]
-    ):
+    for i, status in enumerate(["SUBMITTED", "PARTIALLY_FILLED", "FILLED", "CANCELLED", "REJECTED"]):
         _make_order(order_id=f"O18_{i}", status=status)
 
     try:
         _make_order(order_id="O19", status="INVALID")
-        assert False, "Should reject invalid status"
+        raise AssertionError("Should reject invalid status")
     except ValueError:
         pass
 
@@ -150,7 +144,7 @@ def test_order_instrument_id_required():
     """Test that instrument_id is non-empty."""
     try:
         _make_order(order_id="O20", instrument_id="")
-        assert False, "Should reject empty instrument_id"
+        raise AssertionError("Should reject empty instrument_id")
     except ValueError:
         pass
 
@@ -159,7 +153,7 @@ def test_order_strategy_id_required():
     """Test that strategy_id is non-empty."""
     try:
         _make_order(order_id="O21", strategy_id="")
-        assert False, "Should reject empty strategy_id"
+        raise AssertionError("Should reject empty strategy_id")
     except ValueError:
         pass
 

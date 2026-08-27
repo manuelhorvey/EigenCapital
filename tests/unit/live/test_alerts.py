@@ -1,5 +1,6 @@
 """Phase 1U item 6 - alert delivery cannot weaken safety decisions."""
-from eigencapital.live.alerts import (Alert, AlertDispatcher, Severity)
+
+from eigencapital.live.alerts import Alert, AlertDispatcher, Severity
 
 
 def test_critical_warning_info_all_durably_recorded(tmp_path):
@@ -22,13 +23,12 @@ def test_dispatch_failure_never_raises_and_safety_unaffected(tmp_path):
     assert decision == "HALT"
 
 
-
 def test_details_roundtrip_and_jsonl_shape(tmp_path):
     d = AlertDispatcher(str(tmp_path / "a.jsonl"))
-    d.dispatch(Alert(Severity.INFO, "reconciled", "ok",
-                     details={"symbols": 2}))
+    d.dispatch(Alert(Severity.INFO, "reconciled", "ok", details={"symbols": 2}))
     rec = d.read_durable()[0]
     assert rec["details"] == {"symbols": 2}
+
 
 def test_dispatch_failure_swallowed_not_raised(tmp_path):
     blocker = tmp_path / "blocker2"

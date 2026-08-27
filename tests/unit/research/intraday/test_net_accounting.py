@@ -50,10 +50,7 @@ class TestFlipAccounting:
         close = 50 * np.exp(np.cumsum(rng.normal(0, 5e-4, n)))
         df = _flat_df(close.tolist())
         sig = pd.Series(np.sign(rng.normal(0, 1, n)), index=df.index)
-        totals = [
-            bt_net(df, sig, hp=1, cost_one_way=c).total_net_ret
-            for c in (0.0, 1e-4, 5e-4, 2e-3)
-        ]
+        totals = [bt_net(df, sig, hp=1, cost_one_way=c).total_net_ret for c in (0.0, 1e-4, 5e-4, 2e-3)]
         assert all(a >= b for a, b in zip(totals, totals[1:]))
 
     def test_extreme_cost_forces_negative_net(self):
@@ -63,9 +60,7 @@ class TestFlipAccounting:
         df = _flat_df(close.tolist())
         sig = pd.Series(np.sign(rng.normal(0, 1, n)), index=df.index)
         gross = bt_net(df, sig, hp=1, cost_one_way=0.0).total_gross_ret
-        wrecked = bt_net(
-            df, sig, hp=1, cost_one_way=abs(gross) + 0.01
-        ).total_net_ret
+        wrecked = bt_net(df, sig, hp=1, cost_one_way=abs(gross) + 0.01).total_net_ret
         assert wrecked < 0 < gross or (gross < 0 and wrecked < gross)
 
     def test_constant_position_charges_only_entry_exit(self):
@@ -138,8 +133,7 @@ class TestValidationAndAnnualization:
     def test_annualization_parameters_recorded(self, tmp_path=None):
         df = _flat_df(list(100 + np.arange(80) * 0.05))
         sig = pd.Series(1.0, index=df.index)
-        r = bt_net(df, sig, hp=2, bars_per_trading_day=96,
-                   trading_days_per_year=260, cost_one_way=COST)
+        r = bt_net(df, sig, hp=2, bars_per_trading_day=96, trading_days_per_year=260, cost_one_way=COST)
         assert r.bars_per_trading_day == 96
         assert r.trading_days_per_year == 260
         assert r.hp == 2
@@ -161,6 +155,5 @@ class TestSerialization:
         d1 = bt_net(df, sig, hp=1, cost_one_way=COST).to_dict()
         d2 = NetResult(**d1).to_dict()
         assert d1 == d2
-        for key in ("gross_sharpe", "net_sharpe", "n_flips",
-                    "total_cost_drag", "max_dd", "exposure"):
+        for key in ("gross_sharpe", "net_sharpe", "n_flips", "total_cost_drag", "max_dd", "exposure"):
             assert key in d1

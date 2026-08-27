@@ -75,7 +75,7 @@ def test_position_flat_invariant():
             quantity=0,
             average_entry_price=4000.0,
         )
-        assert False, "Should reject"
+        raise AssertionError("Should reject")
     except ValueError as e:
         assert "Invariant violated" in str(e)
 
@@ -97,13 +97,13 @@ def test_position_not_nan_inf():
     """Test NaN/inf quantities are rejected."""
     try:
         Position(instrument_id=_next_instrument(), quantity=float("nan"))
-        assert False, "Should reject NaN quantity"
+        raise AssertionError("Should reject NaN quantity")
     except ValueError:
         pass
 
     try:
         Position(instrument_id=_next_instrument(), quantity=float("inf"))
-        assert False, "Should reject inf quantity"
+        raise AssertionError("Should reject inf quantity")
     except ValueError:
         pass
 

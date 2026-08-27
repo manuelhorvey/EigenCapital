@@ -13,8 +13,7 @@ class TestNoHardcodedCredentials:
     @staticmethod
     def _scan_py_files():
         src_dir = Path(__file__).resolve().parent.parent.parent / "src"
-        for p in src_dir.rglob("*.py"):
-            yield p
+        yield from src_dir.rglob("*.py")
 
     def test_no_hardcoded_passwords(self):
         pattern = re.compile(r"""(?:password|passwd)\s*=\s*["'][^"']+["']""", re.IGNORECASE)
@@ -24,7 +23,7 @@ class TestNoHardcodedCredentials:
                 continue
             content = py_file.read_text(errors="replace")
             for match in pattern.finditer(content):
-                line_no = content[:match.start()].count("\n") + 1
+                line_no = content[: match.start()].count("\n") + 1
                 violations.append(f"{py_file}:{line_no}: {match.group()[:60]}")
         assert not violations, "Hardcoded passwords:\n" + "\n".join(violations)
 
@@ -36,14 +35,11 @@ class TestNoHardcodedCredentials:
                 continue
             content = py_file.read_text(errors="replace")
             for match in pattern.finditer(content):
-                line_no = content[:match.start()].count("\n") + 1
+                line_no = content[: match.start()].count("\n") + 1
                 violations.append(f"{py_file}:{line_no}")
         assert not violations, "Hardcoded API keys:\n" + "\n".join(violations)
 
-    @pytest.mark.skipif(
-        not importlib.util.find_spec("mt5linux"),
-        reason="mt5linux not installed (CI environment)"
-    )
+    @pytest.mark.skipif(not importlib.util.find_spec("mt5linux"), reason="mt5linux not installed (CI environment)")
     def test_telegram_tokens_from_env(self):
         monitor = importlib.import_module("scripts.r4_monitor")
         source = inspect.getsource(monitor)
@@ -53,6 +49,7 @@ class TestNoHardcodedCredentials:
 class TestAuditLogSecurity:
     def test_audit_log_no_credentials(self):
         from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope
+
         enforcer = RiskEnforcer(RiskEnvelope())
         enforcer.check_all(broker_positions=[], account_equity=5000.0, account_free_margin=3000.0)
         for entry in enforcer.get_audit_log():
@@ -63,8 +60,9 @@ class TestAuditLogSecurity:
 
     def test_fingerprint_log_no_secrets(self):
         from eigencapital.fidelity.r4_manifest import R4ConfigManifest
-        from eigencapital.risk.policy import RiskPolicy
         from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
+        from eigencapital.risk.policy import RiskPolicy
+
         verifier = FingerprintVerifier(manifest=R4ConfigManifest(), risk_policy=RiskPolicy())
         verifier.verify_all()
         for entry in verifier.verification_log:
@@ -101,12 +99,14 @@ class TestSecurityBoundaries:
 class TestConfigurationManifest:
     def test_manifest_fingerprint_deterministic(self):
         from eigencapital.production.security import ConfigurationManifest
+
         m1 = ConfigurationManifest(strategy_config_hash="abc123", risk_config_hash="def456")
         m2 = ConfigurationManifest(strategy_config_hash="abc123", risk_config_hash="def456")
         assert m1.to_dict() == m2.to_dict()
 
     def test_manifest_tamper_detection(self):
         from eigencapital.production.security import ConfigurationManifest
+
         m1 = ConfigurationManifest(strategy_config_hash="abc123")
         m2 = ConfigurationManifest(strategy_config_hash="xyz789")
         assert m1.to_dict() != m2.to_dict()

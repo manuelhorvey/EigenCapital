@@ -1,8 +1,9 @@
 """Unit tests for Bar normalizer."""
 
 import pytest
-from eigencapital.data.normalization.bars import BarNormalizer, NormalizationError
+
 from eigencapital.data.loaders.base import RawRecord
+from eigencapital.data.normalization.bars import BarNormalizer, NormalizationError
 
 
 def _make_raw_record(**overrides):

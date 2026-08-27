@@ -57,15 +57,13 @@ def test_risk_decision_status_validation():
     assert rd.decision == "REJECTED"
     try:
         _make_decision(decision="UNKNOWN")
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "Invalid risk decision" in str(e)
 
 
 def test_risk_decision_rejected_implies_zero():
-    rd = _make_decision(
-        decision="REJECTED", approved_position=0.0, reason="Exceeds max leverage"
-    )
+    rd = _make_decision(decision="REJECTED", approved_position=0.0, reason="Exceeds max leverage")
     assert rd.is_rejected
     assert rd.approved_position == 0.0
 
@@ -73,7 +71,7 @@ def test_risk_decision_rejected_implies_zero():
 def test_risk_decision_rejected_nonzero_rejected():
     try:
         _make_decision(decision="REJECTED", approved_position=5.0)
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "REJECTED must have approved_position = 0" in str(e)
 
@@ -86,9 +84,7 @@ def test_risk_decision_no_var_breach():
 def test_risk_decision_risk_checks_is_list():
     checks = [
         _make_check(check_id="a"),
-        _make_check(
-            check_id="b", status="WARN", observed=0.08, limit=0.10, message="Near limit"
-        ),
+        _make_check(check_id="b", status="WARN", observed=0.08, limit=0.10, message="Near limit"),
     ]
     rd = _make_decision(risk_checks=checks)
     assert isinstance(rd.risk_checks, list)
@@ -99,9 +95,7 @@ def test_risk_decision_risk_checks_is_list():
 def test_risk_decision_check_status_method():
     checks = [
         _make_check(check_id="lev", status="PASS"),
-        _make_check(
-            check_id="dd", status="FAIL", observed=0.12, limit=0.10, message="Breached"
-        ),
+        _make_check(check_id="dd", status="FAIL", observed=0.12, limit=0.10, message="Breached"),
     ]
     rd = _make_decision(risk_checks=checks)
     assert rd.check_status("lev") is not None

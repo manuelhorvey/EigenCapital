@@ -22,15 +22,11 @@ class TestEmbargoExclusion:
         curve = _curve()
         result = purged_walk_forward(curve, embargo_bars=5, **self.PARAMS)
         assert result.total_windows == 6
-        zones = [
-            (w.test_end, w.test_end + 5)
-            for w in result.windows[:-1]
-        ]
+        zones = [(w.test_end, w.test_end + 5) for w in result.windows[:-1]]
         for window in result.windows:
             train_set = set(window.train_indices)
             for zone_start, zone_end in zones:
-                overlap = range(max(zone_start, window.train_start),
-                                min(zone_end, window.train_end))
+                overlap = range(max(zone_start, window.train_start), min(zone_end, window.train_end))
                 assert not train_set & set(overlap)
 
     def test_geometry_unchanged_by_embargo(self):
@@ -52,9 +48,7 @@ class TestEmbargoExclusion:
         curve = _curve()
         result = purged_walk_forward(curve, embargo_bars=0, **self.PARAMS)
         for window in result.windows:
-            assert window.train_indices == tuple(
-                range(window.train_start, window.train_end)
-            )
+            assert window.train_indices == tuple(range(window.train_start, window.train_end))
             assert window.in_sample_return == pytest.approx(
                 curve[window.train_end - 1] / curve[window.train_start] - 1.0
             )
@@ -69,9 +63,7 @@ class TestEmbargoExclusion:
             purge_bars=2,
             embargo_bars=embargo,
         )
-        zones = [
-            (w.test_end, w.test_end + embargo) for w in result.windows[:-1]
-        ]
+        zones = [(w.test_end, w.test_end + embargo) for w in result.windows[:-1]]
         gapped_found = False
         for window in result.windows:
             indices = list(window.train_indices)
@@ -80,22 +72,16 @@ class TestEmbargoExclusion:
                 if b != a + 1:
                     gapped_found = True
                     for i in range(a + 1, b):
-                        assert any(zs <= i < ze for zs, ze in zones), (
-                            "gap contains a bar that is not embargoed"
-                        )
+                        assert any(zs <= i < ze for zs, ze in zones), "gap contains a bar that is not embargoed"
         assert gapped_found
 
     def test_multi_segment_windows_report_zero_in_sample_return(self):
         curve = _curve(200)
-        result = purged_walk_forward(
-            curve, train_bars=50, test_bars=10, purge_bars=2, embargo_bars=8
-        )
+        result = purged_walk_forward(curve, train_bars=50, test_bars=10, purge_bars=2, embargo_bars=8)
         multi_segment_windows = 0
         for window in result.windows:
             idx = window.train_indices
-            n_segments = 1 + sum(
-                1 for a, b in zip(idx, idx[1:]) if b != a + 1
-            )
+            n_segments = 1 + sum(1 for a, b in zip(idx, idx[1:]) if b != a + 1)
             if n_segments > 1:
                 multi_segment_windows += 1
                 assert window.in_sample_return == 0.0
@@ -149,7 +135,5 @@ class TestValidationAndEdgeCases:
     def test_default_embargo_is_zero_backwards_compatible(self):
         curve = _curve()
         default = purged_walk_forward(curve, train_bars=30, test_bars=10, purge_bars=2)
-        explicit = purged_walk_forward(
-            curve, train_bars=30, test_bars=10, purge_bars=2, embargo_bars=0
-        )
+        explicit = purged_walk_forward(curve, train_bars=30, test_bars=10, purge_bars=2, embargo_bars=0)
         assert default.to_dict() == explicit.to_dict()

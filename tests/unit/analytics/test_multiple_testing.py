@@ -1,11 +1,12 @@
 """Tests for multiple-testing correction."""
 
 import pytest
+
 from eigencapital.analytics.validation.multiple_testing import (
-    multiple_testing_correction,
+    benjamini_hochberg,
     bonferroni,
     holm,
-    benjamini_hochberg,
+    multiple_testing_correction,
 )
 
 

@@ -8,6 +8,7 @@ Tests cover:
 - Corrupted baseline handling
 - Boundary conditions
 """
+
 from __future__ import annotations
 
 import json
@@ -20,7 +21,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from eigencapital.live.daily_loss import DailyLossTracker, DailyBaseline
+from eigencapital.live.daily_loss import DailyBaseline, DailyLossTracker
 
 
 @pytest.fixture
@@ -111,7 +112,7 @@ class TestMidnightRollover:
         assert tracker.daily_loss == 200.0
 
         # Simulate new day by changing the tracker's internal date
-        today = tracker._today_str()
+        tracker._today_str()
         # Force a different date
         tracker._baseline = DailyBaseline(
             date_str="2020-01-01",  # Different day

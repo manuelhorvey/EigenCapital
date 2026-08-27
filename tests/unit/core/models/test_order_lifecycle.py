@@ -66,7 +66,7 @@ def test_lifecycle_fill_aggregate_invariant():
     f3 = _make_fill(fill_id=f"F_{_counter}_3", quantity=10.0)
     try:
         lc.add_fill(f3)
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "invariant violated" in str(e).lower()
 
@@ -78,7 +78,7 @@ def test_lifecycle_individual_fills_valid_but_overfill():
     f2 = _make_fill(fill_id=f"F_{_counter}_2", quantity=60.0)
     try:
         lc.add_fill(f2)
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "exceed order quantity" in str(e).lower()
 
@@ -105,7 +105,7 @@ def test_lifecycle_remove_fill_not_found():
     lc = _make_lifecycle()
     try:
         lc.remove_fill("NONEXISTENT")
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "not found" in str(e)
 
@@ -116,7 +116,7 @@ def test_lifecycle_duplicate_fill_rejected():
     lc.add_fill(f1)
     try:
         lc.add_fill(f1)
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "already exists" in str(e)
 

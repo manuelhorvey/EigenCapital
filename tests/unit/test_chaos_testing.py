@@ -9,6 +9,7 @@ Randomly injects failures and verifies the system:
 
 Each chaos scenario is deterministic (seeded) for reproducibility.
 """
+
 from __future__ import annotations
 
 import os
@@ -23,7 +24,7 @@ from eigencapital.config import load_config
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.live.daily_loss import DailyLossTracker
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
-from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope, GateResult
+from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope
 from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 from eigencapital.risk.policy import RiskPolicy
 
@@ -36,10 +37,15 @@ def config():
 @pytest.fixture
 def envelope():
     return RiskEnvelope(
-        max_concurrent_positions=19, max_position_notional=5000.0,
-        max_order_notional=1500.0, max_per_position_loss_pct=0.10,
-        max_account_drawdown_pct=0.10, max_daily_loss=250.0,
-        min_equity=4000.0, require_sl_on_positions=False, t0_equity=5010.94,
+        max_concurrent_positions=19,
+        max_position_notional=5000.0,
+        max_order_notional=1500.0,
+        max_per_position_loss_pct=0.10,
+        max_account_drawdown_pct=0.10,
+        max_daily_loss=250.0,
+        min_equity=4000.0,
+        require_sl_on_positions=False,
+        t0_equity=5010.94,
     )
 
 
@@ -56,14 +62,15 @@ class TestChaosScenarios:
             mutation = rng.choice(["manifest", "risk", "live_risk", "version"])
 
             if mutation == "manifest":
-                verifier._manifest = R4ConfigManifest(strategy_version=f"R4.{rng.randint(1,99)}")
+                verifier._manifest = R4ConfigManifest(strategy_version=f"R4.{rng.randint(1, 99)}")
             elif mutation == "risk":
                 verifier._risk_policy = RiskPolicy(max_drawdown_pct=rng.uniform(1, 100))
             elif mutation == "live_risk":
                 from eigencapital.config import LiveRiskConfig
+
                 verifier._live_risk = LiveRiskConfig(max_daily_loss=rng.uniform(1, 10000))
             elif mutation == "version":
-                verifier._manifest = R4ConfigManifest(strategy_version=f"V{rng.randint(1,99)}")
+                verifier._manifest = R4ConfigManifest(strategy_version=f"V{rng.randint(1, 99)}")
 
             result = verifier.verify_all()
             assert not result.all_verified, f"Mutation {mutation} was not detected"
@@ -79,9 +86,16 @@ class TestChaosScenarios:
             free_margin = rng.uniform(0, equity)
 
             positions = [
-                {"symbol": f"S{i}", "volume": rng.uniform(0.01, 1.0),
-                 "type": rng.choice([0, 1]), "sl": 0, "tp": 0,
-                 "profit": 0, "magic": 0, "comment": ""}
+                {
+                    "symbol": f"S{i}",
+                    "volume": rng.uniform(0.01, 1.0),
+                    "type": rng.choice([0, 1]),
+                    "sl": 0,
+                    "tp": 0,
+                    "profit": 0,
+                    "magic": 0,
+                    "comment": "",
+                }
                 for i in range(num_positions)
             ]
 
@@ -122,8 +136,7 @@ class TestChaosScenarios:
         for _ in range(50):
             r = DisconnectRecovery(max_recovery_attempts=3)
             events = rng.choices(
-                ["disconnect", "reconnect", "reconcile_pass", "reconcile_fail",
-                 "resume_pass", "resume_fail", "reset"],
+                ["disconnect", "reconnect", "reconcile_pass", "reconcile_fail", "resume_pass", "resume_fail", "reset"],
                 k=rng.randint(1, 10),
             )
 
@@ -135,28 +148,38 @@ class TestChaosScenarios:
                 elif event == "reconcile_pass":
                     if r.state == RecoveryState.RECONCILING:
                         r.submit_reconciliation(
-                            positions_match=True, orders_match=True,
-                            equity_match=True, fingerprint_match=True,
+                            positions_match=True,
+                            orders_match=True,
+                            equity_match=True,
+                            fingerprint_match=True,
                         )
                 elif event == "reconcile_fail":
                     if r.state == RecoveryState.RECONCILING:
                         r.submit_reconciliation(
-                            positions_match=False, orders_match=True,
-                            equity_match=True, fingerprint_match=True,
+                            positions_match=False,
+                            orders_match=True,
+                            equity_match=True,
+                            fingerprint_match=True,
                         )
                 elif event == "resume_pass":
                     if r.state == RecoveryState.RECONCILING and r._reconciled:
                         r.request_resume(
-                            data_fresh=True, positions_reconciled=True,
-                            no_unexpected_orders=True, risk_limits_passing=True,
-                            config_fingerprint_unchanged=True, health_state="healthy",
+                            data_fresh=True,
+                            positions_reconciled=True,
+                            no_unexpected_orders=True,
+                            risk_limits_passing=True,
+                            config_fingerprint_unchanged=True,
+                            health_state="healthy",
                         )
                 elif event == "resume_fail":
                     if r.state == RecoveryState.RECONCILING and r._reconciled:
                         r.request_resume(
-                            data_fresh=False, positions_reconciled=True,
-                            no_unexpected_orders=True, risk_limits_passing=True,
-                            config_fingerprint_unchanged=True, health_state="healthy",
+                            data_fresh=False,
+                            positions_reconciled=True,
+                            no_unexpected_orders=True,
+                            risk_limits_passing=True,
+                            config_fingerprint_unchanged=True,
+                            health_state="healthy",
                         )
                 elif event == "reset":
                     if r.state == RecoveryState.FROZEN:
@@ -180,8 +203,9 @@ class TestConcurrentSafety:
         enforcer = RiskEnforcer(envelope)
         verifier = FingerprintVerifier(config=config)
 
-        positions = [{"symbol": "EURUSD", "volume": 0.01, "type": 0,
-                       "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}]
+        positions = [
+            {"symbol": "EURUSD", "volume": 0.01, "type": 0, "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
+        ]
 
         for i in range(1000):
             # Alternate between risk check and fingerprint
@@ -214,22 +238,26 @@ class TestBoundaryConditions:
         enforcer = RiskEnforcer(envelope)
 
         # 19 positions
-        positions_19 = [{"symbol": f"S{i}", "volume": 0.01, "type": 0,
-                          "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
-                         for i in range(19)]
+        positions_19 = [
+            {"symbol": f"S{i}", "volume": 0.01, "type": 0, "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
+            for i in range(19)
+        ]
         passed, results = enforcer.check_all(
             broker_positions=positions_19,
-            account_equity=5010.94, account_free_margin=4900.0,
+            account_equity=5010.94,
+            account_free_margin=4900.0,
         )
         pos_gate = next(r for r in results if r.gate_name == "position_count")
         assert pos_gate.result == GateResult.PASS
 
         # 20 positions
-        positions_20 = positions_19 + [{"symbol": "S19", "volume": 0.01, "type": 0,
-                                         "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}]
+        positions_20 = positions_19 + [
+            {"symbol": "S19", "volume": 0.01, "type": 0, "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
+        ]
         passed, results = enforcer.check_all(
             broker_positions=positions_20,
-            account_equity=5010.94, account_free_margin=4900.0,
+            account_equity=5010.94,
+            account_free_margin=4900.0,
         )
         pos_gate = next(r for r in results if r.gate_name == "position_count")
         assert pos_gate.result == GateResult.CRITICAL
@@ -241,7 +269,9 @@ class TestBoundaryConditions:
 
         # $4000
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=4000.0, account_free_margin=3900.0,
+            broker_positions=[],
+            account_equity=4000.0,
+            account_free_margin=3900.0,
         )
         eq_gate = next(r for r in results if r.gate_name == "equity_floor")
         assert eq_gate.result == GateResult.PASS
@@ -249,7 +279,9 @@ class TestBoundaryConditions:
         # $3999.99
         enforcer._peak_equity = 3999.99
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=3999.99, account_free_margin=3900.0,
+            broker_positions=[],
+            account_equity=3999.99,
+            account_free_margin=3900.0,
         )
         eq_gate = next(r for r in results if r.gate_name == "equity_floor")
         assert eq_gate.result == GateResult.CRITICAL

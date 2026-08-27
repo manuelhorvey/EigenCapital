@@ -6,6 +6,7 @@ These tests verify that:
 3. All components are checked
 4. Audit trail is maintained
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -17,11 +18,11 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from eigencapital.config import load_config, LiveRiskConfig
+from eigencapital.config import LiveRiskConfig, load_config
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.production_qual.fingerprint_verifier import (
-    FingerprintVerifier,
     FingerprintVerificationResult,
+    FingerprintVerifier,
 )
 from eigencapital.risk.policy import RiskPolicy
 
@@ -101,9 +102,7 @@ class TestMutationDetection:
     def test_risk_policy_mutation_detected(self, config):
         """Changing risk policy parameters should be detected."""
         baseline_policy = RiskPolicy()
-        baseline_fp = hashlib.sha256(
-            json.dumps(baseline_policy.to_dict(), sort_keys=True).encode()
-        ).hexdigest()
+        baseline_fp = hashlib.sha256(json.dumps(baseline_policy.to_dict(), sort_keys=True).encode()).hexdigest()
         verifier = FingerprintVerifier(config=config, risk_policy=baseline_policy)
         # Override frozen fingerprint to baseline
         verifier._frozen_risk_fp = baseline_fp

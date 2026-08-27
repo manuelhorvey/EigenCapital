@@ -3,7 +3,7 @@
 Tests invariants, UTC-end invariant, price hierarchy, serialization, and deterministic behavior.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from eigencapital.core.models.bar import Bar, BarInterval
 
@@ -16,7 +16,7 @@ def clear_registry():
 
 def make_utc_iso(year, month, day, hour, minute, second=0):
     """Helper to create ISO-8601 UTC string."""
-    dt = datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc)
+    dt = datetime(year, month, day, hour, minute, second, tzinfo=UTC)
     return dt.isoformat().replace("+00:00", "Z")
 
 
@@ -78,7 +78,7 @@ def test_bar_utc_end_invariant():
             close=4505.0,
             volume=1000,
         )
-        assert False, "Should have raised ValueError for UTC invariant violation"
+        raise AssertionError("Should have raised ValueError for UTC invariant violation")
     except ValueError as e:
         assert "timestamp_utc" in str(e) and "bar_end_utc" in str(e)
     print("  PASS: test_bar_utc_end_invariant")
@@ -114,7 +114,7 @@ def test_bar_chronological_order():
             close=4505.0,
             volume=1000,
         )
-        assert False, "Should have raised ValueError for bar_start >= timestamp"
+        raise AssertionError("Should have raised ValueError for bar_start >= timestamp")
     except ValueError as e:
         assert "bar_start_utc" in str(e) and "timestamp_utc" in str(e)
     print("  PASS: test_bar_chronological_order")
@@ -150,7 +150,7 @@ def test_bar_price_hierarchy():
             close=4505.0,
             volume=1000,
         )
-        assert False, "Should have raised ValueError for high < max(open,close)"
+        raise AssertionError("Should have raised ValueError for high < max(open,close)")
     except ValueError as e:
         assert "high" in str(e) and "max" in str(e)
     print("  PASS: test_bar_price_hierarchy high check")
@@ -168,7 +168,7 @@ def test_bar_price_hierarchy():
             close=4505.0,
             volume=1000,
         )
-        assert False, "Should have raised ValueError for low > min(open,close)"
+        raise AssertionError("Should have raised ValueError for low > min(open,close)")
     except ValueError as e:
         assert "low" in str(e) and "min" in str(e)
     print("  PASS: test_bar_price_hierarchy low check")
@@ -189,7 +189,7 @@ def test_bar_price_must_be_positive():
             close=4505.0,
             volume=1000,
         )
-        assert False, "Should have raised ValueError for open=0"
+        raise AssertionError("Should have raised ValueError for open=0")
     except ValueError as e:
         assert "open must be > 0" in str(e)
     print("  PASS: test_bar_price_must_be_positive open")
@@ -206,7 +206,7 @@ def test_bar_price_must_be_positive():
             close=4505.0,
             volume=1000,
         )
-        assert False, "Should have raised ValueError for low=0"
+        raise AssertionError("Should have raised ValueError for low=0")
     except ValueError as e:
         assert "low must be > 0" in str(e)
     print("  PASS: test_bar_price_must_be_positive low")
@@ -242,7 +242,7 @@ def test_bar_volume_nonnegative():
             close=4505.0,
             volume=-1,  # invalid
         )
-        assert False, "Should have raised ValueError for negative volume"
+        raise AssertionError("Should have raised ValueError for negative volume")
     except ValueError as e:
         assert "volume must be >= 0" in str(e)
     print("  PASS: test_bar_volume_nonnegative negative")
@@ -266,7 +266,7 @@ def test_bar_nan_inf_prices():
             close=4505.0,
             volume=1000,
         )
-        assert False, "Should have raised ValueError for NaN open"
+        raise AssertionError("Should have raised ValueError for NaN open")
     except ValueError as e:
         assert "finite" in str(e).lower()
     print("  PASS: NaN open rejected")
@@ -284,7 +284,7 @@ def test_bar_nan_inf_prices():
             close=4505.0,
             volume=1000,
         )
-        assert False, "Should have raised ValueError for inf high"
+        raise AssertionError("Should have raised ValueError for inf high")
     except ValueError as e:
         assert "finite" in str(e).lower()
     print("  PASS: inf high rejected")
@@ -417,7 +417,7 @@ def test_bar_interval_enum():
     # Invalid interval
     try:
         BarInterval(value="10m")
-        assert False, "Should reject invalid interval"
+        raise AssertionError("Should reject invalid interval")
     except ValueError:
         pass  # Expected
 
@@ -488,7 +488,7 @@ def test_bar_negative_quantity():
             close=4505.0,
             volume=-1,
         )
-        assert False, "Negative volume should be rejected"
+        raise AssertionError("Negative volume should be rejected")
     except ValueError:
         pass  # Expected
     print("  PASS: test_bar_negative_quantity")

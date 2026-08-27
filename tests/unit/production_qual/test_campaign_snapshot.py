@@ -18,19 +18,18 @@ from typing import Any
 import pytest
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
+from eigencapital.production_qual.campaign_snapshot import (
+    capture_start_snapshot,
+)
 from eigencapital.production_qual.pre_trading import (
     BrokerStateSnapshot,
     PreTradingAuthorization,
     PreTradingDecision,
 )
-from eigencapital.production_qual.campaign_snapshot import (
-    capture_start_snapshot,
-)
 from eigencapital.production_qual.prefunding_gate import (
     GateRecord,
 )
 from eigencapital.risk.policy import RiskPolicy
-
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
@@ -109,13 +108,15 @@ class TestCaptureStartSnapshot:
     def test_with_positions(self) -> None:
         """Snapshot captures existing positions."""
         broker = _make_broker_state(
-            positions=[{
-                "ticket": 11111,
-                "symbol": "EURUSDm",
-                "side": "BUY",
-                "volume": 0.1,
-                "price_open": 1.1000,
-            }],
+            positions=[
+                {
+                    "ticket": 11111,
+                    "symbol": "EURUSDm",
+                    "side": "BUY",
+                    "volume": 0.1,
+                    "price_open": 1.1000,
+                }
+            ],
             position_count=1,
         )
         gate = _make_gate_record()
@@ -131,10 +132,8 @@ class TestCaptureStartSnapshot:
         """Total and net exposure computed from positions."""
         broker = _make_broker_state(
             positions=[
-                {"ticket": 1, "symbol": "EURUSDm", "side": "BUY",
-                 "volume": 0.1, "price_open": 1.1000},
-                {"ticket": 2, "symbol": "GBPUSDm", "side": "SELL",
-                 "volume": 0.2, "price_open": 1.2500},
+                {"ticket": 1, "symbol": "EURUSDm", "side": "BUY", "volume": 0.1, "price_open": 1.1000},
+                {"ticket": 2, "symbol": "GBPUSDm", "side": "SELL", "volume": 0.2, "price_open": 1.2500},
             ],
             position_count=2,
         )
@@ -230,9 +229,7 @@ class TestSnapshotHash:
         original_hash = snap.snapshot_hash
 
         # Create a new snapshot with different data
-        snap2 = capture_start_snapshot(
-            _make_broker_state(equity=6000.0), auth, gate
-        )
+        snap2 = capture_start_snapshot(_make_broker_state(equity=6000.0), auth, gate)
 
         assert snap2.snapshot_hash != original_hash
 
@@ -358,13 +355,15 @@ class TestSnapshotSerialization:
     def test_to_markdown_with_positions(self) -> None:
         """Markdown includes position table when positions exist."""
         broker = _make_broker_state(
-            positions=[{
-                "ticket": 11111,
-                "symbol": "EURUSDm",
-                "side": "BUY",
-                "volume": 0.1,
-                "price_open": 1.1000,
-            }],
+            positions=[
+                {
+                    "ticket": 11111,
+                    "symbol": "EURUSDm",
+                    "side": "BUY",
+                    "volume": 0.1,
+                    "price_open": 1.1000,
+                }
+            ],
             position_count=1,
         )
         gate = _make_gate_record()

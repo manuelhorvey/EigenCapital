@@ -1,11 +1,12 @@
 """Unit tests for Instrument Catalogue."""
 
 import pytest
+
 from eigencapital.core.models.instrument import Instrument
 from eigencapital.data.catalogue.catalogue import (
+    DuplicateInstrumentError,
     InstrumentCatalogue,
     InstrumentNotFoundError,
-    DuplicateInstrumentError,
 )
 from eigencapital.data.catalogue.schemas import (
     CATALOGUE,
@@ -130,8 +131,8 @@ class TestSchemas:
 
 class TestRepository:
     def test_save_and_load(self, tmp_path):
-        from eigencapital.data.catalogue.repository import CatalogueRepository
         from eigencapital.core.models.instrument import Instrument
+        from eigencapital.data.catalogue.repository import CatalogueRepository
 
         repo = CatalogueRepository(tmp_path)
         inst = _make_instrument()
@@ -141,8 +142,8 @@ class TestRepository:
         assert loaded.instrument_id == inst.instrument_id
 
     def test_load_not_found(self, tmp_path):
-        from eigencapital.data.catalogue.repository import CatalogueRepository
         from eigencapital.data.catalogue.catalogue import InstrumentNotFoundError
+        from eigencapital.data.catalogue.repository import CatalogueRepository
 
         repo = CatalogueRepository(tmp_path)
         with pytest.raises(InstrumentNotFoundError):
@@ -161,8 +162,8 @@ class TestRepository:
         assert i2.instrument_id in ids
 
     def test_save_catalogue(self, tmp_path):
-        from eigencapital.data.catalogue.repository import CatalogueRepository
         from eigencapital.core.models.instrument import Instrument
+        from eigencapital.data.catalogue.repository import CatalogueRepository
 
         repo = CatalogueRepository(tmp_path)
         cat = InstrumentCatalogue()

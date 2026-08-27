@@ -1,6 +1,6 @@
 """Unit tests for EigenCapital domain models — StrategyIntent."""
 
-from eigencapital.core.models.strategy_intent import StrategyIntent, Horizon
+from eigencapital.core.models.strategy_intent import Horizon, StrategyIntent
 
 _counter = 0
 
@@ -41,7 +41,7 @@ def test_strategy_intent_direction_valid():
     assert _make_si(direction=0).direction == 0
     try:
         _make_si(direction=2)
-        assert False
+        raise AssertionError()
     except ValueError:
         pass
 
@@ -50,7 +50,7 @@ def test_strategy_intent_target_risk_nonnegative():
     assert _make_si(target_risk=0.0).target_risk == 0.0
     try:
         _make_si(target_risk=-0.001)
-        assert False
+        raise AssertionError()
     except ValueError:
         pass
 
@@ -58,12 +58,12 @@ def test_strategy_intent_target_risk_nonnegative():
 def test_strategy_intent_config_hash_required():
     try:
         _make_si(strategy_config_hash="")
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "strategy_config_hash must be non-empty" in str(e)
     try:
         _make_si(strategy_artifact_hash="")
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "strategy_artifact_hash must be non-empty" in str(e)
 
@@ -125,7 +125,7 @@ def test_strategy_intent_intended_position_not_in_model():
 def test_strategy_intent_nan_directions():
     try:
         _make_si(direction=float("nan"))
-        assert False
+        raise AssertionError()
     except ValueError:
         pass
 
@@ -133,7 +133,7 @@ def test_strategy_intent_nan_directions():
 def test_strategy_intent_negative_target_risk():
     try:
         _make_si(target_risk=-0.001)
-        assert False
+        raise AssertionError()
     except ValueError:
         pass
 

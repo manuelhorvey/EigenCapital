@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import math
-import tempfile
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -456,7 +452,7 @@ class TestMeanReversionDeviation:
             volumes = [1000.0] * len(closes)
 
         bars = []
-        for i, (c, h, l, v) in enumerate(zip(closes, highs, lows, volumes)):
+        for i, (c, h, idx, v) in enumerate(zip(closes, highs, lows, volumes)):
             start_ts = f"2026-01-{i + 1:02d}T00:00:00Z"
             end_ts = f"2026-01-{i + 1:02d}T23:59:59Z"
             bars.append(
@@ -467,7 +463,7 @@ class TestMeanReversionDeviation:
                     bar_end_utc=end_ts,
                     open=c * 0.999,
                     high=h,
-                    low=l,
+                    low=idx,
                     close=c,
                     volume=v,
                 )
@@ -711,8 +707,11 @@ class TestRiskObservation:
 
         observer = RiskObserver(min_equity=4000.0, max_daily_loss=250.0)
         state = observer.observe(
-            equity=5000.0, balance=5000.0, free_margin=4500.0,
-            positions=[], daily_pnl=0.0,
+            equity=5000.0,
+            balance=5000.0,
+            free_margin=4500.0,
+            positions=[],
+            daily_pnl=0.0,
         )
         assert state.overall_level in ("HEALTHY", "NORMAL", "healthy", "normal")
 
@@ -721,12 +720,18 @@ class TestRiskObservation:
 
         observer = RiskObserver(min_equity=4000.0)
         observer.observe(
-            equity=7000.0, balance=7000.0, free_margin=6500.0,
-            positions=[], daily_pnl=0.0,
+            equity=7000.0,
+            balance=7000.0,
+            free_margin=6500.0,
+            positions=[],
+            daily_pnl=0.0,
         )
         state = observer.observe(
-            equity=6500.0, balance=6500.0, free_margin=6000.0,
-            positions=[], daily_pnl=-500.0,
+            equity=6500.0,
+            balance=6500.0,
+            free_margin=6000.0,
+            positions=[],
+            daily_pnl=-500.0,
         )
         assert state.observations is not None
 
@@ -736,8 +741,11 @@ class TestRiskObservation:
         observer = RiskObserver(min_equity=4000.0)
         positions = [{"symbol": "EURUSD", "volume": 0.01, "profit": 10.0}]
         state = observer.observe(
-            equity=5000.0, balance=5000.0, free_margin=4500.0,
-            positions=positions, daily_pnl=10.0,
+            equity=5000.0,
+            balance=5000.0,
+            free_margin=4500.0,
+            positions=positions,
+            daily_pnl=10.0,
         )
         assert state is not None
 

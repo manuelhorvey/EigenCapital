@@ -1,8 +1,8 @@
 """Tests for universe perturbation and concentration analysis."""
 
 from eigencapital.analytics.validation.universe import (
-    universe_perturbation,
     compute_concentration,
+    universe_perturbation,
 )
 
 

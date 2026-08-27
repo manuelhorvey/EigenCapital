@@ -9,6 +9,7 @@ These tests deliberately inject failures and verify the system:
 
 No failure should silently become a trading decision.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,11 +26,11 @@ from eigencapital.config import load_config
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.live.daily_loss import DailyLossTracker
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
+from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope
 from eigencapital.production_qual.fingerprint_verifier import (
     FingerprintVerifier,
 )
 from eigencapital.risk.policy import RiskPolicy
-from eigencapital.live.risk_enforcement import RiskEnforcer, RiskEnvelope, GateResult
 
 
 @pytest.fixture
@@ -64,7 +65,7 @@ class TestFingerprintBypass:
     def test_manifest_mutation_blocks_trading(self, config):
         """Changing manifest version → BLOCKED."""
         baseline = R4ConfigManifest()
-        baseline_fp = baseline.compute_identity()
+        baseline.compute_identity()
 
         verifier = FingerprintVerifier(config=config, manifest=baseline)
         # Mutate
@@ -76,9 +77,8 @@ class TestFingerprintBypass:
         """Changing risk policy → BLOCKED."""
         baseline = RiskPolicy()
         import hashlib
-        baseline_fp = hashlib.sha256(
-            json.dumps(baseline.to_dict(), sort_keys=True).encode()
-        ).hexdigest()
+
+        baseline_fp = hashlib.sha256(json.dumps(baseline.to_dict(), sort_keys=True).encode()).hexdigest()
 
         verifier = FingerprintVerifier(config=config, risk_policy=baseline)
         verifier._frozen_risk_fp = baseline_fp
@@ -101,9 +101,10 @@ class TestRiskGateBypass:
     def test_nine_positions_blocks(self, envelope):
         """20 positions → CRITICAL (breaches the 19-position limit)."""
         enforcer = RiskEnforcer(envelope)
-        positions = [{"symbol": f"SYM{i}", "volume": 0.01, "type": 0,
-                       "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
-                      for i in range(20)]
+        positions = [
+            {"symbol": f"SYM{i}", "volume": 0.01, "type": 0, "sl": 0, "tp": 0, "profit": 0, "magic": 0, "comment": ""}
+            for i in range(20)
+        ]
         passed, results = enforcer.check_all(
             broker_positions=positions,
             account_equity=5010.94,

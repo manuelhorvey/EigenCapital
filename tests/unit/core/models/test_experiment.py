@@ -83,7 +83,7 @@ class TestExperimentCreation:
 
     def test_duplicate_experiment_id_rejected(self):
         exp = _make_experiment()
-        with pytest.raises(ValueError, match="[Dd]uplicate"):
+        with pytest.raises(ValueError, match=r"[Dd]uplicate"):
             Experiment(**{**exp.__dict__, "parameters": dict(exp.parameters)})
 
 

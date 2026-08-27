@@ -1,13 +1,17 @@
 """Phase 1U item 5 - partial-fill policy: the killer scenarios."""
-from eigencapital.live.partial_fills import (
-    ChaseDecision, PartialFillManager)
+
+from eigencapital.live.partial_fills import ChaseDecision, PartialFillManager
 
 
 def _mgr(qty=0.10):
-    return PartialFillManager("ORD-1", requested_qty=qty,
-                              max_chase_attempts=1, max_age_seconds=60.0,
-                              max_cumulative_slippage_bps=15.0,
-                              reference_price=1.1000)
+    return PartialFillManager(
+        "ORD-1",
+        requested_qty=qty,
+        max_chase_attempts=1,
+        max_age_seconds=60.0,
+        max_cumulative_slippage_bps=15.0,
+        reference_price=1.1000,
+    )
 
 
 class TestKillerScenario:
@@ -15,8 +19,7 @@ class TestKillerScenario:
         m = _mgr()
         assert m.on_fill("f1", 0.06, 1.1002, ts=0) == "REMAINDER_OPEN"
         assert abs(m.remaining - 0.04) < 1e-12
-        assert m.decide(now_ts=10, spread_ok=True,
-                        risk_and_exposure_ok=True) == ChaseDecision.CHASE
+        assert m.decide(now_ts=10, spread_ok=True, risk_and_exposure_ok=True) == ChaseDecision.CHASE
         assert m.chase_attempts == 1
         assert m.on_fill("f2", 0.02, 1.1004, ts=30) == "REMAINDER_OPEN"
         # timeout on the final remainder -> cancel
@@ -75,4 +78,5 @@ class TestPolicyGuards:
 
 def pytest_approx(x):
     import pytest
+
     return pytest.approx(x)

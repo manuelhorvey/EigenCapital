@@ -1,4 +1,5 @@
 """Phase 1U item 3 - health monitor as enforcement in the live path."""
+
 from eigencapital.execution.account import AccountSnapshot
 from eigencapital.live.risk import HealthGate, HealthGateAction
 from eigencapital.monitoring.health import PortfolioHealthMonitor
@@ -10,10 +11,16 @@ def _gate():
 
 
 def _snap(ts="2026-08-25T12:00:00+00:00", equity=100_000.0):
-    return AccountSnapshot(timestamp_utc=ts, cash=equity * 0.5,
-                           equity=equity, realized_pnl=0.0,
-                           unrealized_pnl=0.0, gross_exposure=10_000.0,
-                           net_exposure=5_000.0, num_positions=1)
+    return AccountSnapshot(
+        timestamp_utc=ts,
+        cash=equity * 0.5,
+        equity=equity,
+        realized_pnl=0.0,
+        unrealized_pnl=0.0,
+        gross_exposure=10_000.0,
+        net_exposure=5_000.0,
+        num_positions=1,
+    )
 
 
 class TestGateSemantics:
@@ -22,9 +29,7 @@ class TestGateSemantics:
         assert action == HealthGateAction.TRADE
 
     def test_stale_snapshot_fails_closed_to_halt(self):
-        action, reason = _gate().evaluate(
-            _snap(ts="2026-08-25T11:00:00+00:00"),
-            now_utc="2026-08-25T12:00:30+00:00")
+        action, reason = _gate().evaluate(_snap(ts="2026-08-25T11:00:00+00:00"), now_utc="2026-08-25T12:00:30+00:00")
         assert action == HealthGateAction.HALT
         assert "critical" in str(reason).lower()
 
@@ -36,6 +41,7 @@ class TestGateSemantics:
         class Boom:
             def assess(self, *a, **k):
                 raise RuntimeError("boom")
+
         gate = HealthGate(Boom())
         action, reason = gate.evaluate(_snap())
         assert action == HealthGateAction.HALT
@@ -45,11 +51,8 @@ class TestGateSemantics:
         gate = HealthGate(PortfolioHealthMonitor(RiskPolicy()))
         # drive DEGRADED via warn-level drawdown (5% on default policy)
         snap = _snap(equity=94_000.0)
-        action, _ = gate.evaluate(
-            snap, now_utc="2026-08-25T12:00:10+00:00",
-            daily_pnl=0.0, weekly_pnl=-1_000.0)
-        assert action in (HealthGateAction.MANAGE_ONLY,
-                          HealthGateAction.TRADE)
+        action, _ = gate.evaluate(snap, now_utc="2026-08-25T12:00:10+00:00", daily_pnl=0.0, weekly_pnl=-1_000.0)
+        assert action in (HealthGateAction.MANAGE_ONLY, HealthGateAction.TRADE)
 
 
 class TestTamperEvidence:

@@ -12,19 +12,18 @@ Tests cover:
 
 import pytest
 
-from eigencapital.research.execution.record import ExecutionRecord, ExecutionStatus
+from eigencapital.features.feature_set import FeatureEntry, FeatureSet, FeatureStatus
+from eigencapital.features.pipeline import FeaturePipeline
+from eigencapital.research.costs.model import MODERATE_COST
 from eigencapital.research.execution.engine import (
-    ExecutionEngine,
     ExecutionConfig,
+    ExecutionEngine,
     ExecutionError,
 )
 from eigencapital.research.execution.ledger import ExecutionLedger
-from eigencapital.research.hypotheses.hypothesis import Hypothesis
+from eigencapital.research.execution.record import ExecutionRecord, ExecutionStatus
 from eigencapital.research.experiments.registry import ExperimentRegistry
-from eigencapital.research.costs.model import MODERATE_COST
-from eigencapital.features.pipeline import FeaturePipeline
-from eigencapital.features.feature_set import FeatureSet, FeatureEntry, FeatureStatus
-
+from eigencapital.research.hypotheses.hypothesis import Hypothesis
 
 # ───────────────────────────────────────────────
 #  Helpers

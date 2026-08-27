@@ -1,11 +1,12 @@
 """Unit tests for CostModel."""
 
 import pytest
+
 from eigencapital.research.costs.model import (
-    CostModel,
-    ZERO_COST,
     MODERATE_COST,
     STRESS_COST,
+    ZERO_COST,
+    CostModel,
 )
 
 

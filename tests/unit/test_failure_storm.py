@@ -2,14 +2,15 @@
 Failure storm testing: Simulate cascading and compound failures.
 Tests that the system never trades during compound failure conditions.
 """
+
 import hashlib
 import json
 from typing import List
 from unittest.mock import MagicMock
 
+from eigencapital.config import LiveRiskConfig
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.risk.policy import RiskPolicy
-from eigencapital.config import LiveRiskConfig
 
 
 class TestNetworkFlapping:
@@ -137,8 +138,9 @@ class TestDataCorruption:
     def test_corrupted_fingerprint_rejects(self):
         """Corrupted fingerprint must cause rejection."""
         import dataclasses
-        from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
+
         from eigencapital.fidelity.r4_manifest import R4ConfigManifest
+        from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 
         fv = FingerprintVerifier(manifest=R4ConfigManifest(), risk_policy=RiskPolicy())
         # Verify valid — same objects should match
@@ -180,8 +182,7 @@ class TestCompoundFailures:
         r.on_disconnect()
         r.on_reconnect()
         # Fingerprint mismatch in reconciliation
-        result = r.submit_reconciliation(True, True, True, False,
-                                         details="fingerprint_mismatch")
+        result = r.submit_reconciliation(True, True, True, False, details="fingerprint_mismatch")
         assert r.state == RecoveryState.HALTED
         assert "HALT" in result
 
@@ -231,8 +232,7 @@ class TestCompoundFailures:
         r = DisconnectRecovery()
         r.on_disconnect()
         r.on_reconnect()
-        result = r.submit_reconciliation(False, True, True, True,
-                                         details="position_mismatch")
+        result = r.submit_reconciliation(False, True, True, True, details="position_mismatch")
         assert r.state == RecoveryState.HALTED
         assert "HALT" in result
 
@@ -241,8 +241,7 @@ class TestCompoundFailures:
         r = DisconnectRecovery()
         r.on_disconnect()
         r.on_reconnect()
-        r.submit_reconciliation(True, True, False, True,
-                                details="equity_mismatch")
+        r.submit_reconciliation(True, True, False, True, details="equity_mismatch")
         assert r.state == RecoveryState.HALTED
 
     def test_order_mismatch_halts(self):
@@ -250,8 +249,7 @@ class TestCompoundFailures:
         r = DisconnectRecovery()
         r.on_disconnect()
         r.on_reconnect()
-        r.submit_reconciliation(True, False, True, True,
-                                details="order_mismatch")
+        r.submit_reconciliation(True, False, True, True, details="order_mismatch")
         assert r.state == RecoveryState.HALTED
 
 
@@ -276,8 +274,9 @@ class TestStatePersistenceUnderStorm:
 
     def test_pid_file_survives_process_restart(self, tmp_path):
         """State file must be updated on restart."""
-        from eigencapital.live.supervisor import ProcessSupervisor
         import shutil
+
+        from eigencapital.live.supervisor import ProcessSupervisor
 
         state_dir = str(tmp_path)
         s = ProcessSupervisor(state_dir=state_dir)
@@ -299,9 +298,8 @@ class TestSecurityAtScale:
 
     def test_no_credentials_in_audit_log(self):
         """Audit logs must never contain credentials."""
-        from eigencapital.live.risk_enforcement import RiskEnforcer, RiskGateResult
+        from eigencapital.live.risk_enforcement import BlockReason, GateResult, RiskEnforcer, RiskGateResult
 
-        from eigencapital.live.risk_enforcement import GateResult, BlockReason
         enforcer = RiskEnforcer(LiveRiskConfig())
         # Simulate many cycles
         for _ in range(100):
@@ -329,8 +327,9 @@ class TestSecurityAtScale:
     def test_fingerprint_tampering_detected(self):
         """Any fingerprint tampering must be detected."""
         import dataclasses
-        from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
+
         from eigencapital.fidelity.r4_manifest import R4ConfigManifest
+        from eigencapital.production_qual.fingerprint_verifier import FingerprintVerifier
 
         # Frozen on construction — same objects match
         fv = FingerprintVerifier(manifest=R4ConfigManifest(), risk_policy=RiskPolicy())
@@ -361,10 +360,11 @@ class TestSecurityAtScale:
     def test_risk_policy_fingerprint_consistency(self):
         """RiskPolicy fingerprint must be deterministic."""
         import json
+
         r1 = RiskPolicy()
         r2 = RiskPolicy()
-        d1 = {k: v for k, v in r1.__dict__.items() if k != 'fingerprint'}
-        d2 = {k: v for k, v in r2.__dict__.items() if k != 'fingerprint'}
+        d1 = {k: v for k, v in r1.__dict__.items() if k != "fingerprint"}
+        d2 = {k: v for k, v in r2.__dict__.items() if k != "fingerprint"}
         fp1 = hashlib.sha256(json.dumps(d1, sort_keys=True, default=str).encode()).hexdigest()
         fp2 = hashlib.sha256(json.dumps(d2, sort_keys=True, default=str).encode()).hexdigest()
         assert fp1 == fp2, "RiskPolicy fingerprint must be deterministic"

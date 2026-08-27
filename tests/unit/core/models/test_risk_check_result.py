@@ -1,6 +1,6 @@
 """Unit tests for EigenCapital domain models — RiskCheckResult."""
 
-from eigencapital.core.models.risk_check_result import RiskCheckResult, RISK_CHECK_IDS
+from eigencapital.core.models.risk_check_result import RISK_CHECK_IDS, RiskCheckResult
 
 _counter = 0
 
@@ -36,7 +36,7 @@ def test_risk_check_status_validation():
         assert rc.status == status
     try:
         _make_check(status="UNKNOWN")
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "Invalid risk check status" in str(e)
 
@@ -51,12 +51,12 @@ def test_risk_check_observed_finite():
     _make_check(observed=0.5)
     try:
         _make_check(observed=float("nan"))
-        assert False
+        raise AssertionError()
     except ValueError:
         pass
     try:
         _make_check(observed=float("inf"))
-        assert False
+        raise AssertionError()
     except ValueError:
         pass
 
@@ -65,7 +65,7 @@ def test_risk_check_limit_finite():
     _make_check(limit=2.0)
     try:
         _make_check(limit=float("nan"))
-        assert False
+        raise AssertionError()
     except ValueError:
         pass
 
@@ -73,17 +73,17 @@ def test_risk_check_limit_finite():
 def test_risk_check_required_fields():
     try:
         _make_check(check_id="")
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "check_id must be non-empty" in str(e)
     try:
         _make_check(unit="")
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "unit must be non-empty" in str(e)
     try:
         _make_check(message="")
-        assert False
+        raise AssertionError()
     except ValueError as e:
         assert "message must be non-empty" in str(e)
 
@@ -120,4 +120,4 @@ def test_risk_check_ids_set():
         "volatility_shock",
         "concentration",
     }
-    assert RISK_CHECK_IDS == expected
+    assert expected == RISK_CHECK_IDS

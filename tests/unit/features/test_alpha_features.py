@@ -14,35 +14,34 @@ import math
 import random
 
 from eigencapital.core.models.bar import Bar
-from eigencapital.features.momentum.time_series import (
-    compute_roc,
-    compute_ma_crossover,
-    compute_dual_momentum,
-    compute_momentum_zscore,
+from eigencapital.features.mean_reversion.deviation import (
+    compute_distance_from_ema,
+    compute_distance_from_sma,
+)
+from eigencapital.features.mean_reversion.reversal import (
+    compute_rsi,
+    compute_short_term_reversal,
+)
+from eigencapital.features.mean_reversion.zscore import (
+    compute_bollinger_bandwidth,
+    compute_rolling_zscore,
+)
+from eigencapital.features.momentum.breakout import (
+    compute_bollinger_position,
+    compute_donchian_breakout,
+    compute_donchian_position,
 )
 from eigencapital.features.momentum.cross_sectional import (
     compute_cross_sectional_rank,
-    compute_relative_strength,
     compute_percentile_rank,
+    compute_relative_strength,
 )
-from eigencapital.features.momentum.breakout import (
-    compute_donchian_position,
-    compute_donchian_breakout,
-    compute_bollinger_position,
+from eigencapital.features.momentum.time_series import (
+    compute_dual_momentum,
+    compute_ma_crossover,
+    compute_momentum_zscore,
+    compute_roc,
 )
-from eigencapital.features.mean_reversion.zscore import (
-    compute_rolling_zscore,
-    compute_bollinger_bandwidth,
-)
-from eigencapital.features.mean_reversion.deviation import (
-    compute_distance_from_sma,
-    compute_distance_from_ema,
-)
-from eigencapital.features.mean_reversion.reversal import (
-    compute_short_term_reversal,
-    compute_rsi,
-)
-
 
 # ───────────────────────────────────────────────
 #  Bar helpers
@@ -114,15 +113,10 @@ def _make_bars(
     return bars
 
 
-def _constant_bars(
-    n: int, price: float = 100.0, instrument_id: str = "ES"
-) -> list[Bar]:
+def _constant_bars(n: int, price: float = 100.0, instrument_id: str = "ES") -> list[Bar]:
     """Generate n bars at constant price."""
     _reset_bar_registry()
-    return [
-        _make_bar(close=price, day_offset=i, instrument_id=instrument_id)
-        for i in range(n)
-    ]
+    return [_make_bar(close=price, day_offset=i, instrument_id=instrument_id) for i in range(n)]
 
 
 def _extreme_bars(n: int, instrument_id: str = "ES") -> list[Bar]:
@@ -132,32 +126,22 @@ def _extreme_bars(n: int, instrument_id: str = "ES") -> list[Bar]:
     for i in range(1, n):
         prev = bars[-1].close
         if i % 10 == 0:
-            bars.append(
-                _make_bar(close=prev * 2.0, day_offset=i, instrument_id=instrument_id)
-            )
+            bars.append(_make_bar(close=prev * 2.0, day_offset=i, instrument_id=instrument_id))
         else:
-            bars.append(
-                _make_bar(close=prev * 1.001, day_offset=i, instrument_id=instrument_id)
-            )
+            bars.append(_make_bar(close=prev * 1.001, day_offset=i, instrument_id=instrument_id))
     return bars
 
 
 def _rising_bars(n: int, start: float = 100.0, instrument_id: str = "ES") -> list[Bar]:
     """Generate monotonically rising bars."""
     _reset_bar_registry()
-    return [
-        _make_bar(close=start + i, day_offset=i, instrument_id=instrument_id)
-        for i in range(n)
-    ]
+    return [_make_bar(close=start + i, day_offset=i, instrument_id=instrument_id) for i in range(n)]
 
 
 def _falling_bars(n: int, start: float = 100.0, instrument_id: str = "ES") -> list[Bar]:
     """Generate monotonically falling bars."""
     _reset_bar_registry()
-    return [
-        _make_bar(close=start - i * 0.5, day_offset=i, instrument_id=instrument_id)
-        for i in range(n)
-    ]
+    return [_make_bar(close=start - i * 0.5, day_offset=i, instrument_id=instrument_id) for i in range(n)]
 
 
 # ═══════════════════════════════════════════════
@@ -254,9 +238,7 @@ class TestDualMomentum:
 
     def test_dual_momentum_deterministic(self):
         bars = _make_bars(100)
-        assert compute_dual_momentum(bars, 20, 40) == compute_dual_momentum(
-            bars, 20, 40
-        )
+        assert compute_dual_momentum(bars, 20, 40) == compute_dual_momentum(bars, 20, 40)
 
 
 class TestMomentumZscore:
@@ -677,15 +659,11 @@ class TestDeterminism:
 
     def test_donchian_determinism(self):
         bars = _make_bars(50, seed=789)
-        assert compute_donchian_position(bars, 20) == compute_donchian_position(
-            bars, 20
-        )
+        assert compute_donchian_position(bars, 20) == compute_donchian_position(bars, 20)
 
     def test_bollinger_determinism(self):
         bars = _make_bars(50, seed=101)
-        assert compute_bollinger_position(bars, 20) == compute_bollinger_position(
-            bars, 20
-        )
+        assert compute_bollinger_position(bars, 20) == compute_bollinger_position(bars, 20)
 
     def test_rsi_determinism(self):
         bars = _make_bars(50, seed=202)

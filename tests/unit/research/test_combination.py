@@ -17,22 +17,21 @@ from eigencapital.research.combination.candidate import (
     AlphaCandidate,
     EligibilityStatus,
 )
-from eigencapital.research.combination.returns import (
-    ReturnStream,
-    compute_pearson_correlation,
-    compute_spearman_correlation,
-    compute_downside_correlation,
-    build_dependence_matrix,
-)
 from eigencapital.research.combination.portfolio import (
     PortfolioResult,
-    compute_equal_weight,
-    compute_risk_scaled,
     combine_returns,
+    compute_equal_weight,
     compute_portfolio_metrics,
+    compute_risk_scaled,
+)
+from eigencapital.research.combination.returns import (
+    ReturnStream,
+    build_dependence_matrix,
+    compute_downside_correlation,
+    compute_pearson_correlation,
+    compute_spearman_correlation,
 )
 from eigencapital.research.execution.record import ExecutionRecord, ExecutionStatus
-
 
 # ───────────────────────────────────────────────
 #  Helpers

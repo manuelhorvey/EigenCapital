@@ -21,6 +21,7 @@ Trading permission:
   RESUMED → TRADE
   All others → BLOCKED
 """
+
 from __future__ import annotations
 
 import os
@@ -31,7 +32,6 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
-
 
 # ── Define the complete state machine ─────────────────────────────
 
@@ -103,13 +103,18 @@ class TestDisconnectRecoveryTransitions:
         r.on_disconnect()
         r.on_reconnect()
         r.submit_reconciliation(
-            positions_match=True, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=True,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )
         r.request_resume(
-            data_fresh=True, positions_reconciled=True,
-            no_unexpected_orders=True, risk_limits_passing=True,
-            config_fingerprint_unchanged=True, health_state="healthy",
+            data_fresh=True,
+            positions_reconciled=True,
+            no_unexpected_orders=True,
+            risk_limits_passing=True,
+            config_fingerprint_unchanged=True,
+            health_state="healthy",
         )
         assert r.state == RecoveryState.RESUMED
 
@@ -118,8 +123,10 @@ class TestDisconnectRecoveryTransitions:
         r.on_disconnect()
         r.on_reconnect()
         r.submit_reconciliation(
-            positions_match=False, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=False,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )
         assert r.state == RecoveryState.HALTED
 
@@ -128,8 +135,10 @@ class TestDisconnectRecoveryTransitions:
         r.on_disconnect()
         r.on_reconnect()
         r.submit_reconciliation(
-            positions_match=True, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=True,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )
         r.request_resume(
             data_fresh=False,  # FAIL
@@ -180,8 +189,10 @@ class TestIllegalTransitions:
         r.on_disconnect()
         r.on_reconnect()
         r.submit_reconciliation(
-            positions_match=False, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=False,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )
         assert r.state == RecoveryState.HALTED
         assert r.state not in TRADING_STATES
@@ -201,9 +212,12 @@ class TestIllegalTransitions:
         r.on_disconnect()
         r.on_reconnect()
         result = r.request_resume(
-            data_fresh=True, positions_reconciled=True,
-            no_unexpected_orders=True, risk_limits_passing=True,
-            config_fingerprint_unchanged=True, health_state="healthy",
+            data_fresh=True,
+            positions_reconciled=True,
+            no_unexpected_orders=True,
+            risk_limits_passing=True,
+            config_fingerprint_unchanged=True,
+            health_state="healthy",
         )
         assert "INVALID" in result
         assert r.state == RecoveryState.RECONCILING
@@ -246,13 +260,18 @@ class TestIdempotency:
         r.on_disconnect()
         r.on_reconnect()
         r.submit_reconciliation(
-            positions_match=True, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=True,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )
         r.request_resume(
-            data_fresh=True, positions_reconciled=True,
-            no_unexpected_orders=True, risk_limits_passing=True,
-            config_fingerprint_unchanged=True, health_state="healthy",
+            data_fresh=True,
+            positions_reconciled=True,
+            no_unexpected_orders=True,
+            risk_limits_passing=True,
+            config_fingerprint_unchanged=True,
+            health_state="healthy",
         )
         # Extra calls should be harmless
         r.on_disconnect()
@@ -266,6 +285,7 @@ class TestStatePersistence:
     def test_state_serializable(self):
         """All state values must be JSON-serializable."""
         import json
+
         for state in RecoveryState:
             data = {"state": state.value}
             serialized = json.dumps(data)
@@ -275,17 +295,23 @@ class TestStatePersistence:
     def test_full_cycle_serializable(self):
         """A complete disconnect→resume cycle must be serializable."""
         import json
+
         r = DisconnectRecovery()
         r.on_disconnect()
         r.on_reconnect()
         r.submit_reconciliation(
-            positions_match=True, orders_match=True,
-            equity_match=True, fingerprint_match=True,
+            positions_match=True,
+            orders_match=True,
+            equity_match=True,
+            fingerprint_match=True,
         )
         r.request_resume(
-            data_fresh=True, positions_reconciled=True,
-            no_unexpected_orders=True, risk_limits_passing=True,
-            config_fingerprint_unchanged=True, health_state="healthy",
+            data_fresh=True,
+            positions_reconciled=True,
+            no_unexpected_orders=True,
+            risk_limits_passing=True,
+            config_fingerprint_unchanged=True,
+            health_state="healthy",
         )
         # Serialize
         data = {

@@ -5,15 +5,16 @@ not to be profitable.
 """
 
 import pytest
-from eigencapital.strategies.trend.strategy import CrossAssetTrendStrategy
+
+from eigencapital.core.models.bar import Bar
 from eigencapital.strategies.trend.config import TrendConfig
 from eigencapital.strategies.trend.features import (
     compute_cumulative_return,
+    compute_position_size,
     compute_realized_volatility,
     compute_trend_signal,
-    compute_position_size,
 )
-from eigencapital.core.models.bar import Bar
+from eigencapital.strategies.trend.strategy import CrossAssetTrendStrategy
 
 _bar_counter = 0
 
@@ -145,10 +146,7 @@ class TestFeatures:
     def test_cumulative_return_insufficient_data(self):
         """Test cumulative return with insufficient bars."""
         bars = [
-            _make_bar(
-                "ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h"
-            )
-            for i in range(1, 6)
+            _make_bar("ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h") for i in range(1, 6)
         ]
         result = compute_cumulative_return(bars, lookback=63)
         assert result is None
@@ -170,10 +168,7 @@ class TestFeatures:
     def test_realized_volatility_insufficient_data(self):
         """Test volatility with insufficient bars."""
         bars = [
-            _make_bar(
-                "ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h"
-            )
-            for i in range(1, 6)
+            _make_bar("ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h") for i in range(1, 6)
         ]
         result = compute_realized_volatility(bars, lookback=21)
         assert result is None
@@ -253,10 +248,7 @@ class TestCrossAssetTrendStrategy:
         """Test that strategy returns None with insufficient data."""
         strategy = CrossAssetTrendStrategy()
         bars = [
-            _make_bar(
-                "ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h"
-            )
-            for i in range(1, 6)
+            _make_bar("ES", f"2025-01-01T{i:02d}:00:00Z", 100, 101, 99, 100, bar_interval="1h") for i in range(1, 6)
         ]
         signal = strategy.on_bar(
             timestamp="2025-01-01T05:00:00Z",

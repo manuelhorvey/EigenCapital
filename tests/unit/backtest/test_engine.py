@@ -1,14 +1,12 @@
 """Unit tests for Backtest Engine — adversarial synthetic scenarios."""
 
+from eigencapital.backtest.engine import BacktestConfig, BacktestEngine
 from eigencapital.core.models.bar import Bar
-from eigencapital.backtest.engine import BacktestEngine, BacktestConfig
-from eigencapital.research.costs.model import ZERO_COST, MODERATE_COST
+from eigencapital.research.costs.model import MODERATE_COST, ZERO_COST
 from eigencapital.strategies.base import BaseStrategy, StrategySignal
 
 
-def _make_bar(
-    ts_min: int, close: float = 4500.0, volume: int = 1000, instrument_id="ES"
-):
+def _make_bar(ts_min: int, close: float = 4500.0, volume: int = 1000, instrument_id="ES"):
     """Helper to create a bar at minute ts_min."""
     return Bar(
         instrument_id=instrument_id,
@@ -123,9 +121,7 @@ class TestBacktestEngine:
 
         # At each step, bars seen should be <= step index + 1
         for i, count in enumerate(seen_bars):
-            assert count <= i + 1, (
-                f"Saw {count} bars at step {i}, max should be {i + 1}"
-            )
+            assert count <= i + 1, f"Saw {count} bars at step {i}, max should be {i + 1}"
 
     def test_execution_delay(self):
         """Signals should not fill immediately."""

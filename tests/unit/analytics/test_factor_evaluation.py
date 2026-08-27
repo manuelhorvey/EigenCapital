@@ -89,9 +89,7 @@ class TestInformationCoefficient:
             for _ in range(50)
         ]
         result = information_coefficient(panels)
-        expected_t = result.mean_ic / (
-            result.std_ic / math_sqrt(result.n_periods)
-        )
+        expected_t = result.mean_ic / (result.std_ic / math_sqrt(result.n_periods))
         if result.std_ic > 1e-15:
             assert result.t_stat == pytest.approx(expected_t, rel=1e-9)
 

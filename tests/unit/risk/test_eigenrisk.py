@@ -1,19 +1,19 @@
 """Unit tests for EigenRisk Engine — adversarial risk testing."""
 
 import pytest
-from eigencapital.risk.policy import RiskPolicy, CONSERVATIVE, MODERATE
-from eigencapital.risk.engine import EigenRiskEngine
+
 from eigencapital.risk.checks.account_checks import (
     AccountState,
-    check_max_drawdown,
     check_daily_loss,
-    check_weekly_loss,
     check_gross_leverage,
+    check_kill_switch,
+    check_max_drawdown,
     check_min_equity,
     check_position_count,
-    check_kill_switch,
+    check_weekly_loss,
 )
-
+from eigencapital.risk.engine import EigenRiskEngine
+from eigencapital.risk.policy import CONSERVATIVE, MODERATE, RiskPolicy
 
 # ─── Policy Tests ───────────────────────────────────────────────────────────
 

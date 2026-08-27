@@ -10,20 +10,20 @@ import pytest
 @pytest.fixture(autouse=True)
 def clear_all_registries():
     """Clear all class-level registries before every test."""
-    from eigencapital.core.models.instrument import Instrument
-    from eigencapital.core.models.bar import Bar
-    from eigencapital.core.models.market_snapshot import MarketSnapshot
-    from eigencapital.core.models.strategy_intent import StrategyIntent
-    from eigencapital.core.models.position import Position
-    from eigencapital.core.models.fill import Fill
-    from eigencapital.core.models.risk_check_result import RiskCheckResult
-    from eigencapital.core.models.risk_decision import RiskDecision
-    from eigencapital.core.models.portfolio_target import PortfolioTarget
     from eigencapital.core.models.approved_target import ApprovedTarget
-    from eigencapital.core.models.order_plan import OrderPlan
-    from eigencapital.core.models.order_lifecycle import OrderLifecycle
+    from eigencapital.core.models.bar import Bar
     from eigencapital.core.models.decision_snapshot import DecisionSnapshot
     from eigencapital.core.models.experiment import Experiment
+    from eigencapital.core.models.fill import Fill
+    from eigencapital.core.models.instrument import Instrument
+    from eigencapital.core.models.market_snapshot import MarketSnapshot
+    from eigencapital.core.models.order_lifecycle import OrderLifecycle
+    from eigencapital.core.models.order_plan import OrderPlan
+    from eigencapital.core.models.portfolio_target import PortfolioTarget
+    from eigencapital.core.models.position import Position
+    from eigencapital.core.models.risk_check_result import RiskCheckResult
+    from eigencapital.core.models.risk_decision import RiskDecision
+    from eigencapital.core.models.strategy_intent import StrategyIntent
 
     for cls in (
         Instrument,

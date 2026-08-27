@@ -19,9 +19,7 @@ from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 
 # Full sha256 of the bare manifest — identical to manifest_identity in
 # reports/production_qualification_PQ-aaab6c00dc05.json.
-FROZEN_PQ_IDENTITY = (
-    "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
-)
+FROZEN_PQ_IDENTITY = "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
 
 # 16-hex prefix recorded by the original R4 campaign run.
 CAMPAIGN_FREEZE_PREFIX = "ee0d7a03021eeb4f"
@@ -33,10 +31,7 @@ class TestManifestIdentity:
     """The reproducible frozen identity."""
 
     def test_deterministic_across_instances(self):
-        assert (
-            R4ConfigManifest().compute_identity()
-            == R4ConfigManifest().compute_identity()
-        )
+        assert R4ConfigManifest().compute_identity() == R4ConfigManifest().compute_identity()
 
     def test_identity_matches_production_qualification_artifact(self):
         current = R4ConfigManifest().compute_identity()
@@ -166,16 +161,10 @@ class TestIdentitySensitivity:
 
         reclassified = dict(frozen)
         reclassified["BTCUSDm"] = "forex"
-        assert (
-            R4ConfigManifest(universe=reclassified).compute_identity()
-            != baseline
-        )
+        assert R4ConfigManifest(universe=reclassified).compute_identity() != baseline
 
         reordered = dict(reversed(list(frozen.items())))
-        assert (
-            R4ConfigManifest(universe=reordered).compute_identity()
-            == baseline
-        )
+        assert R4ConfigManifest(universe=reordered).compute_identity() == baseline
 
 
 class TestUncoveredFields:

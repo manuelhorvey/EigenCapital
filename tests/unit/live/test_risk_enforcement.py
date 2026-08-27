@@ -18,20 +18,21 @@ Test categories:
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from eigencapital.live.risk_enforcement import (
+    GateResult,
     RiskEnforcer,
     RiskEnvelope,
-    GateResult,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def envelope():
@@ -96,6 +97,7 @@ def _gate_named(results, name):
 
 
 # ── 1. Position Count Enforcement ──────────────────────────────────
+
 
 class TestPositionCountEnforcement:
     """Tests for position count enforcement (max_concurrent_positions=19)."""
@@ -182,13 +184,16 @@ class TestPositionCountEnforcement:
 
 # ── 2. Account Drawdown Enforcement ───────────────────────────────
 
+
 class TestAccountDrawdown:
     """Tests for account-level drawdown from peak equity."""
 
     def test_no_drawdown_passes(self, enforcer):
         """Equity at peak → 0% drawdown → PASS."""
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5_010.94, account_free_margin=5_000.0,
+            broker_positions=[],
+            account_equity=5_010.94,
+            account_free_margin=5_000.0,
         )
         gate = _gate_named(results, "account_drawdown")
         assert gate.result == GateResult.PASS
@@ -197,7 +202,9 @@ class TestAccountDrawdown:
         """5% drawdown (< 10% limit) → PASS."""
         enforcer._peak_equity = 5_010.94
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=4_760.0, account_free_margin=4_700.0,
+            broker_positions=[],
+            account_equity=4_760.0,
+            account_free_margin=4_700.0,
         )
         gate = _gate_named(results, "account_drawdown")
         assert gate.result == GateResult.PASS
@@ -206,7 +213,9 @@ class TestAccountDrawdown:
         """10%+ drawdown → BLOCK."""
         enforcer._peak_equity = 5_010.94
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=4_500.0, account_free_margin=4_400.0,
+            broker_positions=[],
+            account_equity=4_500.0,
+            account_free_margin=4_400.0,
         )
         gate = _gate_named(results, "account_drawdown")
         assert gate.result == GateResult.BLOCK
@@ -216,12 +225,15 @@ class TestAccountDrawdown:
         """Peak equity updates when equity exceeds previous peak."""
         enforcer._peak_equity = 5_010.94
         enforcer.check_all(
-            broker_positions=[], account_equity=5_500.0, account_free_margin=5_400.0,
+            broker_positions=[],
+            account_equity=5_500.0,
+            account_free_margin=5_400.0,
         )
         assert enforcer._peak_equity == 5_500.0
 
 
 # ── 3. Daily Loss Enforcement ─────────────────────────────────────
+
 
 class TestDailyLoss:
     """Tests for daily loss limit ($250 max)."""
@@ -230,7 +242,9 @@ class TestDailyLoss:
         """No daily loss → PASS."""
         enforcer.record_daily_start(5_010.94)
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5_010.94, account_free_margin=5_000.0,
+            broker_positions=[],
+            account_equity=5_010.94,
+            account_free_margin=5_000.0,
         )
         gate = _gate_named(results, "daily_loss")
         assert gate.result == GateResult.PASS
@@ -239,7 +253,9 @@ class TestDailyLoss:
         """$200 loss (< $250 limit) → PASS."""
         enforcer.record_daily_start(5_010.94)
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=4_810.94, account_free_margin=4_700.0,
+            broker_positions=[],
+            account_equity=4_810.94,
+            account_free_margin=4_700.0,
         )
         gate = _gate_named(results, "daily_loss")
         assert gate.result == GateResult.PASS
@@ -248,7 +264,9 @@ class TestDailyLoss:
         """$300 loss (> $250 limit) → BLOCK."""
         enforcer.record_daily_start(5_010.94)
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=4_710.94, account_free_margin=4_600.0,
+            broker_positions=[],
+            account_equity=4_710.94,
+            account_free_margin=4_600.0,
         )
         gate = _gate_named(results, "daily_loss")
         assert gate.result == GateResult.BLOCK
@@ -258,7 +276,9 @@ class TestDailyLoss:
         """Profit is not treated as negative loss → PASS."""
         enforcer.record_daily_start(5_010.94)
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5_200.0, account_free_margin=5_100.0,
+            broker_positions=[],
+            account_equity=5_200.0,
+            account_free_margin=5_100.0,
         )
         gate = _gate_named(results, "daily_loss")
         assert gate.result == GateResult.PASS
@@ -266,13 +286,16 @@ class TestDailyLoss:
 
 # ── 4. Equity Floor ───────────────────────────────────────────────
 
+
 class TestEquityFloor:
     """Tests for absolute equity minimum ($4,000)."""
 
     def test_equity_above_floor_passes(self, enforcer):
         """$5,000 > $4,000 → PASS."""
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5_000.0, account_free_margin=4_900.0,
+            broker_positions=[],
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
         )
         gate = _gate_named(results, "equity_floor")
         assert gate.result == GateResult.PASS
@@ -282,7 +305,9 @@ class TestEquityFloor:
         # Set peak to same as equity so drawdown doesn't trigger first
         enforcer._peak_equity = 3_999.0
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=3_999.0, account_free_margin=3_900.0,
+            broker_positions=[],
+            account_equity=3_999.0,
+            account_free_margin=3_900.0,
         )
         gate = _gate_named(results, "equity_floor")
         assert gate.result == GateResult.CRITICAL
@@ -290,6 +315,7 @@ class TestEquityFloor:
 
 
 # ── 5. Position Protection (SL Check) ────────────────────────────
+
 
 class TestPositionProtection:
     """Tests for SL protection on open positions."""
@@ -300,7 +326,9 @@ class TestPositionProtection:
         enforcer = RiskEnforcer(env)
         positions = [_make_position(sl=0.0)]
         passed, results = enforcer.check_all(
-            broker_positions=positions, account_equity=5_000.0, account_free_margin=4_900.0,
+            broker_positions=positions,
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
         )
         gate = _gate_named(results, "position_protection")
         assert gate.result == GateResult.PASS
@@ -311,7 +339,9 @@ class TestPositionProtection:
         enforcer = RiskEnforcer(env)
         positions = [_make_position(symbol="EURUSD", sl=0.0), _make_position(symbol="GBPUSD", sl=0.0050)]
         passed, results = enforcer.check_all(
-            broker_positions=positions, account_equity=5_000.0, account_free_margin=4_900.0,
+            broker_positions=positions,
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
         )
         gate = _gate_named(results, "position_protection")
         assert gate.result == GateResult.CRITICAL
@@ -324,13 +354,16 @@ class TestPositionProtection:
 
 # ── 6. Fingerprint Check ──────────────────────────────────────────
 
+
 class TestFingerprint:
     """Tests for T=0 fingerprint integrity."""
 
     def test_matching_fingerprint_passes(self, enforcer):
         """Fingerprint match → PASS."""
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5_000.0, account_free_margin=4_900.0,
+            broker_positions=[],
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
             fingerprint_match=True,
         )
         gate = _gate_named(results, "fingerprint")
@@ -339,7 +372,9 @@ class TestFingerprint:
     def test_drifted_fingerprint_is_critical(self, enforcer):
         """Fingerprint mismatch → CRITICAL."""
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5_000.0, account_free_margin=4_900.0,
+            broker_positions=[],
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
             fingerprint_match=False,
         )
         gate = _gate_named(results, "fingerprint")
@@ -349,13 +384,16 @@ class TestFingerprint:
 
 # ── 7. Broker Connectivity ────────────────────────────────────────
 
+
 class TestBrokerConnectivity:
     """Tests for broker data validity."""
 
     def test_valid_data_passes(self, enforcer):
         """Non-zero equity → PASS."""
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5_000.0, account_free_margin=4_900.0,
+            broker_positions=[],
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
         )
         gate = _gate_named(results, "broker_connectivity")
         assert gate.result == GateResult.PASS
@@ -363,7 +401,9 @@ class TestBrokerConnectivity:
     def test_zero_equity_is_critical(self, enforcer):
         """Zero equity + zero free margin → CRITICAL (disconnect/stale)."""
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=0.0, account_free_margin=0.0,
+            broker_positions=[],
+            account_equity=0.0,
+            account_free_margin=0.0,
         )
         gate = _gate_named(results, "broker_connectivity")
         assert gate.result == GateResult.CRITICAL
@@ -371,6 +411,7 @@ class TestBrokerConnectivity:
 
 
 # ── 8. Full Pipeline Integration ──────────────────────────────────
+
 
 class TestFullPipeline:
     """Integration tests for the complete gate pipeline."""
@@ -391,7 +432,9 @@ class TestFullPipeline:
     def test_critical_stops_immediately(self, enforcer):
         """CRITICAL on broker connectivity → remaining gates not checked."""
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=0.0, account_free_margin=0.0,
+            broker_positions=[],
+            account_equity=0.0,
+            account_free_margin=0.0,
         )
         assert not passed
         assert len(results) == 1  # only broker_connectivity checked
@@ -430,6 +473,7 @@ class TestFullPipeline:
 
 
 # ── 9. Regression: Position Count Enforcement ──────────────────────
+
 
 class TestNinePositionRegression:
     """Regression tests for position count enforcement (max_concurrent=19)."""
@@ -470,13 +514,16 @@ class TestNinePositionRegression:
 
 # ── 10. Audit Trail ───────────────────────────────────────────────
 
+
 class TestAuditTrail:
     """Tests for audit logging of gate results."""
 
     def test_audit_records_all_gates(self, enforcer):
         """Audit log captures all gate results."""
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=5_000.0, account_free_margin=4_900.0,
+            broker_positions=[],
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
         )
         enforcer.audit(results)
         log = enforcer.get_audit_log()
@@ -500,6 +547,7 @@ class TestAuditTrail:
 
 # ── 11. Edge Cases ────────────────────────────────────────────────
 
+
 class TestEdgeCases:
     """Edge cases: empty state, exact boundary, etc."""
 
@@ -507,7 +555,9 @@ class TestEdgeCases:
         """Exactly at limit (8 positions, 0 target) → PASS."""
         positions = [_make_position(f"SYM{i}") for i in range(8)]
         passed, results = enforcer.check_all(
-            broker_positions=positions, account_equity=5_000.0, account_free_margin=4_900.0,
+            broker_positions=positions,
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
             target_orders=0,
         )
         assert passed
@@ -516,7 +566,9 @@ class TestEdgeCases:
         """Exactly one over (20 positions) → CRITICAL."""
         positions = [_make_position(f"SYM{i}") for i in range(20)]
         passed, results = enforcer.check_all(
-            broker_positions=positions, account_equity=5_000.0, account_free_margin=4_900.0,
+            broker_positions=positions,
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
             target_orders=0,
         )
         assert not passed
@@ -525,7 +577,9 @@ class TestEdgeCases:
         """Drawdown exactly at 10% → PASS (uses >, not >=)."""
         enforcer._peak_equity = 5_000.0
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=4_500.0, account_free_margin=4_400.0,
+            broker_positions=[],
+            account_equity=4_500.0,
+            account_free_margin=4_400.0,
         )
         gate = _gate_named(results, "account_drawdown")
         assert gate.result == GateResult.PASS  # 10% exactly is not > 10%
@@ -534,7 +588,9 @@ class TestEdgeCases:
         """Drawdown just over 10% → BLOCK."""
         enforcer._peak_equity = 5_000.0
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=4_499.0, account_free_margin=4_400.0,
+            broker_positions=[],
+            account_equity=4_499.0,
+            account_free_margin=4_400.0,
         )
         gate = _gate_named(results, "account_drawdown")
         assert gate.result == GateResult.BLOCK
@@ -543,7 +599,9 @@ class TestEdgeCases:
         """Daily loss exactly at $250 → PASS (uses >, not >=)."""
         enforcer.record_daily_start(5_000.0)
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=4_750.0, account_free_margin=4_600.0,
+            broker_positions=[],
+            account_equity=4_750.0,
+            account_free_margin=4_600.0,
         )
         gate = _gate_named(results, "daily_loss")
         assert gate.result == GateResult.PASS  # $250 exactly is not > $250
@@ -552,7 +610,9 @@ class TestEdgeCases:
         """Daily loss just over $250 → BLOCK."""
         enforcer.record_daily_start(5_000.0)
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=4_749.0, account_free_margin=4_600.0,
+            broker_positions=[],
+            account_equity=4_749.0,
+            account_free_margin=4_600.0,
         )
         gate = _gate_named(results, "daily_loss")
         assert gate.result == GateResult.BLOCK
@@ -562,7 +622,9 @@ class TestEdgeCases:
         # Set peak to same as equity so drawdown doesn't block first
         enforcer._peak_equity = 4_000.0
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=4_000.0, account_free_margin=3_900.0,
+            broker_positions=[],
+            account_equity=4_000.0,
+            account_free_margin=3_900.0,
         )
         gate = _gate_named(results, "equity_floor")
         assert gate.result == GateResult.PASS
@@ -572,7 +634,9 @@ class TestEdgeCases:
         # Set peak to same as equity so drawdown doesn't block first
         enforcer._peak_equity = 3_999.99
         passed, results = enforcer.check_all(
-            broker_positions=[], account_equity=3_999.99, account_free_margin=3_900.0,
+            broker_positions=[],
+            account_equity=3_999.99,
+            account_free_margin=3_900.0,
         )
         gate = _gate_named(results, "equity_floor")
         assert gate.result == GateResult.CRITICAL

@@ -10,7 +10,7 @@ Verifies:
 import inspect
 import json
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 
@@ -51,6 +51,7 @@ class TestUTCUsage:
 
     def test_risk_enforcement_uses_utc(self):
         import inspect
+
         from eigencapital.live import risk_enforcement
 
         source = inspect.getsource(risk_enforcement)
@@ -72,7 +73,7 @@ class TestTimezoneOffset:
 
     @staticmethod
     def _expected_today(offset_hours: int) -> str:
-        now = datetime.now(timezone.utc) + timedelta(hours=offset_hours)
+        now = datetime.now(UTC) + timedelta(hours=offset_hours)
         return now.strftime("%Y-%m-%d")
 
     def test_zero_offset_matches_utc_date(self, tmp_path):
@@ -123,17 +124,17 @@ class TestMidnightRollover:
     """Verify daily loss resets at midnight."""
 
     def test_update_resets_stale_baseline(self, tmp_path):
-        from eigencapital.live.daily_loss import DailyLossTracker, DailyBaseline
+        from eigencapital.live.daily_loss import DailyBaseline, DailyLossTracker
 
         tracker = DailyLossTracker(max_daily_loss=100.0, persistence_dir=str(tmp_path))
 
         # Simulate baseline from yesterday
-        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
         old_baseline = DailyBaseline(
             date_str=yesterday,
             equity=5200.0,
             hash="def456",
-            timestamp_utc=(datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
+            timestamp_utc=(datetime.now(UTC) - timedelta(days=1)).isoformat(),
         )
         tracker._baseline = old_baseline
 
@@ -170,16 +171,17 @@ class TestMidnightRollover:
         assert loaded.equity == 5000.0
 
     def test_restart_after_midnight_rebaselines(self, tmp_path):
-        from eigencapital.live.daily_loss import DailyLossTracker
         import json
 
+        from eigencapital.live.daily_loss import DailyLossTracker
+
         # Write yesterday's baseline
-        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
         baseline_data = {
             "date_str": yesterday,
             "equity": 5200.0,
             "hash": "old123",
-            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "timestamp_utc": datetime.now(UTC).isoformat(),
         }
         (tmp_path / "daily_baseline.json").write_text(json.dumps(baseline_data))
 
@@ -199,8 +201,9 @@ class TestMidnightRollover:
         assert loaded is None
 
     def test_corrupted_baseline_json_fails_closed(self, tmp_path):
-        from eigencapital.live.daily_loss import DailyLossTracker
         import json
+
+        from eigencapital.live.daily_loss import DailyLossTracker
 
         # Write JSON missing required fields
         (tmp_path / "daily_baseline.json").write_text(json.dumps({"garbage": True}))
@@ -209,19 +212,20 @@ class TestMidnightRollover:
         assert loaded is None
 
     def test_force_reset_rebases_and_persists(self, tmp_path):
-        from eigencapital.live.daily_loss import DailyLossTracker
         import json
+
+        from eigencapital.live.daily_loss import DailyLossTracker
 
         tracker = DailyLossTracker(max_daily_loss=100.0, persistence_dir=str(tmp_path))
         tracker.initialize(broker_equity=5000.0)
 
         # Simulate: restart on a new day by writing yesterday's date to disk
-        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
         baseline_data = {
             "date_str": yesterday,
             "equity": 5000.0,
             "hash": "old",
-            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "timestamp_utc": datetime.now(UTC).isoformat(),
         }
         (tmp_path / "daily_baseline.json").write_text(json.dumps(baseline_data))
 
@@ -243,6 +247,7 @@ class TestNoNaiveDatetimesInLivePaths:
     def test_no_naive_wall_clock_in_any_live_module(self):
         """No live module should use bare datetime.now()."""
         import importlib
+
         import eigencapital.live as live_pkg
 
         pkg_dir = Path(live_pkg.__file__).parent
@@ -261,13 +266,12 @@ class TestNoNaiveDatetimesInLivePaths:
                 if "datetime.now()" in stripped and "timezone" not in stripped:
                     violations.append(f"{p.name}:{i}: {stripped[:80]}")
 
-        assert not violations, (
-            "Naive datetime.now() in live modules:\n" + "\n".join(violations)
-        )
+        assert not violations, "Naive datetime.now() in live modules:\n" + "\n".join(violations)
 
     def test_live_package_imports_cleanly(self):
         """All live modules should import without error."""
         import importlib
+
         import eigencapital.live as live_pkg
 
         pkg_dir = Path(live_pkg.__file__).parent

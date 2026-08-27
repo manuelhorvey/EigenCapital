@@ -15,7 +15,6 @@ from eigencapital.live.build_pinning import (
     compute_build_identity,
     verify_pinned_build,
 )
-
 from eigencapital.live.durable_audit import DurableAudit
 from eigencapital.live.position_attribution import (
     PositionClass,
@@ -26,25 +25,52 @@ from eigencapital.live.position_attribution import (
 )
 from eigencapital.live.watchdog import ProbeResult, Watchdog, WatchState
 
-
 # ── fixtures ───────────────────────────────────────────────────────
 
+
 def bot_pos(ticket=1, symbol="AUDUSD", sl=0.0, direction_type=0, volume=0.01):
-    return {"ticket": ticket, "symbol": symbol, "type": direction_type,
-            "volume": volume, "price_open": 0.7155, "sl": sl, "tp": 0.0,
-            "profit": 1.23, "magic": 20260825, "comment": "R4-Rebalance"}
+    return {
+        "ticket": ticket,
+        "symbol": symbol,
+        "type": direction_type,
+        "volume": volume,
+        "price_open": 0.7155,
+        "sl": sl,
+        "tp": 0.0,
+        "profit": 1.23,
+        "magic": 20260825,
+        "comment": "R4-Rebalance",
+    }
 
 
 def manual_pos(ticket=9, symbol="USDCAD", volume=1.0):
-    return {"ticket": ticket, "symbol": symbol, "type": 0, "volume": volume,
-            "price_open": 1.3843, "sl": 0.0, "tp": 0.0, "profit": 29.61,
-            "magic": 0, "comment": ""}
+    return {
+        "ticket": ticket,
+        "symbol": symbol,
+        "type": 0,
+        "volume": volume,
+        "price_open": 1.3843,
+        "sl": 0.0,
+        "tp": 0.0,
+        "profit": 29.61,
+        "magic": 0,
+        "comment": "",
+    }
 
 
 def foreign_pos(ticket=11, symbol="XYZ", magic=777):
-    return {"ticket": ticket, "symbol": symbol, "type": 0, "volume": 0.1,
-            "price_open": 1.0, "sl": 0.0, "tp": 0.0, "profit": -1.0,
-            "magic": magic, "comment": "mystery"}
+    return {
+        "ticket": ticket,
+        "symbol": symbol,
+        "type": 0,
+        "volume": 0.1,
+        "price_open": 1.0,
+        "sl": 0.0,
+        "tp": 0.0,
+        "profit": -1.0,
+        "magic": magic,
+        "comment": "mystery",
+    }
 
 
 ATR = {"AUDUSD": 0.006, "USDCAD": 0.004}
@@ -54,17 +80,19 @@ def entry_lookup_factory(positions):
     def lookup(p):
         raw = next((q for q in positions if q.get("ticket") == p.ticket), {})
         return float(raw.get("price_open", 0) or 0)
+
     return lookup
 
 
 # ── A1: foreign-position quarantine / capacity ────────────────────
 
+
 class TestA1Quarantine:
     def test_capacity_counts_only_r4(self):
         classified = classify_all([bot_pos(), bot_pos(2), manual_pos()])
         cap = capacity_account(classified, max_concurrent=8)
-        assert cap.r4_open_count == 2            # manual never inflates count
-        assert cap.contaminated is True           # and triggers quarantine
+        assert cap.r4_open_count == 2  # manual never inflates count
+        assert cap.contaminated is True  # and triggers quarantine
 
     def test_foreign_positions_cannot_consume_capacity(self):
         # 8 manual positions would have BLOCKED the old gate; must NOT now
@@ -93,20 +121,22 @@ class TestA1Quarantine:
 
 # ── A6: every position classified; unknown quarantined ────────────
 
+
 class TestA6Classification:
     def test_every_position_receives_a_class(self):
         positions = [bot_pos(), manual_pos(), foreign_pos()]
         classes = [p.pclass for p in classify_all(positions)]
         assert all(c is not None for c in classes)
-        assert set(classes) == {PositionClass.R4_BOT, PositionClass.MANUAL_MAGIC_0,
-                                PositionClass.FOREIGN_MAGIC_UNKNOWN}
+        assert set(classes) == {PositionClass.R4_BOT, PositionClass.MANUAL_MAGIC_0, PositionClass.FOREIGN_MAGIC_UNKNOWN}
 
     def test_unknown_magic_is_quarantined_not_silently_owned(self):
-        led = ledger_from_deals([
-            {"ticket": 1, "magic": 20260825, "profit": 5.0},
-            {"ticket": 2, "magic": 777, "profit": -2.0},
-            {"ticket": 3, "magic": 0, "profit": 1.0},
-        ])
+        led = ledger_from_deals(
+            [
+                {"ticket": 1, "magic": 20260825, "profit": 5.0},
+                {"ticket": 2, "magic": 777, "profit": -2.0},
+                {"ticket": 3, "magic": 0, "profit": 1.0},
+            ]
+        )
         assert "MAGIC_777" in led.by_magic and "UNATTRIBUTED_MAGIC_0" in led.by_magic
         assert led.n_unattributable >= 1
         assert led.attestation_valid is False
@@ -119,6 +149,7 @@ class TestA6Classification:
 
 
 # ── A2: build pinning ─────────────────────────────────────────────
+
 
 class TestA2BuildPinning:
     REPO = Path(__file__).resolve().parents[3]
@@ -152,8 +183,8 @@ class TestA2BuildPinning:
 # ── A3/A8: catastrophic protection planning ───────────────────────
 
 from eigencapital.live.catastrophic_protection import (  # noqa: E402
-    FlattenOutcome,
     FLOOR_DISTANCE_PCT,
+    FlattenOutcome,
     disaster_stop_price,
     flatten_with_retry,
     plan_protection,
@@ -184,16 +215,14 @@ class TestA3DisasterStops:
     def test_plan_skips_already_protected(self):
         boundary = disaster_stop_price("LONG", 0.7155, ATR["AUDUSD"])
         positions = [bot_pos(1, "AUDUSD", sl=boundary + 0.01)]  # tighter than boundary
-        plan = plan_protection(classify_all(positions), ATR,
-                               {1: boundary + 0.01}, entry_lookup_factory(positions))
+        plan = plan_protection(classify_all(positions), ATR, {1: boundary + 0.01}, entry_lookup_factory(positions))
         assert plan == []
 
     def test_plan_repairs_wider_sl(self):
         boundary = disaster_stop_price("LONG", 0.7155, ATR["AUDUSD"])
         wider = boundary - 0.05  # further away = weaker
         positions = [bot_pos(1, "AUDUSD", sl=wider)]
-        plan = plan_protection(classify_all(positions), ATR, {1: wider},
-                               entry_lookup_factory(positions))
+        plan = plan_protection(classify_all(positions), ATR, {1: wider}, entry_lookup_factory(positions))
         assert len(plan) == 1
         assert plan[0].detail["sl"] == pytest.approx(boundary)
 
@@ -207,6 +236,7 @@ class TestA3DisasterStops:
 
 
 # ── A5: flatten with retry ────────────────────────────────────────
+
 
 class FlakyBroker:
     def __init__(self, fail_first_n=2):
@@ -224,8 +254,7 @@ class FlakyBroker:
 class TestA5Containment:
     def test_contain_issues_flatten_with_retry(self):
         broker = FlakyBroker(fail_first_n=2)
-        outcome, n = flatten_with_retry(broker.list_positions, broker.close,
-                                        max_passes=5)
+        outcome, n = flatten_with_retry(broker.list_positions, broker.close, max_passes=5)
         assert outcome is FlattenOutcome.FLATTENED and n == 1
 
     def test_retry_until_flat_or_halt(self):
@@ -236,8 +265,7 @@ class TestA5Containment:
             def close(self, ticket):
                 return False
 
-        outcome, n = flatten_with_retry(AlwaysFails().list_positions,
-                                        AlwaysFails().close, max_passes=3)
+        outcome, n = flatten_with_retry(AlwaysFails().list_positions, AlwaysFails().close, max_passes=3)
         assert outcome is FlattenOutcome.FAILED_HALT and n == 0
 
     def test_already_flat(self):
@@ -247,14 +275,17 @@ class TestA5Containment:
     def test_flatten_scoped_to_own_tickets_only(self):
         seen = []
         listing = lambda: [  # noqa: E731
-            {"ticket": 1, "magic": 20260825}, {"ticket": 9, "magic": 0}]
+            {"ticket": 1, "magic": 20260825},
+            {"ticket": 9, "magic": 0},
+        ]
         closer = lambda t: (seen.append(t), True)[1]  # noqa: E731
         flatten_with_retry(listing, closer, only_tickets={1})
-        assert set(seen) == {1}          # scope is what matters: never ticket 9
+        assert set(seen) == {1}  # scope is what matters: never ticket 9
         assert all(t == 1 for t in seen)
 
 
 # ── A4/A9/A11: watchdog escalation ladder ─────────────────────────
+
 
 class FakeClock:
     def __init__(self):
@@ -268,9 +299,13 @@ class FakeClock:
 
 
 def probe(alive=True, trail_age=0.0, eq_ok=True, reachable=True, h="x"):
-    return ProbeResult(process_alive=alive, trail_age_seconds=trail_age,
-                       equity_read_ok=eq_ok, broker_reachable=reachable,
-                       evidence_hash=h)
+    return ProbeResult(
+        process_alive=alive,
+        trail_age_seconds=trail_age,
+        equity_read_ok=eq_ok,
+        broker_reachable=reachable,
+        evidence_hash=h,
+    )
 
 
 class TestA4Watchdog:
@@ -299,7 +334,7 @@ class TestA4Watchdog:
     def test_blind_state_blocks_authorization(self):
         clock = FakeClock()
         wd = Watchdog(60, 120, 300, now=clock)
-        wd.evaluate(probe(reachable=False))          # DEGRADED->BLIND path
+        wd.evaluate(probe(reachable=False))  # DEGRADED->BLIND path
         d = wd.evaluate(probe(reachable=False))
         assert d.state is WatchState.BLIND and not d.authorize_trading
 
@@ -314,8 +349,8 @@ class TestA5WatchdogContain:
         clock.advance(300)
         d3 = wd.evaluate(probe(alive=False))
         assert d1.state is WatchState.DEGRADED
-        assert d2.state is WatchState.DEGRADED      # known-dead, not ambiguous
-        assert d3.state is WatchState.CONTAIN       # persisted past limit
+        assert d2.state is WatchState.DEGRADED  # known-dead, not ambiguous
+        assert d3.state is WatchState.CONTAIN  # persisted past limit
         assert d3.authorize_flatten_on_reconnect is True
 
     def test_contain_sticky_until_reconciliation(self):
@@ -325,8 +360,8 @@ class TestA5WatchdogContain:
         clock.advance(400)
         wd.evaluate(probe(alive=False))
         d = wd.evaluate(probe())  # everything healthy again
-        assert d.state is WatchState.CONTAIN          # sticky
-        assert not d.authorize_trading                # no auto-resume
+        assert d.state is WatchState.CONTAIN  # sticky
+        assert not d.authorize_trading  # no auto-resume
 
 
 class TestA9Reconciliation:
@@ -336,7 +371,7 @@ class TestA9Reconciliation:
         wd.evaluate(probe(alive=False))
         clock.advance(400)
         wd.evaluate(probe(alive=False))
-        d = wd.evaluate(probe())   # reconnect observed -> still CONTAIN
+        d = wd.evaluate(probe())  # reconnect observed -> still CONTAIN
         assert d.state is WatchState.CONTAIN
 
     def test_reconciliation_clears_halt_only_when_clean(self):
@@ -353,6 +388,7 @@ class TestA9Reconciliation:
 
 
 # ── A7/A10: evidence binding & durable audit ──────────────────────
+
 
 class TestA7Evidence:
     def test_decision_records_broker_snapshot_hash(self):
@@ -380,7 +416,7 @@ class TestA10DurableAudit:
         a.append("tick", {"i": 1})
         lines = path.read_text().splitlines()
         rec = json.loads(lines[0])
-        rec["payload"]["i"] = 999           # mutate history
+        rec["payload"]["i"] = 999  # mutate history
         lines[0] = json.dumps(rec)
         path.write_text("\n".join(lines) + "\n")
         v = DurableAudit(path).verify()
@@ -402,6 +438,7 @@ class TestA10DurableAudit:
 
 
 # ── A11: failure-injection matrix ─────────────────────────────────
+
 
 class TestA11FailureInjectionMatrix:
     """Each injected P0 condition maps to the mandated response."""
@@ -434,8 +471,7 @@ class TestA11FailureInjectionMatrix:
         assert WatchState.CONTAIN in states
 
     def test_contaminated_book_blocks_entries_but_not_self_defense(self):
-        cap = capacity_account(classify_all(
-            [bot_pos(1), manual_pos(2), manual_pos(3)]), 8)
+        cap = capacity_account(classify_all([bot_pos(1), manual_pos(2), manual_pos(3)]), 8)
         assert cap.allow_new_entries is False
         assert cap.allow_self_rotation is True
 

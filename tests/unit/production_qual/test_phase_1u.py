@@ -2,20 +2,19 @@
 
 from eigencapital.production_qual.campaign_boundary import (
     CampaignBoundary,
-    TradeRecord,
     TradeOrigin,
-)
-from eigencapital.production_qual.scaling import (
-    ScaleLevel,
-    SCALE_ENVELOPES,
-    ScalingMetrics,
-    ProductionScaleEvaluator,
+    TradeRecord,
 )
 from eigencapital.production_qual.qualification import (
     ProductionEvaluator,
     ProductionVerdict,
 )
-
+from eigencapital.production_qual.scaling import (
+    SCALE_ENVELOPES,
+    ProductionScaleEvaluator,
+    ScaleLevel,
+    ScalingMetrics,
+)
 
 # ============================================================
 # CAMPAIGN BOUNDARY TESTS
@@ -92,18 +91,28 @@ class TestCampaignBoundary:
         )
         # R4 trade
         r4_trade = TradeRecord(
-            trade_id="T001", decision_id="D001", evidence_id="E001",
-            instrument_id="EURUSDm", side="BUY", volume=0.15,
-            entry_price=1.16855, entry_timestamp="2026-08-24T14:00:00",
+            trade_id="T001",
+            decision_id="D001",
+            evidence_id="E001",
+            instrument_id="EURUSDm",
+            side="BUY",
+            volume=0.15,
+            entry_price=1.16855,
+            entry_timestamp="2026-08-24T14:00:00",
         )
         r4_trade.pnl = 50.0
         boundary.record_r4_trade(r4_trade)
 
         # Pre-existing
         pre_trade = TradeRecord(
-            trade_id="T002", decision_id="PRE", evidence_id="PRE",
-            instrument_id="GBPUSDm", side="BUY", volume=0.15,
-            entry_price=1.36417, entry_timestamp="2026-08-24T10:00:00",
+            trade_id="T002",
+            decision_id="PRE",
+            evidence_id="PRE",
+            instrument_id="GBPUSDm",
+            side="BUY",
+            volume=0.15,
+            entry_price=1.36417,
+            entry_timestamp="2026-08-24T10:00:00",
         )
         pre_trade.pnl = -10.0
         boundary.record_pre_existing(pre_trade)
@@ -120,9 +129,14 @@ class TestCampaignBoundary:
             start_timestamp="2026-08-24T12:00:00",
         )
         trade = TradeRecord(
-            trade_id="T001", decision_id="D001", evidence_id="E001",
-            instrument_id="EURUSDm", side="BUY", volume=0.15,
-            entry_price=1.16855, entry_timestamp="2026-08-24T14:00:00",
+            trade_id="T001",
+            decision_id="D001",
+            evidence_id="E001",
+            instrument_id="EURUSDm",
+            side="BUY",
+            volume=0.15,
+            entry_price=1.16855,
+            entry_timestamp="2026-08-24T14:00:00",
         )
         boundary.record_r4_trade(trade)
         assert len(boundary.get_r4_positions()) == 1
@@ -214,9 +228,14 @@ class TestProductionQualification:
             start_timestamp="2026-08-24T12:00:00",
         )
         trade = TradeRecord(
-            trade_id="T001", decision_id="D001", evidence_id="E001",
-            instrument_id="EURUSDm", side="BUY", volume=0.15,
-            entry_price=1.16855, entry_timestamp="2026-08-24T14:00:00",
+            trade_id="T001",
+            decision_id="D001",
+            evidence_id="E001",
+            instrument_id="EURUSDm",
+            side="BUY",
+            volume=0.15,
+            entry_price=1.16855,
+            entry_timestamp="2026-08-24T14:00:00",
         )
         boundary.record_r4_trade(trade)
 
@@ -245,9 +264,14 @@ class TestProductionQualification:
     def test_qualification_blocked_on_manual(self):
         boundary, metrics = self._make_qualified()
         manual = TradeRecord(
-            trade_id="M001", decision_id="MANUAL", evidence_id="MANUAL",
-            instrument_id="GBPUSDm", side="BUY", volume=0.15,
-            entry_price=1.36417, entry_timestamp="2026-08-24T14:00:00",
+            trade_id="M001",
+            decision_id="MANUAL",
+            evidence_id="MANUAL",
+            instrument_id="GBPUSDm",
+            side="BUY",
+            volume=0.15,
+            entry_price=1.36417,
+            entry_timestamp="2026-08-24T14:00:00",
         )
         manual.origin = TradeOrigin.MANUAL
         boundary.manual_trades.append(manual)
@@ -307,8 +331,11 @@ class TestAdversarialProduction:
         # Cannot modify campaign_id (dataclass with default_factory lists is mutable)
         # But we can verify classification works correctly
         origin = boundary.classify_position(
-            broker_ticket=999, symbol="X", volume=0.1,
-            entry_price=1.0, entry_time="2026-08-23",  # before start
+            broker_ticket=999,
+            symbol="X",
+            volume=0.1,
+            entry_price=1.0,
+            entry_time="2026-08-23",  # before start
         )
         assert origin == TradeOrigin.PRE_EXISTING
 
@@ -336,8 +363,11 @@ class TestAdversarialProduction:
         )
         # Classify a position
         origin = boundary.classify_position(
-            broker_ticket=123, symbol="X", volume=0.1,
-            entry_price=1.0, entry_time="2026-08-24T14:00:00",
+            broker_ticket=123,
+            symbol="X",
+            volume=0.1,
+            entry_price=1.0,
+            entry_time="2026-08-24T14:00:00",
         )
         # Should be classified (not unknown)
         assert origin in (TradeOrigin.R4_CAMPAIGN, TradeOrigin.PRE_EXISTING, TradeOrigin.MANUAL)
@@ -350,9 +380,14 @@ class TestAdversarialProduction:
             start_timestamp="2026-08-24T12:00:00",
         )
         trade = TradeRecord(
-            trade_id="T001", decision_id="D001", evidence_id="E001",
-            instrument_id="EURUSDm", side="BUY", volume=0.15,
-            entry_price=1.16855, entry_timestamp="2026-08-24T14:00:00",
+            trade_id="T001",
+            decision_id="D001",
+            evidence_id="E001",
+            instrument_id="EURUSDm",
+            side="BUY",
+            volume=0.15,
+            entry_price=1.16855,
+            entry_timestamp="2026-08-24T14:00:00",
         )
         trade.pnl = -100.0  # losing money
         boundary.record_r4_trade(trade)

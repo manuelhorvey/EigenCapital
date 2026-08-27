@@ -20,12 +20,13 @@ Tests EigenCapital under adverse conditions:
 """
 
 import pytest
-from eigencapital.stress.engine import StressTestEngine, SystemState
-from eigencapital.core.models.position import Position
-from eigencapital.core.models.order import Order
-from eigencapital.core.models.fill import Fill
+
 from eigencapital.core.models.approved_target import ApprovedTarget
+from eigencapital.core.models.fill import Fill
+from eigencapital.core.models.order import Order
 from eigencapital.core.models.order_plan import OrderPlan, Urgency
+from eigencapital.core.models.position import Position
+from eigencapital.stress.engine import StressTestEngine, SystemState
 
 
 def _baseline_state() -> SystemState:
@@ -97,9 +98,7 @@ class TestExecutionPricePerturbation:
             return s.equity > b.equity
 
         engine = StressTestEngine()
-        engine.register_scenario(
-            "favorable_slippage", "Favorable slippage", perturb, check
-        )
+        engine.register_scenario("favorable_slippage", "Favorable slippage", perturb, check)
         results = engine.execute(baseline)
         assert results[0].passed
 
@@ -150,9 +149,7 @@ class TestSpreadStress:
             costs.append(model.cost_per_contract(tick_value=0.25))
 
         for i in range(1, len(costs)):
-            assert costs[i] >= costs[i - 1], (
-                f"Cost not monotonic at multiplier {multipliers[i]}"
-            )
+            assert costs[i] >= costs[i - 1], f"Cost not monotonic at multiplier {multipliers[i]}"
 
     def test_extreme_spread_increases_cost(self):
         """10x spread must cost more than 1x spread."""
@@ -543,9 +540,9 @@ class TestFailClosed:
 
     def test_kill_switch_blocks_orders(self):
         """Kill switch must block all new orders."""
+        from eigencapital.risk.checks.account_checks import AccountState
         from eigencapital.risk.engine import EigenRiskEngine
         from eigencapital.risk.policy import RiskPolicy
-        from eigencapital.risk.checks.account_checks import AccountState
 
         policy = RiskPolicy(kill_switch=True)
         engine = EigenRiskEngine(policy=policy)
@@ -555,9 +552,9 @@ class TestFailClosed:
 
     def test_zero_equity_blocks_orders(self):
         """Zero equity must block new orders."""
+        from eigencapital.risk.checks.account_checks import AccountState
         from eigencapital.risk.engine import EigenRiskEngine
         from eigencapital.risk.policy import RiskPolicy
-        from eigencapital.risk.checks.account_checks import AccountState
 
         policy = RiskPolicy(min_equity=50_000)
         engine = EigenRiskEngine(policy=policy)
@@ -784,9 +781,7 @@ class TestStressTestEngine:
         engine.register_scenario(
             "test_1",
             "Test scenario",
-            lambda s: SystemState(
-                cash=s.cash - 100, equity=s.equity - 100, positions=s.positions.copy()
-            ),
+            lambda s: SystemState(cash=s.cash - 100, equity=s.equity - 100, positions=s.positions.copy()),
             lambda b, s: s.equity < b.equity,
         )
         results = engine.execute(_baseline_state())

@@ -1,29 +1,29 @@
 """Phase 1R Tests — R4 Paper Fidelity & Execution Qualification."""
 
 import pytest
-from eigencapital.fidelity.r4_manifest import R4ConfigManifest
-from eigencapital.fidelity.parity import (
-    ResearchPaperParityEngine,
-    ParityBoundary,
-    ParityStatus,
-    DivergenceType,
-    ParitySummary,
-)
-from eigencapital.fidelity.replay import (
-    DeterministicReplayCampaign,
-    ReplayStatus,
-)
+
 from eigencapital.fidelity.forward import (
     ForwardPaperCampaign,
     ForwardStatus,
     OperationalEvent,
 )
+from eigencapital.fidelity.parity import (
+    DivergenceType,
+    ParityBoundary,
+    ParityStatus,
+    ParitySummary,
+    ResearchPaperParityEngine,
+)
+from eigencapital.fidelity.r4_manifest import R4ConfigManifest
+from eigencapital.fidelity.replay import (
+    DeterministicReplayCampaign,
+    ReplayStatus,
+)
 from eigencapital.fidelity.verdict import (
     FidelityEvaluator,
-    FidelityVerdict,
     FidelityGate,
+    FidelityVerdict,
 )
-
 
 # ============================================================
 # R4 CONFIG MANIFEST TESTS
@@ -184,10 +184,22 @@ class TestDeterministicReplay:
         campaign = DeterministicReplayCampaign(manifest)
 
         decisions = [
-            {"timestamp": "2026-01-01", "instrument_id": "EURUSDm",
-             "signal": 0.5, "weight": 0.1, "position": 100.0, "pnl": 0.01},
-            {"timestamp": "2026-01-02", "instrument_id": "GBPUSDm",
-             "signal": -0.3, "weight": 0.08, "position": -80.0, "pnl": -0.005},
+            {
+                "timestamp": "2026-01-01",
+                "instrument_id": "EURUSDm",
+                "signal": 0.5,
+                "weight": 0.1,
+                "position": 100.0,
+                "pnl": 0.01,
+            },
+            {
+                "timestamp": "2026-01-02",
+                "instrument_id": "GBPUSDm",
+                "signal": -0.3,
+                "weight": 0.08,
+                "position": -80.0,
+                "pnl": -0.005,
+            },
         ]
 
         result = campaign.run(decisions, decisions)
@@ -200,12 +212,24 @@ class TestDeterministicReplay:
         campaign = DeterministicReplayCampaign(manifest)
 
         research = [
-            {"timestamp": "2026-01-01", "instrument_id": "EURUSDm",
-             "signal": 0.5, "weight": 0.1, "position": 100.0, "pnl": 0.01},
+            {
+                "timestamp": "2026-01-01",
+                "instrument_id": "EURUSDm",
+                "signal": 0.5,
+                "weight": 0.1,
+                "position": 100.0,
+                "pnl": 0.01,
+            },
         ]
         paper = [
-            {"timestamp": "2026-01-01", "instrument_id": "EURUSDm",
-             "signal": 0.5, "weight": 0.15, "position": 150.0, "pnl": 0.02},
+            {
+                "timestamp": "2026-01-01",
+                "instrument_id": "EURUSDm",
+                "signal": 0.5,
+                "weight": 0.15,
+                "position": 150.0,
+                "pnl": 0.02,
+            },
         ]
 
         result = campaign.run(research, paper)
@@ -215,8 +239,7 @@ class TestDeterministicReplay:
         manifest = R4ConfigManifest()
         campaign = DeterministicReplayCampaign(manifest)
 
-        research = [{"timestamp": "t1", "instrument_id": "X",
-                      "signal": 0.5, "weight": 0.1, "position": 100, "pnl": 0}]
+        research = [{"timestamp": "t1", "instrument_id": "X", "signal": 0.5, "weight": 0.1, "position": 100, "pnl": 0}]
         paper = []
 
         result = campaign.run(research, paper)
@@ -249,69 +272,94 @@ class TestForwardPaperCampaign:
         manifest = R4ConfigManifest()
         campaign = ForwardPaperCampaign(manifest)
 
-        tick = campaign.ingest_tick({
-            "timestamp": "2026-01-01 12:00:00",
-            "instrument_id": "EURUSDm",
-            "open": 1.1000,
-            "high": 1.1050,
-            "low": 1.0980,
-            "close": 1.1020,
-            "volume": 1000,
-            "spread": 0.0002,
-        })
+        tick = campaign.ingest_tick(
+            {
+                "timestamp": "2026-01-01 12:00:00",
+                "instrument_id": "EURUSDm",
+                "open": 1.1000,
+                "high": 1.1050,
+                "low": 1.0980,
+                "close": 1.1020,
+                "volume": 1000,
+                "spread": 0.0002,
+            }
+        )
         assert tick.operational_event == OperationalEvent.NORMAL
 
     def test_missing_bar_detection(self):
         manifest = R4ConfigManifest()
         campaign = ForwardPaperCampaign(manifest)
 
-        tick = campaign.ingest_tick({
-            "timestamp": "2026-01-01 12:00:00",
-            "instrument_id": "EURUSDm",
-            "open": 1.1000, "high": 1.1050, "low": 1.0980,
-            "close": 1.1020, "volume": 1000, "spread": 0.0002,
-            "is_missing": True,
-        })
+        tick = campaign.ingest_tick(
+            {
+                "timestamp": "2026-01-01 12:00:00",
+                "instrument_id": "EURUSDm",
+                "open": 1.1000,
+                "high": 1.1050,
+                "low": 1.0980,
+                "close": 1.1020,
+                "volume": 1000,
+                "spread": 0.0002,
+                "is_missing": True,
+            }
+        )
         assert tick.operational_event == OperationalEvent.MISSING_BAR
 
     def test_stale_data_detection(self):
         manifest = R4ConfigManifest()
         campaign = ForwardPaperCampaign(manifest)
 
-        tick = campaign.ingest_tick({
-            "timestamp": "2026-01-01 12:00:00",
-            "instrument_id": "EURUSDm",
-            "open": 1.1000, "high": 1.1050, "low": 1.0980,
-            "close": 1.1020, "volume": 1000, "spread": 0.0002,
-            "is_stale": True,
-        })
+        tick = campaign.ingest_tick(
+            {
+                "timestamp": "2026-01-01 12:00:00",
+                "instrument_id": "EURUSDm",
+                "open": 1.1000,
+                "high": 1.1050,
+                "low": 1.0980,
+                "close": 1.1020,
+                "volume": 1000,
+                "spread": 0.0002,
+                "is_stale": True,
+            }
+        )
         assert tick.operational_event == OperationalEvent.STALE_DATA
 
     def test_spread_widening_detection(self):
         manifest = R4ConfigManifest()
         campaign = ForwardPaperCampaign(manifest)
 
-        tick = campaign.ingest_tick({
-            "timestamp": "2026-01-01 12:00:00",
-            "instrument_id": "EURUSDm",
-            "open": 1.1000, "high": 1.1050, "low": 1.0980,
-            "close": 1.1020, "volume": 1000,
-            "spread": 0.0010,  # 5x avg spread
-            "avg_spread": 0.0002,
-        })
+        tick = campaign.ingest_tick(
+            {
+                "timestamp": "2026-01-01 12:00:00",
+                "instrument_id": "EURUSDm",
+                "open": 1.1000,
+                "high": 1.1050,
+                "low": 1.0980,
+                "close": 1.1020,
+                "volume": 1000,
+                "spread": 0.0010,  # 5x avg spread
+                "avg_spread": 0.0002,
+            }
+        )
         assert tick.operational_event == OperationalEvent.SPREAD_WIDENING
 
     def test_session_boundary_detection(self):
         manifest = R4ConfigManifest()
         campaign = ForwardPaperCampaign(manifest)
 
-        tick = campaign.ingest_tick({
-            "timestamp": "2026-01-01 12:00:00",
-            "instrument_id": "EURUSDm",
-            "open": 1.1000, "high": 1.1050, "low": 1.0980,
-            "close": 1.1020, "volume": 1000, "spread": 0.0002,
-            "is_session_boundary": True,
-        })
+        tick = campaign.ingest_tick(
+            {
+                "timestamp": "2026-01-01 12:00:00",
+                "instrument_id": "EURUSDm",
+                "open": 1.1000,
+                "high": 1.1050,
+                "low": 1.0980,
+                "close": 1.1020,
+                "volume": 1000,
+                "spread": 0.0002,
+                "is_session_boundary": True,
+            }
+        )
         assert tick.operational_event == OperationalEvent.SESSION_BOUNDARY
 
     def test_decision_recording(self):
@@ -337,12 +385,18 @@ class TestForwardPaperCampaign:
         campaign = ForwardPaperCampaign(manifest)
 
         for i in range(101):
-            campaign.ingest_tick({
-                "timestamp": f"2026-01-01 12:{i:02d}:00",
-                "instrument_id": "EURUSDm",
-                "open": 1.1000, "high": 1.1050, "low": 1.0980,
-                "close": 1.1020, "volume": 1000, "spread": 0.0002,
-            })
+            campaign.ingest_tick(
+                {
+                    "timestamp": f"2026-01-01 12:{i:02d}:00",
+                    "instrument_id": "EURUSDm",
+                    "open": 1.1000,
+                    "high": 1.1050,
+                    "low": 1.0980,
+                    "close": 1.1020,
+                    "volume": 1000,
+                    "spread": 0.0002,
+                }
+            )
 
         result = campaign.get_result()
         assert result.reconciliation_checks >= 1
@@ -351,12 +405,18 @@ class TestForwardPaperCampaign:
         manifest = R4ConfigManifest()
         campaign = ForwardPaperCampaign(manifest)
 
-        campaign.ingest_tick({
-            "timestamp": "2026-01-01 12:00:00",
-            "instrument_id": "EURUSDm",
-            "open": 1.1000, "high": 1.1050, "low": 1.0980,
-            "close": 1.1020, "volume": 1000, "spread": 0.0002,
-        })
+        campaign.ingest_tick(
+            {
+                "timestamp": "2026-01-01 12:00:00",
+                "instrument_id": "EURUSDm",
+                "open": 1.1000,
+                "high": 1.1050,
+                "low": 1.0980,
+                "close": 1.1020,
+                "volume": 1000,
+                "spread": 0.0002,
+            }
+        )
 
         result = campaign.get_result()
         assert result.total_ticks == 1
@@ -367,11 +427,18 @@ class TestForwardPaperCampaign:
         campaign = ForwardPaperCampaign(manifest)
         assert campaign.status == ForwardStatus.CREATED
 
-        campaign.ingest_tick({
-            "timestamp": "t1", "instrument_id": "X",
-            "open": 1.0, "high": 1.0, "low": 1.0,
-            "close": 1.0, "volume": 100, "spread": 0.001,
-        })
+        campaign.ingest_tick(
+            {
+                "timestamp": "t1",
+                "instrument_id": "X",
+                "open": 1.0,
+                "high": 1.0,
+                "low": 1.0,
+                "close": 1.0,
+                "volume": 100,
+                "spread": 0.001,
+            }
+        )
         assert campaign.status == ForwardStatus.RUNNING
 
 
@@ -551,8 +618,7 @@ class TestFidelityVerdict:
         )
 
         # Operational stability gate should fail
-        ops_gate = [g for g in report.gate_results
-                    if g.gate == FidelityGate.OPERATIONAL_STABILITY]
+        ops_gate = [g for g in report.gate_results if g.gate == FidelityGate.OPERATIONAL_STABILITY]
         assert len(ops_gate) == 1
         assert not ops_gate[0].passed
 
@@ -599,7 +665,10 @@ class TestAdversarialPhase1R:
         engine = ResearchPaperParityEngine("test")
         result = engine.check(
             ParityBoundary.TARGET_WEIGHT,
-            "t1", "BTCUSDm", 0.15, 0.10,
+            "t1",
+            "BTCUSDm",
+            0.15,
+            0.10,
             is_intentional=True,
             explanation="crypto cap",
         )
@@ -611,10 +680,8 @@ class TestAdversarialPhase1R:
         manifest = R4ConfigManifest()
         campaign = DeterministicReplayCampaign(manifest)
         result = campaign.run(
-            [{"timestamp": "t1", "instrument_id": "X",
-              "signal": 0, "weight": 0, "position": 0, "pnl": 0}] * 10,
-            [{"timestamp": "t1", "instrument_id": "X",
-              "signal": 0, "weight": 0, "position": 0, "pnl": 0}] * 5,
+            [{"timestamp": "t1", "instrument_id": "X", "signal": 0, "weight": 0, "position": 0, "pnl": 0}] * 10,
+            [{"timestamp": "t1", "instrument_id": "X", "signal": 0, "weight": 0, "position": 0, "pnl": 0}] * 5,
         )
         assert result.status == "CRITICAL"
 
@@ -626,27 +693,50 @@ class TestAdversarialPhase1R:
         events_detected = set()
 
         # Normal
-        campaign.ingest_tick({
-            "timestamp": "t1", "instrument_id": "X",
-            "open": 1, "high": 1, "low": 1, "close": 1,
-            "volume": 100, "spread": 0.001,
-        })
+        campaign.ingest_tick(
+            {
+                "timestamp": "t1",
+                "instrument_id": "X",
+                "open": 1,
+                "high": 1,
+                "low": 1,
+                "close": 1,
+                "volume": 100,
+                "spread": 0.001,
+            }
+        )
         events_detected.add("normal")
 
         # Missing
-        campaign.ingest_tick({
-            "timestamp": "t2", "instrument_id": "X",
-            "open": 1, "high": 1, "low": 1, "close": 1,
-            "volume": 100, "spread": 0.001, "is_missing": True,
-        })
+        campaign.ingest_tick(
+            {
+                "timestamp": "t2",
+                "instrument_id": "X",
+                "open": 1,
+                "high": 1,
+                "low": 1,
+                "close": 1,
+                "volume": 100,
+                "spread": 0.001,
+                "is_missing": True,
+            }
+        )
         events_detected.add("missing")
 
         # Stale
-        campaign.ingest_tick({
-            "timestamp": "t3", "instrument_id": "X",
-            "open": 1, "high": 1, "low": 1, "close": 1,
-            "volume": 100, "spread": 0.001, "is_stale": True,
-        })
+        campaign.ingest_tick(
+            {
+                "timestamp": "t3",
+                "instrument_id": "X",
+                "open": 1,
+                "high": 1,
+                "low": 1,
+                "close": 1,
+                "volume": 100,
+                "spread": 0.001,
+                "is_stale": True,
+            }
+        )
         events_detected.add("stale")
 
         assert "normal" in events_detected

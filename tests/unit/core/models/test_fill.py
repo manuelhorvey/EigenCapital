@@ -50,13 +50,13 @@ def test_fill_quantity_always_positive():
 
     try:
         _make_fill(quantity=0)
-        assert False, "Should reject quantity=0"
+        raise AssertionError("Should reject quantity=0")
     except ValueError as e:
         assert "quantity must be > 0" in str(e)
 
     try:
         _make_fill(quantity=-5)
-        assert False, "Should reject negative quantity"
+        raise AssertionError("Should reject negative quantity")
     except ValueError as e:
         assert "quantity must be > 0" in str(e)
 
@@ -71,7 +71,7 @@ def test_fill_side_validation():
 
     try:
         _make_fill(side="HOLD")
-        assert False, "Should reject invalid side"
+        raise AssertionError("Should reject invalid side")
     except ValueError as e:
         assert "side must be 'BUY' or 'SELL'" in str(e)
 
@@ -80,7 +80,7 @@ def test_fill_instrument_id_required():
     """INVARIANT: instrument_id must be non-empty."""
     try:
         _make_fill(instrument_id="")
-        assert False, "Should reject empty instrument_id"
+        raise AssertionError("Should reject empty instrument_id")
     except ValueError as e:
         assert "instrument_id must be non-empty" in str(e)
 
@@ -89,7 +89,7 @@ def test_fill_strategy_id_required():
     """INVARIANT: strategy_id must be non-empty for accountability."""
     try:
         _make_fill(strategy_id="")
-        assert False, "Should reject empty strategy_id"
+        raise AssertionError("Should reject empty strategy_id")
     except ValueError as e:
         assert "strategy_id must be non-empty" in str(e)
 
@@ -101,7 +101,7 @@ def test_fill_timestamp_format():
 
     try:
         _make_fill(timestamp_utc="2024-03-15 09:35:00")
-        assert False, "Should reject non-ISO timestamp"
+        raise AssertionError("Should reject non-ISO timestamp")
     except ValueError as e:
         assert "ISO-8601" in str(e)
 
@@ -113,19 +113,19 @@ def test_fill_price_validation():
 
     try:
         _make_fill(fill_price=0)
-        assert False, "Should reject fill_price=0"
+        raise AssertionError("Should reject fill_price=0")
     except ValueError as e:
         assert "fill_price must be > 0" in str(e)
 
     try:
         _make_fill(fill_price=float("nan"))
-        assert False, "Should reject NaN fill_price"
+        raise AssertionError("Should reject NaN fill_price")
     except ValueError:
         pass
 
     try:
         _make_fill(fill_price=float("inf"))
-        assert False, "Should reject inf fill_price"
+        raise AssertionError("Should reject inf fill_price")
     except ValueError:
         pass
 
@@ -138,13 +138,13 @@ def test_fill_commission_fees_nonnegative():
 
     try:
         _make_fill(commission=-1)
-        assert False, "Should reject negative commission"
+        raise AssertionError("Should reject negative commission")
     except ValueError as e:
         assert "commission must be >= 0" in str(e)
 
     try:
         _make_fill(fees=-1)
-        assert False, "Should reject negative fees"
+        raise AssertionError("Should reject negative fees")
     except ValueError as e:
         assert "fees must be >= 0" in str(e)
 
@@ -157,7 +157,7 @@ def test_fill_types():
 
     try:
         _make_fill(fill_type="UNKNOWN")
-        assert False, "Should reject unknown fill_type"
+        raise AssertionError("Should reject unknown fill_type")
     except ValueError as e:
         assert "Invalid fill_type" in str(e)
 
@@ -174,7 +174,7 @@ def test_fill_liquidity_indicator():
 
     try:
         _make_fill(liquidity_indicator="UNKNOWN")
-        assert False, "Should reject unknown indicator"
+        raise AssertionError("Should reject unknown indicator")
     except ValueError as e:
         assert "Invalid liquidity_indicator" in str(e)
 

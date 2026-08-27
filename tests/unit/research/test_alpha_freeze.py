@@ -9,14 +9,13 @@ Tests:
 
 import pytest
 
+from eigencapital.research.alpha.campaign import HypothesisStatus
 from eigencapital.research.alpha.freeze import (
     CampaignFreezeManifest,
     FreezeRegistry,
 )
-from eigencapital.research.alpha.campaign import HypothesisStatus
-from eigencapital.research.alpha.scorecard import ScorecardEvaluator
 from eigencapital.research.alpha.research_map import ResearchMapGenerator
-
+from eigencapital.research.alpha.scorecard import ScorecardEvaluator
 
 # ============================================================
 # Campaign Freeze Tests
@@ -228,9 +227,7 @@ class TestFreezeRegistry:
     def test_create_default_manifest(self):
         """Default manifest creation works."""
         registry = FreezeRegistry()
-        manifest = registry.create_default_manifest(
-            "test-campaign", git_commit="abc123"
-        )
+        manifest = registry.create_default_manifest("test-campaign", git_commit="abc123")
         assert manifest.campaign_id == "test-campaign"
         assert manifest.git_commit == "abc123"
 
@@ -508,12 +505,8 @@ class TestResearchMapRichVerdicts:
         """FRAGILE is counted as rejected."""
         generator = ResearchMapGenerator()
         verdicts = [
-            self._make_verdict(
-                hypothesis_id="HYP-A", status=HypothesisStatus.REJECTED.value
-            ),
-            self._make_verdict(
-                hypothesis_id="HYP-B", status=HypothesisStatus.FRAGILE.value
-            ),
+            self._make_verdict(hypothesis_id="HYP-A", status=HypothesisStatus.REJECTED.value),
+            self._make_verdict(hypothesis_id="HYP-B", status=HypothesisStatus.FRAGILE.value),
             self._make_verdict(
                 hypothesis_id="HYP-C",
                 status=HypothesisStatus.SUPPORTED.value,
@@ -528,12 +521,8 @@ class TestResearchMapRichVerdicts:
         """REDUNDANT is counted as rejected."""
         generator = ResearchMapGenerator()
         verdicts = [
-            self._make_verdict(
-                hypothesis_id="HYP-A", status=HypothesisStatus.REDUNDANT.value
-            ),
-            self._make_verdict(
-                hypothesis_id="HYP-B", status=HypothesisStatus.CAPACITY_LIMITED.value
-            ),
+            self._make_verdict(hypothesis_id="HYP-A", status=HypothesisStatus.REDUNDANT.value),
+            self._make_verdict(hypothesis_id="HYP-B", status=HypothesisStatus.CAPACITY_LIMITED.value),
         ]
         rm = generator.generate("camp", verdicts, [], [])
         assert rm.total_rejected == 2
@@ -560,15 +549,9 @@ class TestResearchMapRichVerdicts:
         """Survival rate correctly computed with richer verdicts."""
         generator = ResearchMapGenerator()
         verdicts = [
-            self._make_verdict(
-                hypothesis_id="HYP-A", status=HypothesisStatus.REJECTED.value
-            ),
-            self._make_verdict(
-                hypothesis_id="HYP-B", status=HypothesisStatus.FRAGILE.value
-            ),
-            self._make_verdict(
-                hypothesis_id="HYP-C", status=HypothesisStatus.REDUNDANT.value
-            ),
+            self._make_verdict(hypothesis_id="HYP-A", status=HypothesisStatus.REJECTED.value),
+            self._make_verdict(hypothesis_id="HYP-B", status=HypothesisStatus.FRAGILE.value),
+            self._make_verdict(hypothesis_id="HYP-C", status=HypothesisStatus.REDUNDANT.value),
             self._make_verdict(
                 hypothesis_id="HYP-D",
                 status=HypothesisStatus.SUPPORTED.value,
@@ -589,12 +572,8 @@ class TestResearchMapRichVerdicts:
         """Markdown report includes richer verdict statuses."""
         generator = ResearchMapGenerator()
         verdicts = [
-            self._make_verdict(
-                hypothesis_id="HYP-A", status=HypothesisStatus.FRAGILE.value
-            ),
-            self._make_verdict(
-                hypothesis_id="HYP-B", status=HypothesisStatus.REDUNDANT.value
-            ),
+            self._make_verdict(hypothesis_id="HYP-A", status=HypothesisStatus.FRAGILE.value),
+            self._make_verdict(hypothesis_id="HYP-B", status=HypothesisStatus.REDUNDANT.value),
             self._make_verdict(
                 hypothesis_id="HYP-C",
                 status=HypothesisStatus.PRODUCTION_CANDIDATE.value,

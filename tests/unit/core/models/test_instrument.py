@@ -64,7 +64,7 @@ def test_instrument_duplicate_id():
             lot_size=1,
             price_precision=2,
         )
-        assert False, "Should have raised ValueError for duplicate instrument_id"
+        raise AssertionError("Should have raised ValueError for duplicate instrument_id")
     except ValueError as e:
         assert "Duplicate instrument_id" in str(e)
     print("  PASS: test_instrument_duplicate_id")
@@ -85,7 +85,7 @@ def test_instrument_invalid_tick_size():
             lot_size=1,
             price_precision=2,
         )
-        assert False, "Should have raised ValueError for invalid tick_size"
+        raise AssertionError("Should have raised ValueError for invalid tick_size")
     except ValueError as e:
         assert "tick_size must be > 0" in str(e)
     print("  PASS: test_instrument_invalid_tick_size")
@@ -106,7 +106,7 @@ def test_instrument_invalid_lot_size():
             lot_size=0,  # invalid
             price_precision=2,
         )
-        assert False, "Should have raised ValueError for invalid lot_size"
+        raise AssertionError("Should have raised ValueError for invalid lot_size")
     except ValueError as e:
         assert "lot_size must be > 0" in str(e)
     print("  PASS: test_instrument_invalid_lot_size")
@@ -127,7 +127,7 @@ def test_instrument_invalid_price_precision():
             lot_size=1,
             price_precision=-1,  # invalid: must be >= 0
         )
-        assert False, "Should have raised ValueError for invalid price_precision"
+        raise AssertionError("Should have raised ValueError for invalid price_precision")
     except ValueError as e:
         assert "price_precision must be >= 0" in str(e)
     print("  PASS: test_instrument_invalid_price_precision")
@@ -137,7 +137,7 @@ def test_instrument_invalid_asset_class():
     """Test that invalid asset_class raises error via validate_asset_class."""
     try:
         validate_asset_class("INVALID_CLASS")
-        assert False, "Should have raised ValueError for invalid asset class"
+        raise AssertionError("Should have raised ValueError for invalid asset class")
     except ValueError as e:
         assert "Invalid asset_class" in str(e)
     print("  PASS: test_instrument_invalid_asset_class")
@@ -241,7 +241,7 @@ def test_instrument_negative_tick_value():
             lot_size=1,
             price_precision=2,
         )
-        assert False, "Should have raised ValueError for negative tick_value"
+        raise AssertionError("Should have raised ValueError for negative tick_value")
     except ValueError as e:
         assert "tick_value must be > 0" in str(e)
     print("  PASS: test_instrument_negative_tick_value")
@@ -291,13 +291,13 @@ def test_instrument_validate_asset_class():
         try:
             validate_asset_class(valid)
         except ValueError:
-            assert False, f"validate_asset_class({valid}) should not raise"
+            raise AssertionError(f"validate_asset_class({valid}) should not raise")
 
     # Invalid classes
     for invalid in ["EQUITY_OPTION", "FUTURE_OPTION", "BOND", "INVALID"]:
         try:
             validate_asset_class(invalid)
-            assert False, f"validate_asset_class({invalid}) should raise ValueError"
+            raise AssertionError(f"validate_asset_class({invalid}) should raise ValueError")
         except ValueError:
             pass  # Expected
 

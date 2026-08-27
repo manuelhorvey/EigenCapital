@@ -23,15 +23,14 @@ from eigencapital.production_qual.campaign_boundary import (
     CampaignBoundary,
 )
 from eigencapital.production_qual.pre_trading import (
+    BrokerStateSnapshot,
     PreTradingCheck,
     PreTradingDecision,
     PreTradingValidator,
-    BrokerStateSnapshot,
 )
 from eigencapital.production_qual.prefunding_gate import (
     GateRecord,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
@@ -243,13 +242,15 @@ class TestReconcile:
         """Position with unknown ticket → BLOCKED."""
         validator = PreTradingValidator()
         state = _make_broker_state(
-            positions=[{
-                "ticket": 99999,
-                "symbol": "EURUSDm",
-                "volume": 0.1,
-                "price_open": 1.1000,
-                "time": "2026-08-25T12:00:00",
-            }],
+            positions=[
+                {
+                    "ticket": 99999,
+                    "symbol": "EURUSDm",
+                    "volume": 0.1,
+                    "price_open": 1.1000,
+                    "time": "2026-08-25T12:00:00",
+                }
+            ],
             position_count=1,
         )
         checks = validator.reconcile_positions(state)
@@ -265,13 +266,15 @@ class TestReconcile:
         )
         validator = PreTradingValidator()
         state = _make_broker_state(
-            positions=[{
-                "ticket": 11111,
-                "symbol": "EURUSDm",
-                "volume": 0.1,
-                "price_open": 1.1000,
-                "time": "2026-08-25T12:00:00",  # after start
-            }],
+            positions=[
+                {
+                    "ticket": 11111,
+                    "symbol": "EURUSDm",
+                    "volume": 0.1,
+                    "price_open": 1.1000,
+                    "time": "2026-08-25T12:00:00",  # after start
+                }
+            ],
             position_count=1,
         )
         checks = validator.reconcile_positions(state, boundary)
@@ -302,13 +305,15 @@ class TestReconcile:
 
         validator = PreTradingValidator()
         state = _make_broker_state(
-            positions=[{
-                "ticket": 22222,
-                "symbol": "EURUSDm",
-                "volume": 0.1,
-                "price_open": 1.1000,
-                "time": "2026-08-25T10:00:00",
-            }],
+            positions=[
+                {
+                    "ticket": 22222,
+                    "symbol": "EURUSDm",
+                    "volume": 0.1,
+                    "price_open": 1.1000,
+                    "time": "2026-08-25T10:00:00",
+                }
+            ],
             position_count=1,
         )
         checks = validator.reconcile_positions(state, boundary)
@@ -324,13 +329,15 @@ class TestReconcile:
         )
         validator = PreTradingValidator()
         state = _make_broker_state(
-            positions=[{
-                "ticket": 33333,
-                "symbol": "GBPUSDm",
-                "volume": 0.2,
-                "price_open": 1.2500,
-                "time": "2026-08-25T10:00:00",  # before start
-            }],
+            positions=[
+                {
+                    "ticket": 33333,
+                    "symbol": "GBPUSDm",
+                    "volume": 0.2,
+                    "price_open": 1.2500,
+                    "time": "2026-08-25T10:00:00",  # before start
+                }
+            ],
             position_count=1,
         )
         checks = validator.reconcile_positions(state, boundary)
@@ -343,8 +350,7 @@ class TestReconcile:
         """Too many positions → BLOCKED."""
         validator = PreTradingValidator()
         positions = [
-            {"ticket": i, "symbol": "EURUSDm", "volume": 0.1,
-             "price_open": 1.1000, "time": "2026-08-25T12:00:00"}
+            {"ticket": i, "symbol": "EURUSDm", "volume": 0.1, "price_open": 1.1000, "time": "2026-08-25T12:00:00"}
             for i in range(10)  # > max 8
         ]
         state = _make_broker_state(positions=positions, position_count=10)
@@ -423,13 +429,15 @@ class TestAuthorize:
         """Critical failure in previous step → BLOCKED."""
         validator = PreTradingValidator()
         # Simulate a critical failure
-        validator._checks.append(PreTradingCheck(
-            step="test",
-            check_id="TEST-CRIT",
-            passed=False,
-            description="Test critical failure",
-            severity="CRITICAL",
-        ))
+        validator._checks.append(
+            PreTradingCheck(
+                step="test",
+                check_id="TEST-CRIT",
+                passed=False,
+                description="Test critical failure",
+                severity="CRITICAL",
+            )
+        )
         gate_record = _make_gate_record()
         checks = validator.authorize_trading(gate_record)
         assert not checks[1].passed  # critical failures exist
@@ -513,13 +521,15 @@ class TestFullValidation:
         """Unclassified position → TRADING_BLOCKED."""
         validator = PreTradingValidator()
         state = _make_broker_state(
-            positions=[{
-                "ticket": 99999,
-                "symbol": "EURUSDm",
-                "volume": 0.1,
-                "price_open": 1.1000,
-                "time": "2026-08-25T12:00:00",
-            }],
+            positions=[
+                {
+                    "ticket": 99999,
+                    "symbol": "EURUSDm",
+                    "volume": 0.1,
+                    "price_open": 1.1000,
+                    "time": "2026-08-25T12:00:00",
+                }
+            ],
             position_count=1,
         )
         gate_record = _make_gate_record()
@@ -585,13 +595,15 @@ class TestFullValidation:
         """Position counts are recorded in authorization."""
         validator = PreTradingValidator()
         state = _make_broker_state(
-            positions=[{
-                "ticket": 11111,
-                "symbol": "EURUSDm",
-                "volume": 0.1,
-                "price_open": 1.1000,
-                "time": "2026-08-25T12:00:00",
-            }],
+            positions=[
+                {
+                    "ticket": 11111,
+                    "symbol": "EURUSDm",
+                    "volume": 0.1,
+                    "price_open": 1.1000,
+                    "time": "2026-08-25T12:00:00",
+                }
+            ],
             position_count=1,
         )
         gate_record = _make_gate_record()
@@ -637,25 +649,26 @@ class TestFullValidation:
 class TestNegativePathMatrix:
     """Every important failure mode has a predetermined safe outcome."""
 
-    @pytest.mark.parametrize("failure,expected", [
-        ("wrong_account", "TRADING_BLOCKED"),
-        ("wrong_environment", "TRADING_BLOCKED"),
-        ("wrong_broker", "TRADING_BLOCKED"),
-        ("excess_equity", "TRADING_BLOCKED"),
-        ("zero_equity", "TRADING_BLOCKED"),
-        ("missing_symbols", "TRADING_BLOCKED"),
-        ("excessive_spread", "TRADING_BLOCKED"),
-        ("unclassified_position", "TRADING_BLOCKED"),
-        ("manual_trade", "TRADING_BLOCKED"),
-        ("fingerprint_drift", "TRADING_BLOCKED"),
-        ("version_drift", "TRADING_BLOCKED"),
-        ("gate_blocked", "TRADING_BLOCKED"),
-        ("no_gate_record", "TRADING_BLOCKED"),
-        ("position_limit_exceeded", "TRADING_BLOCKED"),
-    ])
-    def test_failure_blocks_trading(
-        self, failure: str, expected: str
-    ) -> None:
+    @pytest.mark.parametrize(
+        "failure,expected",
+        [
+            ("wrong_account", "TRADING_BLOCKED"),
+            ("wrong_environment", "TRADING_BLOCKED"),
+            ("wrong_broker", "TRADING_BLOCKED"),
+            ("excess_equity", "TRADING_BLOCKED"),
+            ("zero_equity", "TRADING_BLOCKED"),
+            ("missing_symbols", "TRADING_BLOCKED"),
+            ("excessive_spread", "TRADING_BLOCKED"),
+            ("unclassified_position", "TRADING_BLOCKED"),
+            ("manual_trade", "TRADING_BLOCKED"),
+            ("fingerprint_drift", "TRADING_BLOCKED"),
+            ("version_drift", "TRADING_BLOCKED"),
+            ("gate_blocked", "TRADING_BLOCKED"),
+            ("no_gate_record", "TRADING_BLOCKED"),
+            ("position_limit_exceeded", "TRADING_BLOCKED"),
+        ],
+    )
+    def test_failure_blocks_trading(self, failure: str, expected: str) -> None:
         """Each failure mode → TRADING_BLOCKED."""
         validator = PreTradingValidator()
         gate_record = _make_gate_record()
@@ -677,24 +690,33 @@ class TestNegativePathMatrix:
             state = _make_broker_state(symbol_specs={"EURUSD": {"spread": 50}})
         elif failure == "unclassified_position":
             state = _make_broker_state(
-                positions=[{
-                    "ticket": 99999, "symbol": "EURUSDm",
-                    "volume": 0.1, "price_open": 1.1,
-                    "time": "2026-08-25T12:00:00",
-                }],
+                positions=[
+                    {
+                        "ticket": 99999,
+                        "symbol": "EURUSDm",
+                        "volume": 0.1,
+                        "price_open": 1.1,
+                        "time": "2026-08-25T12:00:00",
+                    }
+                ],
                 position_count=1,
             )
         elif failure == "manual_trade":
             state = _make_broker_state(
-                positions=[{
-                    "ticket": 11111, "symbol": "EURUSDm",
-                    "volume": 0.1, "price_open": 1.1,
-                    "time": "2026-08-25T12:00:00",
-                }],
+                positions=[
+                    {
+                        "ticket": 11111,
+                        "symbol": "EURUSDm",
+                        "volume": 0.1,
+                        "price_open": 1.1,
+                        "time": "2026-08-25T12:00:00",
+                    }
+                ],
                 position_count=1,
             )
             boundary = CampaignBoundary(
-                campaign_id="test", strategy_fingerprint="abc",
+                campaign_id="test",
+                strategy_fingerprint="abc",
                 start_timestamp="2026-08-25T00:00:00",
             )
             auth = validator.run_full_validation(state, boundary, gate_record)
@@ -702,14 +724,10 @@ class TestNegativePathMatrix:
             return
         elif failure == "fingerprint_drift":
             state = _make_broker_state()
-            object.__setattr__(
-                validator._frozen_manifest, "strategy_version", "R5.0"
-            )
+            object.__setattr__(validator._frozen_manifest, "strategy_version", "R5.0")
         elif failure == "version_drift":
             state = _make_broker_state()
-            object.__setattr__(
-                validator._frozen_manifest, "strategy_version", "R4.1"
-            )
+            object.__setattr__(validator._frozen_manifest, "strategy_version", "R4.1")
         elif failure == "gate_blocked":
             state = _make_broker_state()
             gate_record = _make_gate_record(decision="BLOCKED")
@@ -718,13 +736,10 @@ class TestNegativePathMatrix:
             gate_record = None  # type: ignore[assignment]
         elif failure == "position_limit_exceeded":
             positions = [
-                {"ticket": i, "symbol": "EURUSDm", "volume": 0.1,
-                 "price_open": 1.1, "time": "2026-08-25T12:00:00"}
+                {"ticket": i, "symbol": "EURUSDm", "volume": 0.1, "price_open": 1.1, "time": "2026-08-25T12:00:00"}
                 for i in range(10)
             ]
-            state = _make_broker_state(
-                positions=positions, position_count=10
-            )
+            state = _make_broker_state(positions=positions, position_count=10)
         else:
             state = _make_broker_state()
 

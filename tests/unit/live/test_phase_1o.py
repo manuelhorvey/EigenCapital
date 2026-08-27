@@ -11,28 +11,28 @@ Tests:
 - Adversarial scenarios
 """
 
-from eigencapital.live.broker import LiveBrokerAdapter, BrokerConfig, BrokerStatus
-from eigencapital.live.risk import (
-    MicroLiveRiskEnvelope,
-    MicroLiveLimits,
-    LivePreflight,
-    StopReason,
-)
 from eigencapital.live.authorization import (
-    LiveAuthorization,
     AuthorizationGate,
     ExecutionMode,
+    LiveAuthorization,
 )
+from eigencapital.live.broker import BrokerConfig, BrokerStatus, LiveBrokerAdapter
 from eigencapital.live.campaign import (
-    MicroLiveCampaign,
     CampaignManager,
     CampaignStatus,
+    MicroLiveCampaign,
 )
 from eigencapital.live.comparison import (
-    DivergenceRecord,
     DivergenceAnalyzer,
     DivergenceCategory,
+    DivergenceRecord,
     DivergenceSeverity,
+)
+from eigencapital.live.risk import (
+    LivePreflight,
+    MicroLiveLimits,
+    MicroLiveRiskEnvelope,
+    StopReason,
 )
 from eigencapital.shadow.contracts import BrokerOrder, OrderResult
 
@@ -183,9 +183,7 @@ class TestAuthorizationGate:
     def test_no_authorization_blocks_execution(self):
         """No authorization → execution rejected."""
         gate = AuthorizationGate()
-        authorized, reason = gate.validate_authorization(
-            "nonexistent", "2026-06-01T00:00:00"
-        )
+        authorized, reason = gate.validate_authorization("nonexistent", "2026-06-01T00:00:00")
         assert authorized is False
         assert "not found" in reason.lower()
 
@@ -210,9 +208,7 @@ class TestAuthorizationGate:
         gate = AuthorizationGate()
         auth = self._make_auth(expiry_timestamp="2026-01-01T00:00:00")
         gate.grant_authorization(auth)
-        authorized, reason = gate.validate_authorization(
-            "auth-1", "2026-06-01T00:00:00"
-        )
+        authorized, reason = gate.validate_authorization("auth-1", "2026-06-01T00:00:00")
         assert authorized is False
         assert "expired" in reason.lower()
 
@@ -287,9 +283,7 @@ class TestAuthorizationGate:
         auth = self._make_auth()
         gate.grant_authorization(auth)
         gate.revoke_authorization("auth-1")
-        authorized, reason = gate.validate_authorization(
-            "auth-1", "2026-06-01T00:00:00"
-        )
+        authorized, reason = gate.validate_authorization("auth-1", "2026-06-01T00:00:00")
         assert authorized is False
         assert "revoked" in reason.lower() or "invalid" in reason.lower()
 
@@ -360,9 +354,7 @@ class TestMicroLiveRiskEnvelope:
         """Order with excessive spread is blocked."""
         limits = MicroLiveLimits(max_spread=0.005)
         envelope = MicroLiveRiskEnvelope(limits=limits)
-        allowed, reason = envelope.check_order(
-            notional=100.0, current_positions=0, spread=0.01
-        )
+        allowed, reason = envelope.check_order(notional=100.0, current_positions=0, spread=0.01)
         assert allowed is False
         assert "spread" in reason.lower()
 
@@ -370,9 +362,7 @@ class TestMicroLiveRiskEnvelope:
         """Order with excessive slippage is blocked."""
         limits = MicroLiveLimits(max_slippage=0.002)
         envelope = MicroLiveRiskEnvelope(limits=limits)
-        allowed, reason = envelope.check_order(
-            notional=100.0, current_positions=0, slippage=0.01
-        )
+        allowed, reason = envelope.check_order(notional=100.0, current_positions=0, slippage=0.01)
         assert allowed is False
         assert "slippage" in reason.lower()
 
@@ -463,9 +453,7 @@ class TestCampaignLifecycle:
         manager = CampaignManager()
         campaign = self._make_campaign()
         manager.create_campaign(campaign)
-        assert manager.transition_campaign(
-            "camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00"
-        )
+        assert manager.transition_campaign("camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00")
         updated = manager.get_campaign("camp-1")
         assert updated.status == CampaignStatus.PREFLIGHT.value
 
@@ -474,44 +462,29 @@ class TestCampaignLifecycle:
         manager = CampaignManager()
         campaign = self._make_campaign(status=CampaignStatus.COMPLETED.value)
         manager.create_campaign(campaign)
-        assert (
-            manager.transition_campaign(
-                "camp-1", CampaignStatus.ACTIVE.value, "2026-01-01T01:00:00"
-            )
-            is False
-        )
+        assert manager.transition_campaign("camp-1", CampaignStatus.ACTIVE.value, "2026-01-01T01:00:00") is False
         updated = manager.get_campaign("camp-1")
         assert updated.status == CampaignStatus.COMPLETED.value
 
     def test_planned_to_preflight(self):
         """PLANNED → PREFLIGHT is valid."""
-        assert self._make_campaign(CampaignStatus.PLANNED.value).can_transition_to(
-            CampaignStatus.PREFLIGHT.value
-        )
+        assert self._make_campaign(CampaignStatus.PLANNED.value).can_transition_to(CampaignStatus.PREFLIGHT.value)
 
     def test_preflight_to_authorized(self):
         """PREFLIGHT → AUTHORIZED is valid."""
-        assert self._make_campaign(CampaignStatus.PREFLIGHT.value).can_transition_to(
-            CampaignStatus.AUTHORIZED.value
-        )
+        assert self._make_campaign(CampaignStatus.PREFLIGHT.value).can_transition_to(CampaignStatus.AUTHORIZED.value)
 
     def test_authorized_to_active(self):
         """AUTHORIZED → ACTIVE is valid."""
-        assert self._make_campaign(CampaignStatus.AUTHORIZED.value).can_transition_to(
-            CampaignStatus.ACTIVE.value
-        )
+        assert self._make_campaign(CampaignStatus.AUTHORIZED.value).can_transition_to(CampaignStatus.ACTIVE.value)
 
     def test_active_to_completed(self):
         """ACTIVE → COMPLETED is valid."""
-        assert self._make_campaign(CampaignStatus.ACTIVE.value).can_transition_to(
-            CampaignStatus.COMPLETED.value
-        )
+        assert self._make_campaign(CampaignStatus.ACTIVE.value).can_transition_to(CampaignStatus.COMPLETED.value)
 
     def test_active_to_failed(self):
         """ACTIVE → FAILED is valid."""
-        assert self._make_campaign(CampaignStatus.ACTIVE.value).can_transition_to(
-            CampaignStatus.FAILED.value
-        )
+        assert self._make_campaign(CampaignStatus.ACTIVE.value).can_transition_to(CampaignStatus.FAILED.value)
 
     def test_terminal_states_no_transitions(self):
         """Terminal states cannot transition."""
@@ -536,12 +509,8 @@ class TestCampaignLifecycle:
         manager = CampaignManager()
         campaign = self._make_campaign()
         manager.create_campaign(campaign)
-        manager.transition_campaign(
-            "camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00"
-        )
-        manager.transition_campaign(
-            "camp-1", CampaignStatus.AUTHORIZED.value, "2026-01-01T02:00:00"
-        )
+        manager.transition_campaign("camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00")
+        manager.transition_campaign("camp-1", CampaignStatus.AUTHORIZED.value, "2026-01-01T02:00:00")
         updated = manager.get_campaign("camp-1")
         assert len(updated.status_history) == 2
 
@@ -550,9 +519,7 @@ class TestCampaignLifecycle:
         manager = CampaignManager()
         campaign = self._make_campaign()
         manager.create_campaign(campaign)
-        manager.transition_campaign(
-            "camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00"
-        )
+        manager.transition_campaign("camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00")
         events = manager.get_events()
         assert len(events) == 2  # CREATE + STATUS_CHANGED
 
@@ -576,9 +543,7 @@ class TestDivergenceAnalysis:
                 "risk_decision": {"approved": True},
             },
         ]
-        result = analyzer.compare_decisions(
-            decisions, decisions, "paper", "shadow", "comp-1"
-        )
+        result = analyzer.compare_decisions(decisions, decisions, "paper", "shadow", "comp-1")
         assert result.total_divergences == 0
         assert result.critical_divergences == 0
 
@@ -640,9 +605,7 @@ class TestDivergenceAnalysis:
         """Matching execution prices produce no divergences."""
         analyzer = DivergenceAnalyzer()
         prices = {"AAPL": 150.0}
-        result = analyzer.compare_execution_prices(
-            prices, prices, "comp-1", source_mode="backtest", target_mode="live"
-        )
+        result = analyzer.compare_execution_prices(prices, prices, "comp-1", source_mode="backtest", target_mode="live")
         assert result.total_divergences == 0
 
     def test_divergence_fingerprint_deterministic(self):
@@ -824,9 +787,7 @@ class TestPhase1OAdversarial:
         )
         manager.create_campaign(campaign)
         original_status = campaign.status
-        manager.transition_campaign(
-            "camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00"
-        )
+        manager.transition_campaign("camp-1", CampaignStatus.PREFLIGHT.value, "2026-01-01T01:00:00")
         # Original unchanged
         assert campaign.status == original_status
         # New object updated

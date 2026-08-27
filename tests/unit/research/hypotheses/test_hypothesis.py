@@ -1,6 +1,7 @@
 """Unit tests for Hypothesis model."""
 
 import pytest
+
 from eigencapital.research.hypotheses.hypothesis import Hypothesis
 
 

@@ -1,6 +1,7 @@
 """Unit tests for CSV data loader."""
 
 import pytest
+
 from eigencapital.data.loaders.csv import CSVLoader
 
 
@@ -21,9 +22,7 @@ class TestCSVLoader:
 
     def test_column_mapping(self, tmp_path):
         csv_file = tmp_path / "test.csv"
-        csv_file.write_text(
-            "Date,O,H,L,C,V\n2024-03-15,4500.0,4510.0,4495.0,4505.0,1000\n"
-        )
+        csv_file.write_text("Date,O,H,L,C,V\n2024-03-15,4500.0,4510.0,4495.0,4505.0,1000\n")
         loader = CSVLoader(
             path=csv_file,
             instrument_id="ES",

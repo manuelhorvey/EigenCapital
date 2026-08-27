@@ -13,7 +13,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-EXPECTED_GIT_HEAD = "412d29e"
+EXPECTED_GIT_HEAD = "bea4130"
 EXPECTED_MANIFEST_IDENTITY = "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
 PINNED_LOOP_SCRIPT = "scripts/r4_rebalance_loop.py"
 

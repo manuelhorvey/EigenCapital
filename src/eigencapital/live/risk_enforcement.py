@@ -122,6 +122,8 @@ class RiskEnforcer:
         self._daily_pnl_start = 0.0
         self._audit_log: List[Dict[str, Any]] = []
         self._max_audit_entries = max_audit_entries
+        self._shadow_decisions: List[Dict[str, Any]] = []
+        self._max_shadow_decisions = 10000
 
     def check_all(
         self,
@@ -450,9 +452,9 @@ class RiskEnforcer:
     ) -> Tuple[float, str]:
         """Compute a REDUCED size-scaling factor for soft constraints.
 
-        When risk is elevated but not breaching hard gates, this returns a
-        scale factor < 1.0 to reduce new position sizes. This is a SOFT
-        constraint — it does not block trading, it reduces it.
+        SHADOW-ONLY during Phase 2 R4 evidence campaign.
+        Records what it WOULD have done but does NOT apply the reduction.
+        Enable active_mode=True only after Phase 2 evidence validates the approach.
 
         Scale factor logic:
         - 1.0: Normal conditions, full sizing
@@ -506,6 +508,55 @@ class RiskEnforcer:
 
         reason = "; ".join(reasons) if reasons else "normal conditions"
         return factor, reason
+
+    def record_shadow_decision(
+        self,
+        intended_size: float,
+        scale_factor: float,
+        reason: str,
+        equity: float,
+        positions: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Record a shadow REDUCED decision for risk-outcome attribution.
+
+        During Phase 2, this records what REDUCED WOULD have done without
+        actually applying it. The dataset built from these records will
+        answer: "Would reducing size under stress have improved outcomes?"
+
+        Returns:
+            Shadow decision record for persistence.
+        """
+        approved_size = intended_size  # Shadow: don't actually reduce
+        hypothetical_reduced_size = intended_size * scale_factor
+
+        record = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "mode": "SHADOW",
+            "intended_size": intended_size,
+            "approved_size": approved_size,
+            "hypothetical_reduced_size": hypothetical_reduced_size,
+            "scale_factor": scale_factor,
+            "reduction_reason": reason,
+            "equity": equity,
+            "position_count": len(positions),
+            "drawdown_pct": ((self._peak_equity - equity) / self._peak_equity if self._peak_equity > 0 else 0.0),
+            # Fields to be filled later when trade closes:
+            "subsequent_return": None,
+            "mae": None,
+            "mfe": None,
+            "realized_pnl": None,
+            "counterfactual_pnl": None,
+        }
+
+        self._shadow_decisions.append(record)
+        if len(self._shadow_decisions) > self._max_shadow_decisions:
+            self._shadow_decisions = self._shadow_decisions[-self._max_shadow_decisions :]
+
+        return record
+
+    def get_shadow_decisions(self) -> List[Dict[str, Any]]:
+        """Get all shadow REDUCED decisions for attribution analysis."""
+        return list(self._shadow_decisions)
 
     def get_audit_log(self) -> List[Dict[str, Any]]:
         return list(self._audit_log)

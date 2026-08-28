@@ -195,6 +195,22 @@ class RiskObserver:
         loss_velocity_obs = self._observe_loss_velocity(equity, daily_pnl)
         observations["loss_velocity"] = loss_velocity_obs
 
+        # 11. Net exposure observation (long vs short balance)
+        net_exposure_obs = self._observe_net_exposure(positions, equity)
+        observations["net_exposure"] = net_exposure_obs
+
+        # 12. Sector breakdown observation
+        sector_obs = self._observe_sector_breakdown(positions, equity)
+        observations["sector_breakdown"] = sector_obs
+
+        # 13. VaR estimate observation
+        var_obs = self._observe_var_estimate(positions, equity)
+        observations["var_estimate"] = var_obs
+
+        # 14. Slippage monitoring observation
+        slippage_obs = self._observe_slippage(positions)
+        observations["slippage"] = slippage_obs
+
         # Compute overall state
         critical_dims = [k for k, v in observations.items() if v.level == RiskObservationLevel.CRITICAL.value]
         warning_dims = [
@@ -549,6 +565,233 @@ class RiskObserver:
             timestamp=datetime.now(UTC).isoformat(),
         )
 
+    def _observe_net_exposure(
+        self,
+        positions: List[Dict[str, Any]],
+        equity: float,
+    ) -> RiskObservation:
+        """Observe net exposure (long vs short balance).
+
+        A large net directional bet increases portfolio risk.
+        """
+        long_notional = 0.0
+        short_notional = 0.0
+        for pos in positions:
+            notional = abs(pos.get("notional", 0))
+            direction = pos.get("direction", "LONG")
+            if direction == "LONG":
+                long_notional += notional
+            else:
+                short_notional += notional
+
+        gross = long_notional + short_notional
+        net = long_notional - short_notional
+        net_pct = abs(net) / equity if equity > 0 else 0
+
+        if net_pct >= 1.5:  # Net exposure > 150% of equity
+            level = RiskObservationLevel.WARNING.value
+            message = f"Net exposure {net_pct:.1%} of equity — large directional bet"
+        elif net_pct >= 1.0:
+            level = RiskObservationLevel.ELEVATED.value
+            message = f"Net exposure {net_pct:.1%} of equity — moderate directional tilt"
+        else:
+            level = RiskObservationLevel.NORMAL.value
+            message = f"Net exposure {net_pct:.1%} of equity — balanced"
+
+        return RiskObservation(
+            dimension="net_exposure",
+            level=level,
+            value=net_pct,
+            limit=1.5,
+            message=message,
+            timestamp=datetime.now(UTC).isoformat(),
+            details={
+                "long_notional": long_notional,
+                "short_notional": short_notional,
+                "net_notional": net,
+                "gross_notional": gross,
+            },
+        )
+
+    def _observe_sector_breakdown(
+        self,
+        positions: List[Dict[str, Any]],
+        equity: float,
+    ) -> RiskObservation:
+        """Observe sector/asset class breakdown.
+
+        Identifies over-concentration in a single asset class.
+        """
+        if not positions or equity <= 0:
+            return RiskObservation(
+                dimension="sector_breakdown",
+                level=RiskObservationLevel.NORMAL.value,
+                value=0.0,
+                limit=0.6,
+                message="No positions",
+                timestamp=datetime.now(UTC).isoformat(),
+            )
+
+        sectors: Dict[str, float] = {}
+        for pos in positions:
+            symbol = pos.get("symbol", "")
+            notional = abs(pos.get("notional", 0))
+            # Classify
+            sym = symbol.upper()
+            if any(x in sym for x in ["EUR", "GBP", "AUD", "NZD", "USD", "CAD", "CHF", "JPY"]):
+                sector = "FX"
+            elif any(x in sym for x in ["XAU", "XAG"]):
+                sector = "METALS"
+            elif any(x in sym for x in ["US30", "SPX", "NAS"]):
+                sector = "INDICES"
+            elif any(x in sym for x in ["BTC", "ETH"]):
+                sector = "CRYPTO"
+            elif any(x in sym for x in ["OIL", "NGAS"]):
+                sector = "ENERGY"
+            else:
+                sector = "OTHER"
+            sectors[sector] = sectors.get(sector, 0) + notional
+
+        total = sum(sectors.values())
+        max_sector = max(sectors.values()) if sectors else 0
+        max_sector_name = max(sectors, key=sectors.get) if sectors else "?"
+        concentration = max_sector / total if total > 0 else 0
+
+        if concentration >= 0.7:
+            level = RiskObservationLevel.WARNING.value
+            message = f"{concentration:.0%} in {max_sector_name} — high sector concentration"
+        elif concentration >= 0.5:
+            level = RiskObservationLevel.ELEVATED.value
+            message = f"{concentration:.0%} in {max_sector_name} — moderate concentration"
+        else:
+            level = RiskObservationLevel.NORMAL.value
+            message = f"Diversified: max {concentration:.0%} in {max_sector_name}"
+
+        # Convert notional to pct of equity
+        sectors_pct = {k: v / equity for k, v in sectors.items()} if equity > 0 else {}
+
+        return RiskObservation(
+            dimension="sector_breakdown",
+            level=level,
+            value=concentration,
+            limit=0.7,
+            message=message,
+            timestamp=datetime.now(UTC).isoformat(),
+            details={"sectors": sectors_pct, "max_sector": max_sector_name},
+        )
+
+    def _observe_var_estimate(
+        self,
+        positions: List[Dict[str, Any]],
+        equity: float,
+    ) -> RiskObservation:
+        """Observe simple VaR estimate.
+
+        Uses a simplified historical-volatility approach:
+        VaR ≈ equity × sqrt(sum(vol_i² × weight_i²))
+        where vol_i is annualized vol and weight_i is position weight.
+        """
+        if not positions or equity <= 0:
+            return RiskObservation(
+                dimension="var_estimate",
+                level=RiskObservationLevel.NORMAL.value,
+                value=0.0,
+                limit=0.05,
+                message="No positions — VaR is zero",
+                timestamp=datetime.now(UTC).isoformat(),
+            )
+
+        # Simple VaR: sum of (notional × assumed daily vol)²  then sqrt
+        # Using 2% daily vol as conservative assumption for diversified portfolio
+        assumed_daily_vol = 0.02
+        var_squared = 0.0
+        for pos in positions:
+            weight = abs(pos.get("notional", 0)) / equity
+            var_squared += (weight * assumed_daily_vol) ** 2
+
+        daily_var = equity * var_squared**0.5
+        var_pct = daily_var / equity if equity > 0 else 0
+
+        if var_pct >= 0.05:  # 5% daily VaR
+            level = RiskObservationLevel.WARNING.value
+            message = f"Daily VaR estimate {var_pct:.1%} (${daily_var:.0f}) — elevated"
+        elif var_pct >= 0.03:
+            level = RiskObservationLevel.ELEVATED.value
+            message = f"Daily VaR estimate {var_pct:.1%} (${daily_var:.0f}) — moderate"
+        else:
+            level = RiskObservationLevel.NORMAL.value
+            message = f"Daily VaR estimate {var_pct:.1%} (${daily_var:.0f}) — low"
+
+        return RiskObservation(
+            dimension="var_estimate",
+            level=level,
+            value=var_pct,
+            limit=0.05,
+            message=message,
+            timestamp=datetime.now(UTC).isoformat(),
+            details={
+                "daily_var_usd": daily_var,
+                "assumed_daily_vol": assumed_daily_vol,
+                "position_count": len(positions),
+            },
+        )
+
+    def _observe_slippage(self, positions: List[Dict[str, Any]]) -> RiskObservation:
+        """Observe slippage across open positions.
+
+        Compares current price vs open price to detect excessive slippage.
+        A simple proxy: if unrealized P&L per lot is significantly negative
+        relative to the position age, it may indicate adverse execution.
+        """
+        if not positions:
+            return RiskObservation(
+                dimension="slippage",
+                level=RiskObservationLevel.NORMAL.value,
+                value=0.0,
+                limit=0.02,
+                message="No positions",
+                timestamp=datetime.now(UTC).isoformat(),
+            )
+
+        # Check for positions with extreme adverse excursion
+        adverse_positions = []
+        for pos in positions:
+            profit = pos.get("profit", 0)
+            notional = abs(pos.get("notional", 0))
+            if notional > 0 and profit < 0:
+                adverse_pct = abs(profit) / notional
+                if adverse_pct >= 0.02:  # 2% adverse
+                    adverse_positions.append(
+                        {
+                            "symbol": pos.get("symbol", "?"),
+                            "adverse_pct": adverse_pct,
+                            "profit": profit,
+                        }
+                    )
+
+        if adverse_positions:
+            max_adverse = max(p["adverse_pct"] for p in adverse_positions)
+            if max_adverse >= 0.05:  # 5% adverse
+                level = RiskObservationLevel.WARNING.value
+                message = f"{len(adverse_positions)} positions with >5% adverse excursion"
+            else:
+                level = RiskObservationLevel.ELEVATED.value
+                message = f"{len(adverse_positions)} positions with >2% adverse excursion"
+        else:
+            max_adverse = 0.0
+            level = RiskObservationLevel.NORMAL.value
+            message = "No excessive adverse excursion detected"
+
+        return RiskObservation(
+            dimension="slippage",
+            level=level,
+            value=max_adverse,
+            limit=0.05,
+            message=message,
+            timestamp=datetime.now(UTC).isoformat(),
+            details={"adverse_positions": adverse_positions},
+        )
+
     def get_history(self) -> List[Dict[str, Any]]:
         """Get observation history."""
         return list(self._history)
@@ -589,6 +832,7 @@ class RiskObserver:
         return {
             "timestamp": latest.get("timestamp"),
             "overall_level": latest.get("overall_level"),
+            # Core risk metrics
             "equity": observations.get("equity_floor", {}).get("value", 0),
             "drawdown": observations.get("drawdown", {}).get("value", 0),
             "drawdown_limit": observations.get("drawdown", {}).get("limit", 0),
@@ -596,13 +840,26 @@ class RiskObserver:
             "daily_loss_limit": observations.get("daily_loss", {}).get("limit", 0),
             "position_count": observations.get("position_count", {}).get("value", 0),
             "position_limit": observations.get("position_count", {}).get("limit", 0),
+            # Exposure metrics
             "gross_exposure": observations.get("gross_exposure", {}).get("value", 0),
+            "net_exposure": observations.get("net_exposure", {}).get("value", 0),
             "margin_utilization": observations.get("margin_utilization", {}).get("value", 0),
             "concentration": observations.get("concentration", {}).get("value", 0),
+            # Safety metrics
             "sl_unprotected": observations.get("sl_protection", {}).get("value", 0),
             "loss_velocity": observations.get("loss_velocity", {}).get("value", 0),
+            # Portfolio analytics
+            "sector_breakdown": observations.get("sector_breakdown", {}).get("details", {}).get("sectors", {}),
+            "max_sector": observations.get("sector_breakdown", {}).get("details", {}).get("max_sector", "?"),
+            "var_estimate": observations.get("var_estimate", {}).get("value", 0),
+            "var_usd": observations.get("var_estimate", {}).get("details", {}).get("daily_var_usd", 0),
+            # Edge case metrics
+            "slippage": observations.get("slippage", {}).get("value", 0),
+            "adverse_positions": observations.get("slippage", {}).get("details", {}).get("adverse_positions", []),
+            # Rolling
             "peak_drawdown_rolling": max(drawdowns) if drawdowns else 0,
             "max_daily_loss_rolling": max(daily_losses) if daily_losses else 0,
+            # Status
             "critical_dimensions": latest.get("critical_dimensions", []),
             "warning_dimensions": latest.get("warning_dimensions", []),
             "any_critical": latest.get("any_critical", False),

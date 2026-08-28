@@ -477,3 +477,52 @@ def alert_watchdog_state(
         event_id=event_id,
         state_transition=f"watchdog:{old_state}->{new_state}",
     )
+
+
+# Escalation thresholds
+ESCALATION_THRESHOLDS = {
+    "WARNING_TO_CRITICAL": 3,  # 3 consecutive WARNINGs → escalate to CRITICAL
+    "ELEVATED_TO_WARNING": 5,  # 5 consecutive ELEVATEDs → escalate to WARNING
+    "TIMEOUT_TO_CRITICAL": 600,  # 10 minutes without resolution → CRITICAL
+}
+
+
+def should_escalate(
+    dispatcher: StructuredAlertDispatcher,
+    category: AlertCategory,
+    current_severity: AlertSeverity,
+    consecutive_count: int,
+    first_alert_time: float | None = None,
+) -> tuple[AlertSeverity, str]:
+    """Determine if an alert should be escalated based on repetition.
+
+    Escalation rules:
+    - 3+ consecutive WARNINGs → escalate to CRITICAL
+    - 5+ consecutive ELEVATEDs → escalate to WARNING
+    - 10+ minutes without resolution → escalate to CRITICAL
+
+    Returns:
+        (escalated_severity, escalation_reason)
+    """
+    import time
+
+    now = time.time()
+    reason = ""
+    escalated = current_severity
+
+    # Repetition-based escalation
+    if current_severity == AlertSeverity.WARNING and consecutive_count >= ESCALATION_THRESHOLDS["WARNING_TO_CRITICAL"]:
+        escalated = AlertSeverity.CRITICAL
+        reason = f"{consecutive_count} consecutive WARNINGs — escalated to CRITICAL"
+
+    elif current_severity == AlertSeverity.INFO and consecutive_count >= ESCALATION_THRESHOLDS["ELEVATED_TO_WARNING"]:
+        escalated = AlertSeverity.WARNING
+        reason = f"{consecutive_count} consecutive ELEVATEDs — escalated to WARNING"
+
+    # Time-based escalation
+    if first_alert_time and (now - first_alert_time) >= ESCALATION_THRESHOLDS["TIMEOUT_TO_CRITICAL"]:
+        if escalated.value != "CRITICAL":
+            escalated = AlertSeverity.CRITICAL
+            reason = f"Unresolved for {now - first_alert_time:.0f}s — escalated to CRITICAL"
+
+    return escalated, reason

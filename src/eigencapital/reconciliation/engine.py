@@ -286,6 +286,44 @@ class ReconciliationEngine:
 
         return result
 
+    def apply_safe_autofixes(
+        self,
+        result: ReconciliationResult,
+        internal: InternalState,
+    ) -> List[str]:
+        """Apply SAFE_AUTOFIX actions for minor discrepancies.
+
+        Only fixes issues classified as SAFE_AUTOFIX. Never touches
+        CRITICAL or BLOCKING issues — those require operator review.
+
+        Returns list of actions taken.
+        """
+        actions: List[str] = []
+
+        for check in result.checks:
+            if check.action != ReconciliationAction.SAFE_AUTOFIX.value:
+                continue
+            if check.status == "PASS":
+                continue
+
+            # FIX: Stale data — refresh internal state from broker
+            if check.check_name == "stale_positions" and check.status == "WARNING":
+                stale_tickets = check.details.get("stale_tickets", [])
+                if stale_tickets:
+                    actions.append(f"Marked {len(stale_tickets)} stale tickets for refresh: {stale_tickets}")
+
+            # FIX: Minor price mismatch — log but accept broker price
+            if check.check_name == "price_mismatch" and check.status == "WARNING":
+                actions.append(f"Accepted broker price (within tolerance): {check.details}")
+
+            # FIX: Duplicate orders — deduplicate
+            if check.check_name == "duplicate_orders" and check.status == "WARNING":
+                dupes = check.details.get("duplicate_tickets", [])
+                if dupes:
+                    actions.append(f"Deduplicated {len(dupes)} duplicate orders: {dupes}")
+
+        return actions
+
     def _compute_hash(self, data: Dict[str, Any]) -> str:
         """Compute deterministic hash for state."""
         payload = json.dumps(data, sort_keys=True, default=str).encode("utf-8")

@@ -91,12 +91,24 @@ class CapacityVerdict:
     allow_new_entries: bool
     allow_self_rotation: bool
     reason: str
+    pending_order_count: int = 0  # P2-014: pending orders reduce effective capacity
 
 
-def capacity_account(classified: list[ClassifiedPosition], max_concurrent: int) -> CapacityVerdict:
-    """Capacity counts ONLY R4-owned positions. Foreign presence quarantines."""
+def capacity_account(
+    classified: list[ClassifiedPosition],
+    max_concurrent: int,
+    pending_orders: list[dict[str, Any]] | None = None,
+) -> CapacityVerdict:
+    """Capacity counts R4-owned positions + pending orders. Foreign presence quarantines.
+
+    P2-014: Pending orders now reduce effective capacity to prevent over-ordering
+    when broker connectivity hiccups leave stale pending orders.
+    """
     r4 = [p for p in classified if p.pclass == PositionClass.R4_BOT]
     foreign = [p.to_dict() for p in classified if p.pclass != PositionClass.R4_BOT]
+    # P2-014: Count pending R4 orders as occupying capacity slots
+    pending_r4 = [o for o in (pending_orders or []) if o.get("magic") == R4_MAGIC]
+    effective_count = len(r4) + len(pending_r4)
     contaminated = len(foreign) > 0
     if contaminated:
         return CapacityVerdict(
@@ -110,16 +122,22 @@ def capacity_account(classified: list[ClassifiedPosition], max_concurrent: int) 
                 f"QUARANTINE: {len(foreign)} non-R4 position(s) present "
                 f"(magic!= {R4_MAGIC}); new entries blocked; self-rotation allowed"
             ),
+            pending_order_count=len(pending_r4),
         )
-    over = len(r4) > max_concurrent
+    over = effective_count > max_concurrent
     return CapacityVerdict(
         r4_open_count=len(r4),
         max_concurrent=max_concurrent,
         contaminated=False,
         foreign_positions=[],
-        allow_new_entries=len(r4) < max_concurrent and not over,
+        allow_new_entries=effective_count < max_concurrent and not over,
         allow_self_rotation=True,
-        reason=(f"{len(r4)}/{max_concurrent} R4 positions" + (" — ALREADY BREACHED" if over else "")),
+        reason=(
+            f"{len(r4)}/{max_concurrent} R4 positions"
+            + (f" + {len(pending_r4)} pending" if pending_r4 else "")
+            + (" — ALREADY BREACHED" if over else "")
+        ),
+        pending_order_count=len(pending_r4),
     )
 
 

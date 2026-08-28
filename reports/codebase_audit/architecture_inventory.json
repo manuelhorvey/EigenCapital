@@ -1,0 +1,92 @@
+{
+  "audit_date": "2026-08-27",
+  "git": {
+    "branch": "main",
+    "head": "6d6a3e21eee1a0c9241808a0f9c609f5121f3e3d",
+    "working_tree_clean_at_start": true
+  },
+  "runtime": {
+    "python": "3.14.7",
+    "platform": "linux"
+  },
+  "counts": {
+    "source_modules": 248,
+    "test_files": 119,
+    "tests_collected": 2511,
+    "tests_passed": 2510,
+    "tests_skipped": 1,
+    "internal_import_edges": 310,
+    "import_cycles_detected": 0
+  },
+  "quality_gates": {
+    "pytest": "2510 passed, 1 skipped, 16 warnings",
+    "ruff": "passed",
+    "mypy": "failed: 170 errors in 49 files; CI ignores mypy failure"
+  },
+  "production": {
+    "config": "configs/production/config.toml",
+    "active_campaign": "R4-5K-20260827",
+    "entry_points": [
+      "scripts/r4_rebalance_loop.py",
+      "scripts/start_trading.sh",
+      "scripts/r4_monitor.py",
+      "scripts/r4_dashboard.py",
+      "scripts/r4_qualification_dashboard.py",
+      "scripts/r4_safety_supervisor.py",
+      "scripts/r4_live_orders.py"
+    ],
+    "broker": "mt5linux MetaTrader5 RPyC bridge 127.0.0.1:8001",
+    "database": "NOT VERIFIED",
+    "storage": [
+      "reports/r4_loop/*.jsonl",
+      "reports/r4_qualification/**/*.jsonl",
+      "reports/r4_safety/*.jsonl",
+      "reports/r4_economics_audit/*.json",
+      "data/**/*.csv"
+    ]
+  },
+  "fingerprints": {
+    "r4_manifest": "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb",
+    "live_risk": "ee9324293336b827770844ee5e90a371bd6f2d757ba5f0514b3201ea980177ec",
+    "config_observed_prefix": "32fbeadcab9a3a14"
+  },
+  "top_level_modules": [
+    "core",
+    "data",
+    "features",
+    "strategies",
+    "research",
+    "analytics",
+    "backtest",
+    "risk",
+    "portfolio",
+    "execution",
+    "live",
+    "reconciliation",
+    "production_qual",
+    "monitoring",
+    "fidelity",
+    "shadow",
+    "micro_live",
+    "production"
+  ],
+  "largest_modules": [
+    "src/eigencapital/research/intraday/campaign4_15m.py",
+    "src/eigencapital/research/alpha/executor.py",
+    "src/eigencapital/production_qual/prefunding_audit.py",
+    "src/eigencapital/research/intraday/campaign3_full.py",
+    "src/eigencapital/research/intraday/campaign.py",
+    "src/eigencapital/production_qual/live_qualification.py",
+    "src/eigencapital/research/intraday/campaign2.py",
+    "src/eigencapital/production_qual/pre_trading.py",
+    "src/eigencapital/production_qual/phase2_report.py",
+    "src/eigencapital/research/alpha/staged_executor.py"
+  ],
+  "contradictions": [
+    "README references docs/production/CAPITAL_SEMANTICS.md, not found.",
+    "Deployment docs reference config/production.toml but actual path is configs/production/config.toml.",
+    "Deployment docs reference mt5-bridge helper, not found.",
+    "Older codebase audit artifact was for a different HEAD and reported collection errors; current collection succeeds.",
+    "Runtime support claims differ across README, deployment docs, pyproject, CI, and local Python."
+  ]
+}

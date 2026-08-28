@@ -1,6 +1,6 @@
 # EigenCapital
 
-[![CI](https://github.com/manuelhorvey/EigenCapital/actions/workflows/ci.yml/badge.svg)](https://github.com/manuelhorvey/EigenCapital/actions/workflows/ci.yml) [![codecov](https://codecov.io/github/manuelhorvey/EigenCapital/graph/badge.svg?token=5eUeOHPHGe)](https://codecov.io/github/manuelhorvey/EigenCapital) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Ruff](https://img.shields.io/badge/code%20style-ruff-fff0f0.svg)](https://github.com/astral-sh/ruff) [![MyPy](https://img.shields.io/badge/type%20checked-mypy-9cf)](https://mypy-lang.org) [![Security](https://img.shields.io/badge/security-reviewed-brightgrey)](https://github.com/manuelhorvey/EigenCapital/security)
+[![CI](https://github.com/manuelhorvey/EigenCapital/actions/workflows/ci.yml/badge.svg)](https://github.com/manuelhorvey/EigenCapital/actions/workflows/ci.yml) [![codecov](https://codecov.io/github/manuelhorvey/EigenCapital/graph/badge.svg?token=5eUeOHPHGe)](https://codecov.io/github/manuelhorvey/EigenCapital) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Ruff](https://img.shields.io/badge/code%20style-ruff-fff0f0.svg)](https://github.com/astral-sh/ruff) [![MyPy](https://img.shields.io/badge/type%20checked-mypy-9cf)](https://mypy-lang.org) [![Security](https://img.shields.io/badge/security-SECURITY.md-brightgrey)](SECURITY.md)
 
 ## Table of Contents
 

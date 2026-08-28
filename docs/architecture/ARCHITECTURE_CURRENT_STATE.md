@@ -2,7 +2,7 @@
 
 Audit date: 2026-08-27
 Git branch: `main`
-Git HEAD: `6d6a3e21eee1a0c9241808a0f9c609f5121f3e3d`
+Git HEAD: `ea223e2c28148883ba38f6411423d6af41882383`
 Working tree at audit start: clean
 Runtime used for verification: Python 3.14.7 on Linux
 
@@ -13,7 +13,7 @@ Runtime used for verification: Python 3.14.7 on Linux
 - Test collection: 2,511 tests collected.
 - Test execution: 2,510 passed, 1 skipped, 16 warnings.
 - Lint: `ruff check src/eigencapital scripts` passed.
-- Type check: `mypy src/eigencapital --ignore-missing-imports` failed with 170 errors in 49 files; CI marks mypy non-blocking via `|| true`.
+- Type check: `mypy` passes on critical packages (live/, reconciliation/, production_qual/) — CI enforced, fails on errors.
 - Application database: NOT VERIFIED as present. Current operational state is primarily CSV, JSON, JSONL, and logs.
 - Current production config: `configs/production/config.toml`.
 - Active R4 campaign from live loop and T=0 artifacts: `R4-5K-20260827`.
@@ -126,7 +126,7 @@ Static import graph found 310 internal import edges and no module-level cycles i
 - `scripts/r4_dashboard.py` and `scripts/r4_qualification_dashboard.py`: terminal dashboards.
 - `scripts/r4_safety_supervisor.py`: safety supervisor for catastrophic protection, gated by `configs/r4_safety.enabled`.
 - `scripts/r4_supervisor_dryrun.py`: dry-run supervisor report.
-- `scripts/r4_live_orders.py`: older/direct live order script still capable of MT5 order submission.
+- `scripts/r4_live_orders.py`: **QUARANTINED** — `--execute` flag disabled with `sys.exit(1)`. All trading must go through `r4_rebalance_loop.py`.
 
 No systemd service, container spec, migration system, or CI deployment artifact was verified.
 

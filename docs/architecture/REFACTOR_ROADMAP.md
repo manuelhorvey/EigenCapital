@@ -26,8 +26,8 @@ Audit date: 2026-08-27
 
 ## Remove
 
-- Remove or quarantine `scripts/r4_live_orders.py` as a production-capable alternate live order path unless it is converted into a thin wrapper around the canonical loop.
-- Remove stale documentation references to missing `config/*.toml`, `mt5-bridge`, and `CAPITAL_SEMANTICS.md` or create the referenced docs/scripts.
+- ~~Remove or quarantine `scripts/r4_live_orders.py`~~ **DONE** — quarantined (EC-AUD-003).
+- ~~Remove stale references to `CAPITAL_SEMANTICS.md`~~ **DONE** — consolidated into `CAPITAL_SCALING.md`.
 
 ## Defer
 

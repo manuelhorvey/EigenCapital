@@ -1,0 +1,235 @@
+{
+  "generated": "2026-08-28",
+  "repository": "github.com/manuelhorvey/EigenCapital",
+  "branch": "main",
+  "head": "ea223e2c28148883ba38f6411423d6af41882383",
+  "inventory": [
+    {
+      "path": "README.md",
+      "purpose": "Project overview, quick start, architecture summary",
+      "authority": "Primary entry point",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "NONE"
+    },
+    {
+      "path": "docs/architecture/ARCHITECTURE_CURRENT_STATE.md",
+      "purpose": "Actual current architecture as of audit",
+      "authority": "Authoritative for architecture",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/architecture/ARCHITECTURE_GAPS.md",
+      "purpose": "Prioritized architectural gaps",
+      "authority": "Authoritative for gaps",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/architecture/COMPREHENSIVE_CODEBASE_AUDIT.md",
+      "purpose": "Full production-grade codebase audit",
+      "authority": "Historical audit snapshot",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/architecture/TECHNICAL_DEBT_REGISTER.md",
+      "purpose": "Complete debt register with resolution status",
+      "authority": "Authoritative for technical debt",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/architecture/REFACTOR_ROADMAP.md",
+      "purpose": "Keep/refactor/remove/defer decisions",
+      "authority": "Authoritative for refactoring plan",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/architecture/PHASE_ALIGNMENT.md",
+      "purpose": "Roadmap alignment assessment",
+      "authority": "Authoritative for phase alignment",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/production/LIVE_TRADING.md",
+      "purpose": "Live trading setup and runbooks",
+      "authority": "Authoritative for live trading ops",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/production/PHASE_STATUS.md",
+      "purpose": "Phase 2 live qualification status",
+      "authority": "Authoritative for Phase 2 status",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/production/CAPITAL_SCALING.md",
+      "purpose": "Capital semantics and scaling (consolidated)",
+      "authority": "Authoritative for capital definitions",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "NONE"
+    },
+    {
+      "path": "docs/production/OPERATIONS_RUNBOOK.md",
+      "purpose": "Operator actions for live trading",
+      "authority": "Authoritative for operations",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "NONE"
+    },
+    {
+      "path": "docs/production/DEPLOYMENT.md",
+      "purpose": "Deployment guide",
+      "authority": "Authoritative for deployment",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "NONE"
+    },
+    {
+      "path": "docs/production/RISK_ARCHITECTURE.md",
+      "purpose": "Risk architecture documentation",
+      "authority": "Authoritative for risk architecture",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "NONE"
+    },
+    {
+      "path": "docs/production/CONFIGURATION_AUDIT.md",
+      "purpose": "Configuration audit findings",
+      "authority": "Historical audit",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/production/PRODUCTION_AUDIT.md",
+      "purpose": "Production readiness assessment",
+      "authority": "Historical audit",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/production/PRODUCTION_REMEDIATION.md",
+      "purpose": "Production remediation summary",
+      "authority": "Historical record",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/production/PRODUCTION_EVIDENCE_INDEX.md",
+      "purpose": "Evidence artifact inventory",
+      "authority": "Authoritative for evidence index",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/DOCUMENTATION_GOVERNANCE.md",
+      "purpose": "Documentation ownership and authority model",
+      "authority": "Authoritative for doc governance",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "CREATED"
+    },
+    {
+      "path": "docs/DOCUMENTATION_SOURCE_OF_TRUTH.md",
+      "purpose": "Source mapping for all documentation",
+      "authority": "Authoritative for source mapping",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "UPDATED"
+    },
+    {
+      "path": "docs/research/ALPHA_RESEARCH_MAP_1Q_FULL.md",
+      "purpose": "Full alpha research map",
+      "authority": "Research documentation",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "NONE"
+    },
+    {
+      "path": "docs/research/INTRADAY_RESEARCH_LEDGER.md",
+      "purpose": "Intraday research history",
+      "authority": "Research documentation",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "NONE"
+    },
+    {
+      "path": "docs/CAMPAIGN_START_GOVERNANCE.md",
+      "purpose": "Campaign start governance rules",
+      "authority": "Governance documentation",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "NONE"
+    },
+    {
+      "path": "docs/DATA_CONTRACT.md",
+      "purpose": "Data contract specification",
+      "authority": "Data contracts",
+      "status": "CURRENT",
+      "conflicts": [],
+      "action": "NONE"
+    },
+    {
+      "path": "docs/SHADOW_QUALIFICATION_REPORT.md",
+      "purpose": "Shadow qualification report",
+      "authority": "Historical report",
+      "status": "HISTORICAL",
+      "conflicts": [],
+      "action": "NONE"
+    },
+    {
+      "path": "docs/PHASE_1I_ARCHITECTURE_AUDIT.md",
+      "purpose": "Phase 1i architecture audit",
+      "authority": "Historical audit",
+      "status": "HISTORICAL",
+      "conflicts": [],
+      "action": "NONE"
+    }
+  ],
+  "summary": {
+    "total_documents": 25,
+    "current": 21,
+    "historical": 2,
+    "outdated": 0,
+    "contradictory": 0,
+    "missing_referenced": [
+      "CHANGELOG.md (referenced in README, not yet created)"
+    ],
+    "actions_taken": [
+      "README.md: Fixed CAPITAL_SEMANTICS.md links to CAPITAL_SCALING.md",
+      "README.md: Updated CHANGELOG reference to future tense",
+      "ARCHITECTURE_CURRENT_STATE.md: Updated git HEAD, mypy status, quarantined script note",
+      "ARCHITECTURE_CURRENT_STATE.md: Updated script descriptions",
+      "PRODUCTION_AUDIT.md: Updated test counts",
+      "PRODUCTION_REMEDIATION.md: Updated test counts",
+      "PHASE_ALIGNMENT.md: Updated test counts",
+      "TECHNICAL_DEBT_REGISTER.md: Updated test counts",
+      "PRODUCTION_EVIDENCE_INDEX.md: Updated CAPITAL_SEMANTICS reference",
+      "PHASE_STATUS.md: Updated CAPITAL_SEMANTICS reference",
+      "DOCUMENTATION_SOURCE_OF_TRUTH.md: Updated CAPITAL_SEMANTICS and r4_live_orders references",
+      "LIVE_TRADING.md: Updated r4_live_orders to quarantined status",
+      "CONFIGURATION_AUDIT.md: Updated base.toml reference",
+      "REFACTOR_ROADMAP.md: Marked quarantine and consolidation as done",
+      "DOCUMENTATION_GOVERNANCE.md: Created authority model"
+    ]
+  }
+}

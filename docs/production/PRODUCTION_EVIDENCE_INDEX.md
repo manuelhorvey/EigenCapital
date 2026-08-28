@@ -70,7 +70,7 @@ Last updated: 2026-08-26
 
 | Document | Purpose | Status |
 |---|---|---|
-| `CAPITAL_SEMANTICS.md` | Capital concept definitions | Current |
+| `CAPITAL_SCALING.md` | Capital semantics & scaling (consolidated) | Current |
 | `R4_TRADE_ECONOMICS_AUDIT.md` | Entry/exit economics | Current |
 | `R4_ENTRY_QUALITY_AUDIT.md` | Entry signal analysis | Current |
 | `R4_EXIT_RISK_AUDIT.md` | Exit mechanism analysis | Current |

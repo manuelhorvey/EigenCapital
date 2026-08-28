@@ -117,7 +117,7 @@ Last updated: 2026-08-28 (audit resolution pass)
 
 ### Verification
 
-- **2370+ tests passed**, 1 skipped, 0 failures
+- **2426+ tests passed**, 1 skipped, 0 failures
 - **25 new focused tests** for P&L check, foreign detection, pending order capacity
 - **ruff format** — 432+ files clean
 - **ruff check** — 0 new errors (12 pre-existing E402 in scripts due to `sys.path.insert`)

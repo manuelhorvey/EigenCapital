@@ -63,7 +63,7 @@ SYNC + CLEANUP (COMPLETED)
 
 1. **Environment variables** (highest priority)
 2. **Environment-specific TOML** (`configs/{env}/config.toml`)
-3. **Base TOML** (`configs/base.toml`)
+3. **Base TOML** (`configs/base.toml`) — not present; config loaded from `configs/production/config.toml`
 4. **Python dataclass defaults** (lowest priority)
 
 ### Authority Hierarchy for Risk Parameters

@@ -195,7 +195,7 @@ python scripts/r4_attestation.py"
 
 **Capital scaling is earned through evidence, not enabled by changing a configuration value.**
 
-See [`docs/production/CAPITAL_SEMANTICS.md`](docs/production/CAPITAL_SEMANTICS.md) for full definitions.
+See [`docs/production/CAPITAL_SCALING.md`](docs/production/CAPITAL_SCALING.md) for full definitions.
 
 ### Position Count Governance
 
@@ -214,7 +214,7 @@ See [`docs/production/CAPITAL_SEMANTICS.md`](docs/production/CAPITAL_SEMANTICS.m
 | Position limit | $5,000 | Max notional per position |
 | Risk budget | $250/day | Daily loss limit |
 
-See [`docs/production/CAPITAL_SEMANTICS.md`](docs/production/CAPITAL_SEMANTICS.md) for full definitions.
+See [`docs/production/CAPITAL_SCALING.md`](docs/production/CAPITAL_SCALING.md) for full definitions.
 
 ## Research
 
@@ -317,7 +317,7 @@ Coverage is tracked via [Codecov](https://codecov.io/github/manuelhorvey/EigenCa
 
 This project follows [Semantic Versioning](https://semver.org/) principles. The current version is `0.1.0` (Pre-Alpha). Breaking changes will be documented in the changelog.
 
-Changelog entries are tracked in [`CHANGELOG.md`](CHANGELOG.md) (to be created for v1.0).
+Changelog entries will be tracked in `CHANGELOG.md` starting at v1.0.
 
 ## Contributing
 

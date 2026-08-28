@@ -6,8 +6,9 @@
     "impact": "HIGH",
     "detectability": "HIGH",
     "severity": "CRITICAL",
-    "production_blocker": true,
-    "notes": "20 tests fail to collect; any import of eigencapital.research fails"
+    "production_blocker": false,
+    "status": "FIXED",
+    "notes": "Import verified working — ResearchManifest class exists and imports correctly"
   },
   {
     "finding_id": "F-002",
@@ -16,8 +17,9 @@
     "impact": "HIGH",
     "detectability": "MEDIUM",
     "severity": "HIGH",
-    "production_blocker": true,
-    "notes": "Broker/internal divergence may go undetected"
+    "production_blocker": false,
+    "status": "FIXED",
+    "notes": "Full reconciliation integrated: 8 checks including P&L, foreign detection, stale positions. Order intents persisted before execution for independent comparison."
   },
   {
     "finding_id": "F-003",
@@ -27,7 +29,8 @@
     "detectability": "HIGH",
     "severity": "MEDIUM",
     "production_blocker": false,
-    "notes": "Risk observation ignores config changes"
+    "status": "MITIGATED",
+    "notes": "Default matches config.live_risk.min_equity. Production callers (r4_dashboard.py) provide value from config. Added comment documenting config dependency."
   },
   {
     "finding_id": "F-004",
@@ -37,7 +40,8 @@
     "detectability": "HIGH",
     "severity": "MEDIUM",
     "production_blocker": false,
-    "notes": "Import confusion risk; maintenance burden"
+    "status": "DEFERRED",
+    "notes": "Per audit: cosmetic, defer to Phase 3 code cleanup"
   },
   {
     "finding_id": "F-005",
@@ -47,7 +51,8 @@
     "detectability": "HIGH",
     "severity": "MEDIUM",
     "production_blocker": false,
-    "notes": "alerts.py already deprecated"
+    "status": "DEFERRED",
+    "notes": "alerts.py already deprecated; consolidation deferred to Phase 3"
   },
   {
     "finding_id": "F-006",
@@ -57,7 +62,8 @@
     "detectability": "HIGH",
     "severity": "MEDIUM",
     "production_blocker": false,
-    "notes": "execution/reconciliation.py is paper-only"
+    "status": "DEFERRED",
+    "notes": "execution/reconciliation.py is paper-only; production uses reconciliation/engine.py"
   },
   {
     "finding_id": "F-007",
@@ -67,7 +73,8 @@
     "detectability": "MEDIUM",
     "severity": "LOW",
     "production_blocker": false,
-    "notes": "Corrupted state on crash during write"
+    "status": "FIXED",
+    "notes": "Supervisor._save_state() already uses temp file + fsync + os.replace (atomic rename)"
   },
   {
     "finding_id": "F-008",
@@ -77,7 +84,8 @@
     "detectability": "HIGH",
     "severity": "LOW",
     "production_blocker": false,
-    "notes": "Frozen during Phase 2"
+    "status": "DEFERRED",
+    "notes": "Frozen during Phase 2; refactor only shared logic in Phase 3"
   },
   {
     "finding_id": "F-009",
@@ -87,7 +95,8 @@
     "detectability": "MEDIUM",
     "severity": "LOW",
     "production_blocker": false,
-    "notes": "Transient errors cause permanent failure"
+    "status": "FIXED",
+    "notes": "30s ThreadPoolExecutor timeout + 2x exponential backoff retries on order_send()"
   },
   {
     "finding_id": "F-010",
@@ -97,6 +106,7 @@
     "detectability": "LOW",
     "severity": "LOW",
     "production_blocker": false,
-    "notes": "Stale PID prevents new instance"
+    "status": "FIXED",
+    "notes": "ProcessSupervisor._is_process_alive() uses os.kill(pid, 0) for liveness check. claim_instance() detects stale PIDs and reclaims."
   }
 ]

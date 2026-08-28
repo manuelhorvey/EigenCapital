@@ -287,14 +287,16 @@ class StructuredAlertDispatcher:
         import urllib.request
 
         try:
-            payload = json.dumps({
-                "text": f"[{alert.severity}] {alert.category}: {alert.message}",
-                "alert_id": alert.alert_id,
-                "severity": alert.severity,
-                "category": alert.category,
-                "timestamp": alert.timestamp,
-                "details": alert.details,
-            }).encode()
+            payload = json.dumps(
+                {
+                    "text": f"[{alert.severity}] {alert.category}: {alert.message}",
+                    "alert_id": alert.alert_id,
+                    "severity": alert.severity,
+                    "category": alert.category,
+                    "timestamp": alert.timestamp,
+                    "details": alert.details,
+                }
+            ).encode()
 
             req = urllib.request.Request(
                 self._webhook_url,
@@ -318,11 +320,13 @@ class StructuredAlertDispatcher:
                 text += f"\n\n`{detail_str}`"
 
             url = f"https://api.telegram.org/bot{self._telegram_bot_token}/sendMessage"
-            data = urllib.parse.urlencode({
-                "chat_id": self._telegram_chat_id,
-                "text": text,
-                "parse_mode": "Markdown",
-            }).encode()
+            data = urllib.parse.urlencode(
+                {
+                    "chat_id": self._telegram_chat_id,
+                    "text": text,
+                    "parse_mode": "Markdown",
+                }
+            ).encode()
 
             req = urllib.request.Request(url, data=data, method="POST")
             urllib.request.urlopen(req, timeout=5)

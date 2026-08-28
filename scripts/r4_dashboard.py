@@ -172,7 +172,9 @@ def render_dashboard(data: dict | None, observer: RiskObserver):
     for pos in data["positions"][:10]:
         side = "BUY " if pos["type"] == 0 else "SELL"
         sl_mark = "✅" if pos["sl"] > 0 else "❌"
-        print(f"    {pos['symbol']:10s} {side} {pos['volume']:5.2f} @ {pos['price_open']:.5f}  P&L: {pos['profit']:>8.2f}  SL:{sl_mark}")
+        print(
+            f"    {pos['symbol']:10s} {side} {pos['volume']:5.2f} @ {pos['price_open']:.5f}  P&L: {pos['profit']:>8.2f}  SL:{sl_mark}"
+        )
     if data["position_count"] > 10:
         print(f"    ... and {data['position_count'] - 10} more")
     print()

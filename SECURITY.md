@@ -26,7 +26,7 @@ The following are in scope for security reports:
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, email: [your-email@example.com]
+Instead, email: ameymanuel@gmail.com
 
 Include:
 - Description of the vulnerability

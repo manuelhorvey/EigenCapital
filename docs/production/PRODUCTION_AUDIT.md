@@ -3,13 +3,13 @@
 **Last Updated:** 2026-08-27  
 **Overall Score:** 74/100  
 **Verdict:** Production Ready with Explicit Capacity Limits  
-**Tests:** 2,479 passing, 1 skipped
+**Tests:** 2,426+ passing, 1 skipped
 
 ---
 
 ## Executive Summary
 
-EigenCapital is a **247-module, 58,169-line Python codebase** implementing a quantitative trading platform with research, backtesting, execution, live trading, and production qualification. The system trades real capital (~$7K) on a live MT5 broker account under a "Phase 2" governance model.
+EigenCapital is a **247+ module Python codebase** implementing a quantitative trading platform with research, backtesting, execution, live trading, and production qualification. The system trades real capital (~$7K) on a live MT5 broker account under a "Phase 2" governance model.
 
 ### Production Readiness Scores
 
@@ -107,7 +107,7 @@ The dedicated risk module is ~525 lines against ~5,457 lines of live execution c
 
 | Category | Tests | Coverage |
 |----------|------:|---------:|
-| Unit tests | 2,479 | 83.5% |
+| Unit tests | 2,426+ | 83.5% |
 | P0 safety | 44 | 100% |
 | Chaos scenarios | 27 | — |
 | Failure injection | 51 | — |

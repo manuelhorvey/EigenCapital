@@ -34,7 +34,7 @@ Last updated: 2026-08-26
 | Domain | Authoritative Source | Location |
 |---|---|---|
 | Rebalance loop | r4_rebalance_loop.py | `scripts/r4_rebalance_loop.py` |
-| Live orders | r4_live_orders.py | `scripts/r4_live_orders.py` |
+| Live orders | r4_live_orders.py | `scripts/r4_live_orders.py` — **QUARANTINED**, cannot submit orders |
 | Monitor | r4_monitor.py | `scripts/r4_monitor.py` |
 | Safety supervisor | r4_safety_supervisor.py | `scripts/r4_safety_supervisor.py` |
 | T=0 snapshot | T0 JSON files | `reports/r4_qualification/T0_*.json` |
@@ -47,7 +47,7 @@ Last updated: 2026-08-26
 | Supervisor dry-run | Dry-run reports | `reports/r4_qualification/supervisor_dryrun_*.json` |
 | Adversarial audit | Audit reports | `reports/r4_qualification/adversarial_audit_*.json` |
 | Position evidence | Evidence JSONL | `reports/r4_qualification/evidence/` |
-| Capital semantics | Capital semantics doc | `docs/production/CAPITAL_SEMANTICS.md` |
+| Capital semantics | Capital semantics doc | `docs/production/CAPITAL_SCALING.md` |
 
 ## Research
 

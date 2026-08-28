@@ -11,7 +11,7 @@ Last updated: 2026-08-26
 | Rebalance loop | `scripts/r4_rebalance_loop.py` | Hourly signal check + order execution |
 | Monitor | `scripts/r4_monitor.py` | Continuous health monitoring |
 | Safety supervisor | `scripts/r4_safety_supervisor.py` | Safety gate verification |
-| Live orders | `scripts/r4_live_orders.py` | One-shot order computation |
+| Quarantined script | `scripts/r4_live_orders.py` | **QUARANTINED** — `--execute` disabled, cannot submit orders |
 | Qualification monitor | `scripts/r4_qualification_monitor.py` | Hourly evidence collection |
 
 ## Startup Sequence

@@ -295,7 +295,7 @@ Every live trade is evidence. Create a separate **R4 Live Qualification Dataset*
 | `RISK_ARCHITECTURE.md` | Risk control documentation |
 | `LIVE_TRADING.md` | Operational procedures |
 | `CAPITAL_SCALING.md` | Tier definitions and criteria |
-| `CAPITAL_SEMANTICS.md` | Capital concept definitions |
+| `CAPITAL_SCALING.md` | Capital semantics & scaling (consolidated) |
 | `PHASE2_INFRASTRUCTURE_PLAN.md` | Phase-2-safe infrastructure implementation plan |
 | `PHASE2_GOVERNANCE.md` | Phase 2 governance rules |
 | `PHASE2_CHANGE_CONTROL.md` | Change control and exit gate definitions |

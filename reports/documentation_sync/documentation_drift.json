@@ -1,0 +1,199 @@
+{
+  "generated": "2026-08-28",
+  "repository": "github.com/manuelhorvey/EigenCapital",
+  "branch": "main",
+  "drift_findings": [
+    {
+      "id": "DRIFT-001",
+      "document": "README.md",
+      "claim": "Links to docs/production/CAPITAL_SEMANTICS.md for capital definitions",
+      "actual_source": "docs/production/CAPITAL_SCALING.md",
+      "actual_value": "CAPITAL_SEMANTICS.md was consolidated into CAPITAL_SCALING.md",
+      "documented_value": "docs/production/CAPITAL_SEMANTICS.md",
+      "severity": "P1",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: links now point to CAPITAL_SCALING.md"
+    },
+    {
+      "id": "DRIFT-002",
+      "document": "docs/production/PRODUCTION_EVIDENCE_INDEX.md",
+      "claim": "References CAPITAL_SEMANTICS.md as current document",
+      "actual_source": "docs/production/CAPITAL_SCALING.md",
+      "actual_value": "Consolidated into CAPITAL_SCALING.md",
+      "documented_value": "CAPITAL_SEMANTICS.md",
+      "severity": "P2",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: reference updated to CAPITAL_SCALING.md"
+    },
+    {
+      "id": "DRIFT-003",
+      "document": "docs/production/PHASE_STATUS.md",
+      "claim": "References CAPITAL_SEMANTICS.md as current",
+      "actual_source": "docs/production/CAPITAL_SCALING.md",
+      "actual_value": "Consolidated into CAPITAL_SCALING.md",
+      "documented_value": "CAPITAL_SEMANTICS.md",
+      "severity": "P2",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: reference updated to CAPITAL_SCALING.md"
+    },
+    {
+      "id": "DRIFT-004",
+      "document": "docs/DOCUMENTATION_SOURCE_OF_TRUTH.md",
+      "claim": "Capital semantics mapped to docs/production/CAPITAL_SEMANTICS.md",
+      "actual_source": "docs/production/CAPITAL_SCALING.md",
+      "actual_value": "Consolidated into CAPITAL_SCALING.md",
+      "documented_value": "docs/production/CAPITAL_SEMANTICS.md",
+      "severity": "P1",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: source mapping updated"
+    },
+    {
+      "id": "DRIFT-005",
+      "document": "docs/architecture/ARCHITECTURE_CURRENT_STATE.md",
+      "claim": "Git HEAD is 6d6a3e21eee1a0c9241808a0f9c609f5121f3e3d",
+      "actual_source": "git rev-parse HEAD",
+      "actual_value": "ea223e2c28148883ba38f6411423d6af41882383",
+      "documented_value": "6d6a3e21eee1a0c9241808a0f9c609f5121f3e3d",
+      "severity": "P1",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: HEAD updated to current"
+    },
+    {
+      "id": "DRIFT-006",
+      "document": "docs/production/PRODUCTION_AUDIT.md",
+      "claim": "2,479 tests passing",
+      "actual_source": "test suite",
+      "actual_value": "2,426+ tests passing",
+      "documented_value": "2,479",
+      "severity": "P2",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: counts updated to 2,426+"
+    },
+    {
+      "id": "DRIFT-007",
+      "document": "docs/production/PRODUCTION_REMEDIATION.md",
+      "claim": "2,479 tests passing",
+      "actual_source": "test suite",
+      "actual_value": "2,426+ tests passing",
+      "documented_value": "2,479",
+      "severity": "P2",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: counts updated to 2,426+"
+    },
+    {
+      "id": "DRIFT-008",
+      "document": "docs/architecture/PHASE_ALIGNMENT.md",
+      "claim": "2,370+ passing tests",
+      "actual_source": "test suite",
+      "actual_value": "2,426+ tests passing",
+      "documented_value": "2,370+",
+      "severity": "P2",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: counts updated to 2,426+"
+    },
+    {
+      "id": "DRIFT-009",
+      "document": "docs/architecture/TECHNICAL_DEBT_REGISTER.md",
+      "claim": "2370+ tests passed",
+      "actual_source": "test suite",
+      "actual_value": "2,426+ tests passing",
+      "documented_value": "2370+",
+      "severity": "P2",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: counts updated to 2,426+"
+    },
+    {
+      "id": "DRIFT-010",
+      "document": "docs/production/LIVE_TRADING.md",
+      "claim": "scripts/r4_live_orders.py — One-shot order computation",
+      "actual_source": "scripts/r4_live_orders.py (EC-AUD-003)",
+      "actual_value": "QUARANTINED — --execute disabled with sys.exit(1)",
+      "documented_value": "One-shot order computation",
+      "severity": "P0",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: entry updated to quarantined status"
+    },
+    {
+      "id": "DRIFT-011",
+      "document": "docs/architecture/ARCHITECTURE_CURRENT_STATE.md",
+      "claim": "r4_live_orders.py: older/direct live order script still capable of MT5 order submission",
+      "actual_source": "EC-AUD-003 resolution",
+      "actual_value": "QUARANTINED — cannot submit orders",
+      "documented_value": "still capable of MT5 order submission",
+      "severity": "P0",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: entry updated to quarantined status"
+    },
+    {
+      "id": "DRIFT-012",
+      "document": "docs/DOCUMENTATION_SOURCE_OF_TRUTH.md",
+      "claim": "r4_live_orders.py listed as active live trading script",
+      "actual_source": "EC-AUD-003 resolution",
+      "actual_value": "QUARANTINED — cannot submit orders",
+      "documented_value": "Active script entry",
+      "severity": "P0",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: entry updated to quarantined status"
+    },
+    {
+      "id": "DRIFT-013",
+      "document": "docs/production/CONFIGURATION_AUDIT.md",
+      "claim": "Base TOML (configs/base.toml) as config source",
+      "actual_source": "filesystem",
+      "actual_value": "configs/base.toml does not exist; config loaded from configs/production/config.toml",
+      "documented_value": "configs/base.toml",
+      "severity": "P2",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: added note that file does not exist"
+    },
+    {
+      "id": "DRIFT-014",
+      "document": "docs/architecture/REFACTOR_ROADMAP.md",
+      "claim": "TODO: Remove or quarantine r4_live_orders.py; remove stale CAPITAL_SEMANTICS.md references",
+      "actual_source": "EC-AUD-003 + DRIFT-001 resolution",
+      "actual_value": "Both items already completed",
+      "documented_value": "TODO items",
+      "severity": "P2",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: marked as DONE"
+    },
+    {
+      "id": "DRIFT-015",
+      "document": "README.md",
+      "claim": "CHANGELOG.md referenced as existing",
+      "actual_source": "filesystem",
+      "actual_value": "CHANGELOG.md does not exist yet",
+      "documented_value": "CHANGELOG.md (linked)",
+      "severity": "P3",
+      "action": "UPDATE",
+      "resolved": true,
+      "resolution": "Fixed: reference changed to future tense"
+    }
+  ],
+  "unresolved_drift": [],
+  "summary": {
+    "total_findings": 15,
+    "resolved": 15,
+    "unresolved": 0,
+    "by_severity": {
+      "P0": 3,
+      "P1": 3,
+      "P2": 8,
+      "P3": 1
+    }
+  }
+}

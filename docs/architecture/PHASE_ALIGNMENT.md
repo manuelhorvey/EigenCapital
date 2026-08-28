@@ -22,7 +22,7 @@ Previously blocking conditions — all now resolved:
 - ~~Process supervision atomicity~~ → Supervisor uses temp + fsync + os.replace
 - ~~State machine invariants~~ → Documented on Watchdog + DisconnectRecovery
 
-Evidence: 2,370+ passing tests, risk gates, fingerprint checks, T=0 validation, watchdog, daily loss tracking, position attribution, catastrophic protection, P&L reconciliation, multi-factor foreign detection, pending order capacity, and comprehensive documentation.
+Evidence: 2,426+ passing tests, risk gates, fingerprint checks, T=0 validation, watchdog, daily loss tracking, position attribution, catastrophic protection, P&L reconciliation, multi-factor foreign detection, pending order capacity, and comprehensive documentation.
 
 ## Phase 2: Live Economic Validation
 

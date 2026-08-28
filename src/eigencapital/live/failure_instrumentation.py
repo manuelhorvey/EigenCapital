@@ -116,7 +116,7 @@ class FailureInstrumentation:
         self._recovery_times: Dict[str, List[float]] = {}  # type -> [recovery_times]
 
         # Statistics
-        self._stats = {
+        self._stats: dict[str, Any] = {
             "total_failures": 0,
             "by_type": {},
             "by_severity": {},
@@ -189,8 +189,10 @@ class FailureInstrumentation:
 
         # Update stats
         self._stats["total_failures"] += 1
-        self._stats["by_type"][failure_type.value] = self._stats["by_type"].get(failure_type.value, 0) + 1
-        self._stats["by_severity"][severity.value] = self._stats["by_severity"].get(severity.value, 0) + 1
+        by_type: dict[str, int] = self._stats["by_type"]  # type: ignore[assignment]
+        by_sev: dict[str, int] = self._stats["by_severity"]  # type: ignore[assignment]
+        by_type[failure_type.value] = by_type.get(failure_type.value, 0) + 1
+        by_sev[severity.value] = by_sev.get(severity.value, 0) + 1
 
         return failure
 
@@ -244,7 +246,7 @@ class FailureInstrumentation:
         self._recovery_times[failure_type.value].append(recovery_time)
 
         # Update stats
-        self._stats["recovered"] += 1
+        self._stats["recovered"] = int(self._stats["recovered"]) + 1
 
         return updated
 

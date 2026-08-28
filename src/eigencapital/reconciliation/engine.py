@@ -431,7 +431,7 @@ class ReconciliationEngine:
 
         # Check for broker positions not in internal
         for broker_pos in broker.positions:
-            ticket = broker_pos.get("ticket")
+            ticket = int(broker_pos.get("ticket", 0))
             if ticket not in internal.positions:
                 # Check if it's an R4 position
                 magic = broker_pos.get("magic")

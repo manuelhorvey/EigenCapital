@@ -740,7 +740,7 @@ class R4LiveQualificationDataset:
             if t.holding_period:
                 bucket = t.holding_period.holding_period_bucket
                 if bucket not in holding_buckets:
-                    holding_buckets[bucket] = {"count": 0, "total_pnl": 0}
+                    holding_buckets[bucket] = {"count": 0, "total_pnl": 0.0}
                 holding_buckets[bucket]["count"] += 1
                 holding_buckets[bucket]["total_pnl"] += t.net_pnl
 

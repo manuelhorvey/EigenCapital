@@ -163,7 +163,7 @@ class EvidenceOrchestrator:
         self._dataset.record_risk_snapshot(risk_snapshot)
 
         # Update position tracking
-        self._last_positions = {p.get("ticket"): p for p in positions if p.get("ticket")}
+        self._last_positions = {int(p.get("ticket", 0)): p for p in positions if p.get("ticket") is not None}
 
         # P2-017: Increment cycle counter for explicit correlation
         self._cycle_counter += 1
@@ -402,7 +402,7 @@ class EvidenceOrchestrator:
 
     def _record_entry(self, position: Dict[str, Any]) -> None:
         """Record a new position entry."""
-        ticket = position.get("ticket")
+        ticket = int(position.get("ticket", 0))
         symbol = position.get("symbol", "")
         magic = position.get("magic", 0)
 
@@ -452,7 +452,7 @@ class EvidenceOrchestrator:
 
     def _record_closure_from_snapshot(self, old_position: Dict[str, Any], current_equity: float) -> None:
         """Record a closure detected from position snapshot difference."""
-        ticket = old_position.get("ticket")
+        ticket = int(old_position.get("ticket", 0))
         entry_price = old_position.get("price_open", 0)
 
         # Find the trade

@@ -83,13 +83,13 @@ class DurableAudit:
             "payload": payload,
             "prev_hash": self._prev_hash,
         }
-        record["hash"] = _digest(record["prev_hash"], self._seq, payload)
+        record["hash"] = _digest(str(record["prev_hash"]), self._seq, payload)
         self._primary.parent.mkdir(parents=True, exist_ok=True)
         with open(self._primary, "a") as f:
             f.write(json.dumps(record, default=str) + "\n")
             f.flush()
             os.fsync(f.fileno())
-        self._prev_hash = record["hash"]
+        self._prev_hash = str(record["hash"])
         if self._mirror is not None:
             self._mirror.parent.mkdir(parents=True, exist_ok=True)
             self._mirror.write_bytes(self._primary.read_bytes())

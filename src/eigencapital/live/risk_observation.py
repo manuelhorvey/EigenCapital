@@ -558,7 +558,7 @@ class RiskObserver:
         if not self._history:
             return {"total_observations": 0}
 
-        levels = {}
+        levels: dict[str, int] = {}
         for obs in self._history:
             level = obs.get("overall_level", "UNKNOWN")
             levels[level] = levels.get(level, 0) + 1
@@ -650,7 +650,7 @@ class RiskObserver:
 
         total = len(positions)
         max_class = max(asset_classes.values()) if asset_classes else 0
-        max_class_name = max(asset_classes, key=asset_classes.get) if asset_classes else "?"
+        max_class_name = max(asset_classes, key=lambda k: asset_classes[k]) if asset_classes else "?"
         concentration = max_class / total if total > 0 else 0
 
         if concentration >= 0.7:  # 70% in one class

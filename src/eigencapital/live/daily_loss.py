@@ -11,6 +11,26 @@ Handles:
 Definition of "trading day":
   A trading day starts at 00:00 UTC and ends at 23:59:59 UTC.
   Daily loss is measured from the equity at the start of the trading day.
+
+Timezone semantics (P1-009):
+  The timezone_offset_hours parameter shifts the midnight rollover boundary.
+  Examples:
+    timezone_offset_hours=0   → daily reset at midnight UTC (default)
+    timezone_offset_hours=-5  → daily reset at midnight EST (New York)
+    timezone_offset_hours=8   → daily reset at midnight SGT (Singapore)
+
+  The broker (Exness) operates in GMT/UTC. The MT5 terminal uses UTC for
+  all timestamps. This tracker defaults to UTC to match the broker's
+  trading day boundary.
+
+  If your local timezone differs, set timezone_offset_hours to shift the
+  rollover. For example, a New York trader wanting the daily loss to
+  reset at midnight EST would use timezone_offset_hours=-5 (or -4
+  during DST if using manual offset — prefer zoneinfo for DST safety).
+
+  WARNING: Manual offset does NOT handle DST transitions automatically.
+  For DST-safe operation, migrate to zoneinfo-based timezone in a future
+  release (Python 3.9+ has zoneinfo in stdlib).
 """
 
 from __future__ import annotations

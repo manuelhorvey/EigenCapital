@@ -101,6 +101,9 @@ class EvidenceOrchestrator:
         self._last_positions: Dict[int, Dict[str, Any]] = {}  # ticket -> position info
         self._position_entry_prices: Dict[int, float] = {}  # ticket -> entry price
         self._position_entry_times: Dict[int, str] = {}  # ticket -> entry timestamp
+        self._cycle_counter: int = 0  # P2-017: explicit cycle counter for correlation
+        self._consecutive_snapshot_failures: int = 0  # P1-008: escalation counter
+        self._escalation_threshold: int = 3  # P1-008: escalate after N failures
 
         # Evidence files
         self._snapshot_file = self._evidence_dir / "position_snapshots.jsonl"
@@ -162,9 +165,15 @@ class EvidenceOrchestrator:
         # Update position tracking
         self._last_positions = {p.get("ticket"): p for p in positions if p.get("ticket")}
 
-        # Save snapshot
+        # P2-017: Increment cycle counter for explicit correlation
+        self._cycle_counter += 1
+
+        # Save snapshot with explicit correlation IDs
         snapshot = {
             "timestamp": datetime.now(UTC).isoformat(),
+            "campaign_id": self._campaign_id,
+            "cycle_counter": self._cycle_counter,
+            "correlation_id": f"{self._campaign_id}-c{self._cycle_counter}",
             "equity": account_equity,
             "balance": account_balance,
             "free_margin": free_margin,
@@ -568,6 +577,25 @@ class EvidenceOrchestrator:
         with open(filepath, "a") as f:
             f.write(json.dumps(record, default=str) + "\n")
 
+    def record_snapshot_success(self) -> None:
+        """P1-008: Reset consecutive failure counter on success."""
+        self._consecutive_snapshot_failures = 0
+
+    def record_snapshot_failure(self) -> str:
+        """P1-008: Track consecutive failures and escalate.
+
+        Returns escalation level:
+        - "NORMAL": < threshold, continue
+        - "WARNING": threshold reached, log warning
+        - "CRITICAL": 2x threshold, recommend halt
+        """
+        self._consecutive_snapshot_failures += 1
+        if self._consecutive_snapshot_failures >= self._escalation_threshold * 2:
+            return "CRITICAL"
+        elif self._consecutive_snapshot_failures >= self._escalation_threshold:
+            return "WARNING"
+        return "NORMAL"
+
 
 # ── Convenience function for live loop integration ────────────────
 
@@ -603,14 +631,21 @@ def capture_evidence_snapshot(
     """Capture an evidence snapshot (convenience function).
 
     Called from the live rebalance loop after each cycle.
+    P1-008: Tracks consecutive failures and escalates.
     """
     orchestrator = get_orchestrator(campaign_id)
-    return orchestrator.capture_cycle_snapshot(
-        positions=positions,
-        account_equity=equity,
-        account_balance=balance,
-        free_margin=free_margin,
-    )
+    try:
+        result = orchestrator.capture_cycle_snapshot(
+            positions=positions,
+            account_equity=equity,
+            account_balance=balance,
+            free_margin=free_margin,
+        )
+        orchestrator.record_snapshot_success()
+        return result
+    except Exception:
+        orchestrator.record_snapshot_failure()
+        raise  # re-raise so caller can handle
 
 
 def record_closure(

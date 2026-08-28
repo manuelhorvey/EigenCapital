@@ -57,7 +57,34 @@ class WatchDecision:
 
 
 class Watchdog:
-    """Threshold-driven escalation with sticky containment."""
+    """Threshold-driven escalation with sticky containment.
+
+    ID-008: State Machine Invariants
+    ================================
+
+    Trading authorization requires BOTH machines to agree:
+
+    INVARIANT 1: Trading authorized IFF
+        watchdog.state == NORMAL
+        AND disconnect_recovery.state in {CONNECTED, RESUMED}
+
+    INVARIANT 2: Escalation is monotonic (no spontaneous de-escalation)
+        NORMAL → DEGRADED → BLIND → CONTAIN (forward only)
+        De-escalation only via explicit reset or reconciliation
+
+    INVARIANT 3: CONTAIN is sticky
+        Once CONTAIN is reached, only manual reset or clean
+        reconciliation can restore NORMAL. Automatic recovery
+        from CONTAIN is NOT possible.
+
+    INVARIANT 4: DisconnectRecovery RECONCILING requires clean reconcile
+        RECONCILING → RESUMED only if all reconciliation checks pass
+        RECONCILING → HALTED on any failure
+
+    INVARIANT 5: HALTED is terminal until manual intervention
+        HALTED cannot be exited automatically.
+        Operator must call request_resume() with explicit conditions.
+    """
 
     def __init__(
         self,
@@ -216,12 +243,48 @@ class Watchdog:
 
 
 def trail_age_seconds(audit_file: Path, now_s: float | None = None) -> float | None:
+    """Compute audit trail age from last record's timestamp (P1-007).
+
+    Reads the last line of the JSONL audit file and extracts the "timestamp"
+    field. Falls back to file mtime if JSON parsing fails (e.g., on network
+    filesystems where mtime may be unreliable).
+    """
+    import json as _json
+    from datetime import datetime as _dt
+
+    ref = time.time() if now_s is None else now_s
+    try:
+        # Read last non-empty line from JSONL file
+        last_line = ""
+        with open(audit_file, "rb") as f:
+            f.seek(0, 2)  # seek to end
+            fsize = f.tell()
+            # Read last 4KB to find the final record
+            read_size = min(4096, fsize)
+            f.seek(max(0, fsize - read_size))
+            tail = f.read().decode("utf-8", errors="replace")
+            for line in reversed(tail.split("\n")):
+                line = line.strip()
+                if line:
+                    last_line = line
+                    break
+
+        if last_line:
+            record = _json.loads(last_line)
+            ts_str = record.get("timestamp", "")
+            if ts_str:
+                # Parse ISO timestamp
+                last_ts = _dt.fromisoformat(ts_str.replace("Z", "+00:00")).timestamp()
+                return max(0.0, ref - last_ts)
+    except (OSError, _json.JSONDecodeError, ValueError, KeyError):
+        pass
+
+    # Fallback: file mtime (less reliable on network FS)
     try:
         mtime = audit_file.stat().st_mtime
+        return max(0.0, ref - mtime)
     except OSError:
         return None
-    ref = time.time() if now_s is None else now_s
-    return max(0.0, ref - mtime)
 
 
 def process_alive(pattern: str = "r4_rebalance_loop") -> bool:

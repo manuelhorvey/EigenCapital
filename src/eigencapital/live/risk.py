@@ -350,10 +350,36 @@ class RecoveryState(str, Enum):
 
 
 class DisconnectRecovery:
-    """State machine for broker disconnect recovery. Reconnect never
-    grants permission by itself; only the FULL sequence (reconnect ->
-    reconciliation match -> freshness -> risk -> fingerprint -> healthy)
+    """State machine for broker disconnect recovery.
+
+    ID-008: State Machine Invariants
+    ================================
+
+    Reconnect never grants permission by itself; only the FULL sequence
+    (reconnect → reconciliation match → freshness → risk → fingerprint → healthy)
     resumes trading. Excessive recovery cycles escalate to FROZEN.
+
+    INVARIANT 1: Trading requires state in {CONNECTED, RESUMED}
+        All other states (DISCONNECTED, RECONCILING, FROZEN, HALTED)
+        block trading authorization.
+
+    INVARIANT 2: RESUMED requires clean reconciliation
+        on_reconnect() → RECONCILING (always)
+        submit_reconciliation(positions_match=True, orders_match=True, ...) → RESUMED
+        submit_reconciliation(any_mismatch=True) → HALTED
+
+    INVARIANT 3: FROZEN is reached via escalation, not direct
+        DISCONNECTED → attempts >= max → FROZEN
+        FROZEN requires manual reset (operator intervention)
+
+    INVARIANT 4: HALTED is terminal until explicit resume request
+        HALTED cannot be exited automatically.
+        request_resume() with all conditions met → RESUMED
+        Otherwise stays HALTED.
+
+    INVARIANT 5: Attempts counter monotonically increases
+        on_disconnect() increments attempts.
+        attempts never decreases (prevents retry storms).
     """
 
     def __init__(self, max_recovery_attempts: int = 3) -> None:

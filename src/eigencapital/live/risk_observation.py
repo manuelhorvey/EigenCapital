@@ -654,7 +654,7 @@ class RiskObserver:
 
         total = sum(sectors.values())
         max_sector = max(sectors.values()) if sectors else 0
-        max_sector_name = max(sectors, key=sectors.get) if sectors else "?"
+        max_sector_name = max(sectors, key=lambda k: sectors[k]) if sectors else "?"
         concentration = max_sector / total if total > 0 else 0
 
         if concentration >= 0.7:

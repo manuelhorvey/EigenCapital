@@ -38,36 +38,37 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+# ── Path setup (must precede eigencapital imports) ─────────────────
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
 # P0 EC-AUD-001: Timeout for broker calls to prevent hung sessions
 _ORDER_SEND_TIMEOUT_SECONDS = 30  # hard limit per order_send call
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="mt5-order")
 
-sys.path.insert(0, "src")
-
-import numpy as np
-import pandas as pd
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 
 try:
     from mt5linux import MetaTrader5
 except ImportError:
     MetaTrader5 = None  # Allow import on non-Linux for testing
 
-from eigencapital.config import load_config
-from eigencapital.live.daily_loss import DailyLossTracker
-from eigencapital.live.partial_fills import PartialFillManager
-from eigencapital.live.position_attribution import R4_MAGIC, classify_all, snapshot_hash
-from eigencapital.live.risk import DisconnectRecovery, RecoveryState
-from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope
-from eigencapital.live.watchdog import ProbeResult, Watchdog, WatchState, trail_age_seconds
-from eigencapital.production_qual.evidence_orchestrator import (
+from eigencapital.config import load_config  # noqa: E402
+from eigencapital.live.daily_loss import DailyLossTracker  # noqa: E402
+from eigencapital.live.partial_fills import PartialFillManager  # noqa: E402
+from eigencapital.live.position_attribution import R4_MAGIC, classify_all, snapshot_hash  # noqa: E402
+from eigencapital.live.risk import DisconnectRecovery, RecoveryState  # noqa: E402
+from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope  # noqa: E402
+from eigencapital.live.watchdog import ProbeResult, Watchdog, WatchState, trail_age_seconds  # noqa: E402
+from eigencapital.production_qual.evidence_orchestrator import (  # noqa: E402
     EvidenceOrchestrator,
     capture_evidence_snapshot,
     record_operational_event,
 )
-from eigencapital.production_qual.fingerprint_verifier import (
+from eigencapital.production_qual.fingerprint_verifier import (  # noqa: E402
     FingerprintVerifier,
 )
-from eigencapital.reconciliation.engine import (
+from eigencapital.reconciliation.engine import (  # noqa: E402
     BrokerState,
     InternalState,
     ReconciliationEngine,

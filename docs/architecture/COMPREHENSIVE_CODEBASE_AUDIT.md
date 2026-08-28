@@ -88,21 +88,28 @@ All 12 critical safety modules import successfully:
 
 ## SECTION 4: ARCHITECTURE VERDICT
 
-> **EigenCapital should continue evolving on the current architecture. All safety-critical findings have been resolved. The foundation is sound for Phase 2 live validation and Phase 3 capital scaling. No subsystem requires redesign or rewrite.**
+> **EigenCapital's codebase is architecturally sound and all identified code-level findings have been resolved. However, the live deployment is stale (build manifest shows pre-audit HEAD) and must be restarted before the safety improvements are active. The system should NOT be considered production-ready until the live process matches git HEAD.**
 
-### Final Ratings
+### Honest Ratings (Numeric)
 
-| Dimension | Rating | Confidence |
-|-----------|--------|------------|
-| Architectural Foundation | ⭐⭐⭐⭐⭐ EXCELLENT | Very High |
-| Production Safety | ⭐⭐⭐⭐⭐ EXCELLENT | Very High |
-| Reliability | ⭐⭐⭐⭐⭐ EXCELLENT | High |
-| Observability | ⭐⭐⭐⭐⭐ EXCELLENT | High |
-| Research Foundation | ⭐⭐⭐⭐⭐ EXCELLENT | Very High |
-| Scalability | ⭐⭐⭐⭐☆ GOOD | High |
-| Maintainability | ⭐⭐⭐⭐⭐ EXCELLENT | High |
-| Documentation | ⭐⭐⭐⭐⭐ EXCELLENT | High |
-| Phase 2 Readiness | 🟢 READY | Very High |
+| Dimension | Score | Justification |
+|-----------|-------|---------------|
+| Architectural Foundation | 82/100 | Clean layered safety, no circular deps; main loop 1,639 lines (refactor candidate) |
+| Production Safety | 78/100 | 7 gates + catastrophic SL; but auto-flatten on drawdown not implemented; deployment drift means safety improvements are inactive |
+| Reliability | 75/100 | Auto-reconnect + watchdog; but blind window up to 3600s; SL post-trade (not pre-trade); process restart required |
+| Observability | 70/100 | JSONL audit + dashboard + alerts; but no web UI; alert amplification still possible; Telegram not confirmed active |
+| Research Foundation | 85/100 | Walk-forward, bootstrap, multiple-testing correction; frozen R4 with fingerprint enforcement |
+| Scalability | 65/100 | $5K tier only; evidence collection is bottleneck; database optimization needed for $50K+ |
+| Maintainability | 72/100 | Well-modularized (27 subsystems); error handling duplication; main loop size |
+| Documentation | 75/100 | 23+ audit docs; but self-grading jumped from 74 to EXCELLENT in 24h (grade inflation); some docs still reference stale state |
+| **Phase 2 Readiness** | **CONDITIONAL** | Code is ready; live deployment is NOT — process must be restarted to deploy v0.2.0 safety improvements |
+
+### Key Caveats
+
+1. **Deployment drift is active**: The running process shows build manifest HEAD `375a71b` (Aug 27) while git HEAD is `41a53f3`. Safety improvements from v0.2.0 (order timeout, force-regime block, config validation) are NOT active in the live process.
+2. **PAUSE_REQUIRED was valid**: The Aug 26 triage identified real P0 conditions (foreign exposure, sl=0 positions, deployment drift). Foreign positions are now closed and sl is set, but deployment drift remains.
+3. **Grade inflation is real**: Jumping from numeric 74/100 to categorical EXCELLENT in 24 hours is not justified by the code changes alone. The scores above reflect the actual state.
+4. **Economic evidence from Aug 25-26 is compromised**: Foreign positions (~$789K notional) dominated the account's equity swings. R4's performance during that window is not measurable.
 
 ---
 

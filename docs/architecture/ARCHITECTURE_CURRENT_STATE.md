@@ -4,6 +4,7 @@ Audit date: 2026-08-27
 Git branch: `main`
 Git HEAD: `ea223e2c28148883ba38f6411423d6af41882383`
 Working tree at audit start: clean
+**⚠ DEPLOYMENT DRIFT**: Build manifest HEAD (`375a71b`, 2026-08-27) does not match git HEAD. Live process must be restarted to deploy v0.2.0 safety improvements.
 Runtime used for verification: Python 3.14.7 on Linux
 
 ## Inventory

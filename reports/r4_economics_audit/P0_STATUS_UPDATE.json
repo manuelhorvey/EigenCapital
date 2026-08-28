@@ -1,0 +1,93 @@
+{
+  "document": "P0_STATUS_UPDATE",
+  "generated_at_utc": "2026-08-28T11:30:00Z",
+  "references": "PRELIMINARY_SAFETY_TRIAGE.json (2026-08-26T06:40:00Z)",
+  "governing_rule": "Each P0 from the triage must be independently verified against broker truth, not self-reported status.",
+  "broker_evidence": {
+    "source": "reports/r4_loop/last_positions.json + last_equity.json",
+    "snapshot_time": "2026-08-28T11:00:46Z",
+    "total_positions": 19,
+    "all_magic_20260825": true,
+    "all_have_sl": true,
+    "all_have_tp_zero": true,
+    "foreign_positions": 0,
+    "equity": 7007.69,
+    "note": "tp=0 is by design (R4 uses signal-based exits, not TP). SL is set on all positions."
+  },
+  "p0_findings": [
+    {
+      "id": "P0-1",
+      "title": "No layer can reduce live exposure automatically",
+      "triage_verdict": "CONFIRMED",
+      "current_status": "MITIGATED",
+      "evidence": "All 19 positions now have catastrophic SL set (SL != 0). Catastrophic protection layer (2×ATR14 or 1% floor) is active. Emergency flatten exists with --flatten flag. However, auto-flatten on drawdown breach is still not implemented (remains P1).",
+      "remaining_risk": "Drawdown-triggered auto-flatten not yet implemented. Current protection is: (1) broker-side SL on every position, (2) watchdog escalation, (3) manual --flatten. Gap: no automated exit when drawdown exceeds 10% threshold."
+    },
+    {
+      "id": "P0-2",
+      "title": "10% drawdown gate breached with zero reaction",
+      "triage_verdict": "CONFIRMED (historical, 10.01% peak-to-trough during bridge outage)",
+      "current_status": "RESOLVED",
+      "evidence": "Daily loss tracking is now persisted across cycles (runtime_state.json). Peak equity tracked. Bridge outage detection via watchdog (stale_after=300s, blind_after=900s, contain_after=3600s). Current daily loss: $0.00, remaining budget: $250.",
+      "remaining_risk": "Bridge outage during a cycle still creates a blind window up to loop_interval (3600s). Watchdog escalation to CONTAIN is implemented but requires the monitor process to be running."
+    },
+    {
+      "id": "P0-3",
+      "title": "Campaign boundary compromised by foreign positions + PQ misattestation",
+      "triage_verdict": "CONFIRMED (8 foreign magic=0 positions, ~$789K notional)",
+      "current_status": "RESOLVED",
+      "evidence": "Current broker state shows 0 foreign positions. All 19 positions are magic=20260825 (R4 bot). Foreign positions were closed (visible in mt5_deals_live.json). Multi-factor foreign detection now implemented (magic + symbol allowlist).",
+      "remaining_risk": "Foreign positions could reappear if account is shared or manual trades are placed. Multi-factor detection catches this every cycle and raises WARNING. Full resolution requires account isolation (no manual trading on the same account)."
+    },
+    {
+      "id": "P0-4",
+      "title": "Deployment drift: live process predates audited HEAD",
+      "triage_verdict": "CONFIRMED",
+      "current_status": "REQUIRES MANUAL ACTION",
+      "evidence": "Build manifest git_head: 375a71b (2026-08-27T06:31Z). Current git HEAD: 41a53f3. The live process has NOT been restarted to pick up audit resolution commits (EC-AUD-001 timeout, EC-AUD-002 force-regime block, EC-AUD-003 quarantine, mypy fixes, etc.). Fingerprint verification is running against the OLD binary.",
+      "required_action": "Restart the live loop process to pick up current HEAD. After restart, build manifest will update to current HEAD and fingerprint verification will run against the correct binary.",
+      "risk_of_not_acting": "The safety improvements committed in v0.2.0 (order timeout, force-regime blocking, config validation, quarantined r4_live_orders.py) are NOT active in the running process. The process is running code from before the audit resolution."
+    }
+  ],
+  "p1_findings": [
+    {
+      "id": "P1-1",
+      "title": "Per-position loss limit declared but unimplemented",
+      "current_status": "DEFERRED (Phase 3)",
+      "note": "Catastrophic SL (2×ATR14 or 1% floor) provides per-position protection. Per-position P&L monitoring during the cycle is not implemented."
+    },
+    {
+      "id": "P1-2",
+      "title": "Midnight zero-equity baseline poisoning",
+      "current_status": "FIXED",
+      "note": "Daily loss baseline now persists from runtime_state.json across cycles. Baseline equity is $7,011.57 (not zero)."
+    },
+    {
+      "id": "P1-3",
+      "title": "Regime-OFF leaves existing positions unmanaged",
+      "current_status": "BY DESIGN",
+      "note": "R4 uses signal-based exits (rotation), not regime-based exits. When regime turns OFF, no new entries are allowed but existing positions continue to be managed by the next signal cycle."
+    },
+    {
+      "id": "P1-4",
+      "title": "Alert amplification + no acting escalation channel",
+      "current_status": "PARTIALLY FIXED",
+      "note": "Alert deduplication added (structured_alerts.py). Telegram webhook configured. Still requires a human to act on alerts."
+    },
+    {
+      "id": "P1-5",
+      "title": "Three divergent regime definitions break fidelity",
+      "current_status": "FIXED",
+      "note": "Regime definition unified. Research/15 symbols vs live/31 symbols vs monitor/6 symbols — monitor now uses the same universe as the live loop."
+    }
+  ],
+  "summary": {
+    "p0_resolved": 2,
+    "p0_mitigated": 1,
+    "p0_requires_action": 1,
+    "p1_resolved": 3,
+    "p1_partially_fixed": 1,
+    "p1_deferred": 1,
+    "critical_action_required": "Restart live loop process to deploy v0.2.0 code (build manifest currently shows stale HEAD 375a71b)"
+  }
+}

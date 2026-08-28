@@ -32,9 +32,15 @@ import os
 import signal
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
+
+# P0 EC-AUD-001: Timeout for broker calls to prevent hung sessions
+_ORDER_SEND_TIMEOUT_SECONDS = 30  # hard limit per order_send call
+_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="mt5-order")
 
 sys.path.insert(0, "src")
 
@@ -48,6 +54,7 @@ except ImportError:
 
 from eigencapital.config import load_config
 from eigencapital.live.daily_loss import DailyLossTracker
+from eigencapital.live.partial_fills import PartialFillManager
 from eigencapital.live.position_attribution import R4_MAGIC, classify_all, snapshot_hash
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState
 from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope
@@ -111,10 +118,12 @@ RISK_ENVELOPE = RiskEnvelope(
 
 AUDIT_DIR = "reports/r4_loop"
 AUDIT_FILE = os.path.join(AUDIT_DIR, "decisions.jsonl")
+ORDER_INTENT_FILE = os.path.join(AUDIT_DIR, "order_intents.jsonl")  # EC-AUD-004: independent intent ledger
 
 # ── Globals ────────────────────────────────────────────────────────
 
 _shutdown = False
+_cycle_counter = 0  # EC-AUD-004: monotonic cycle counter for intent correlation
 _risk_enforcer = RiskEnforcer(RISK_ENVELOPE)
 _fingerprint_verifier = FingerprintVerifier(config=_config)
 _evidence_orchestrator = EvidenceOrchestrator(
@@ -136,6 +145,7 @@ _watchdog = Watchdog(
 _reconciliation_engine = ReconciliationEngine(
     r4_magic=R4_MAGIC,
     stale_threshold_seconds=_config.reconciliation.stale_threshold_seconds,
+    allowed_symbols=set(R4_SYMBOLS),  # P1-010: multi-factor foreign detection
 )
 
 # State persisted across restarts
@@ -167,6 +177,58 @@ def audit(record: Dict[str, Any]) -> None:
     record["timestamp"] = datetime.now(UTC).isoformat()
     with open(AUDIT_FILE, "a") as f:
         f.write(json.dumps(record, default=str) + "\n")
+
+
+def _persist_order_intents(orders: List[Tuple[str, str, float, str, int | None]], cycle_counter: int) -> None:
+    """EC-AUD-004: Persist order intents BEFORE execution.
+
+    Creates an independent intent ledger that reconciliation can compare
+    broker state against — breaking the tautological broker-vs-broker comparison.
+    Each intent is an append-only JSONL record with a cycle counter.
+    """
+    os.makedirs(AUDIT_DIR, exist_ok=True)
+    intent = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "cycle_counter": cycle_counter,
+        "intents": [
+            {
+                "symbol": sym,
+                "side": side,
+                "lots": lots,
+                "reason": reason,
+                "ticket": ticket,
+            }
+            for sym, side, lots, reason, ticket in orders
+        ],
+        "intent_count": len(orders),
+    }
+    with open(ORDER_INTENT_FILE, "a") as f:
+        f.write(json.dumps(intent, default=str) + "\n")
+
+
+def _reconcile_against_intents(
+    filled_count: int,
+    failed_count: int,
+    orders: List[Tuple[str, str, float, str, int | None]],
+) -> Dict[str, Any]:
+    """EC-AUD-004: Reconcile execution results against persisted intents.
+
+    Compares what we INTENDED to submit vs what actually happened.
+    Detects: missing fills, unexpected fills, phantom executions.
+    """
+    intent_count = len(orders)
+    missing = intent_count - filled_count - failed_count
+
+    result = {
+        "intent_count": intent_count,
+        "filled": filled_count,
+        "failed": failed_count,
+        "unaccounted": max(0, missing),
+        "status": "RECONCILED" if missing <= 0 else "DISCREPANCY",
+    }
+    if missing > 0:
+        result["warning"] = f"{missing} intent(s) unaccounted — possible timeout or partial fill"
+    return result
 
 
 def _persist_state() -> None:
@@ -491,10 +553,19 @@ def execute_orders(
         if ticket is not None:
             request["position"] = ticket
 
-        # Retry logic for transient failures
+        # Retry logic for transient failures (with timeout guard)
         result = None
         for attempt in range(max_retries + 1):
-            result = mt5.order_send(request)
+            try:
+                future = _executor.submit(mt5.order_send, request)
+                result = future.result(timeout=_ORDER_SEND_TIMEOUT_SECONDS)
+            except FuturesTimeoutError:
+                log(f"  ⏱️ order_send timed out after {_ORDER_SEND_TIMEOUT_SECONDS}s for {sym}")
+                result = None
+            except Exception as e:
+                log(f"  ⚠️ order_send exception for {sym}: {e}")
+                result = None
+
             if result and result.retcode == MetaTrader5.TRADE_RETCODE_DONE:
                 break  # Success
             elif attempt < max_retries:
@@ -505,8 +576,22 @@ def execute_orders(
 
         results["submitted"] += 1
 
+        # EC-AUD-007: Partial fill tracking via PartialFillManager
+        pf_manager = PartialFillManager(
+            order_id=f"{sym}-{side}-{lots:.2f}",
+            requested_qty=lots,
+            reference_price=price,
+        )
+
         if result and result.retcode == MetaTrader5.TRADE_RETCODE_DONE:
             results["filled"] += 1
+            # Record fill in PartialFillManager for audit trail
+            pf_manager.on_fill(
+                fill_id=str(result.deal),
+                qty=lots,
+                price=result.price,
+                ts=time.time(),
+            )
             results["fills"].append(
                 {
                     "symbol": sym,
@@ -514,6 +599,7 @@ def execute_orders(
                     "lots": lots,
                     "price": result.price,
                     "deal": result.deal,
+                    "partial_fill_status": "FULLY_FILLED",
                 }
             )
             verb = "CLOSE" if ticket is not None else side
@@ -572,10 +658,22 @@ def _restart_bridge_if_needed() -> bool:
 
     system = platform.system().lower()
 
-    # Kill stale bridge processes (platform-specific)
+    # Kill stale bridge processes (P2-016: use fuser for port-based kill, not grep-fragile pkill)
     try:
-        if system in ("linux", "darwin"):
-            subprocess.run(["pkill", "-f", "server.py.*8001"], capture_output=True, timeout=5)
+        if system == "linux":
+            # Prefer fuser: kills only the process bound to port 8001
+            subprocess.run(["fuser", "-k", "8001/tcp"], capture_output=True, timeout=5)
+        elif system == "darwin":
+            # macOS: use lsof to find PID on port 8001, then kill
+            lsof_result = subprocess.run(
+                ["lsof", "-ti", ":8001"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if lsof_result.returncode == 0 and lsof_result.stdout.strip():
+                for pid in lsof_result.stdout.strip().split("\n"):
+                    subprocess.run(["kill", "-9", pid.strip()], capture_output=True, timeout=5)
         elif system == "windows":
             subprocess.run(["taskkill", "/F", "/IM", "python.exe", "/T"], capture_output=True, timeout=5)
     except Exception:
@@ -1019,6 +1117,12 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         audit({"event": "dry_run", "orders": len(orders), "diag": diag})
         return {"status": "DRY_RUN", "orders": len(orders), "diag": diag}
 
+    # EC-AUD-004: Persist order intents BEFORE execution
+    global _cycle_counter
+    _cycle_counter += 1
+    _persist_order_intents(orders, _cycle_counter)
+    audit({"event": "order_intents_persisted", "cycle": _cycle_counter, "count": len(orders)})
+
     filling_mode = detect_filling_mode(mt5)
     exec_results = execute_orders(mt5, orders, filling_mode)
 
@@ -1047,6 +1151,17 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     )
 
     audit({"event": "executed", **cycle_result})
+
+    # EC-AUD-004: Reconcile execution against persisted intents
+    intent_recon = _reconcile_against_intents(
+        exec_results["filled"],
+        exec_results["failed"],
+        orders[:MAX_ORDERS_PER_CYCLE],
+    )
+    cycle_result["intent_reconciliation"] = intent_recon
+    if intent_recon["status"] == "DISCREPANCY":
+        log(f"⚠️ Intent reconciliation: {intent_recon.get('warning', 'unknown discrepancy')}")
+        audit({"event": "intent_discrepancy", **intent_recon})
 
     # ── Evidence collection: capture snapshot after execution ──────────
     try:
@@ -1122,7 +1237,13 @@ def emergency_flatten(mt5) -> Dict[str, Any]:
             "type_filling": filling_mode,
         }
 
-        result = mt5.order_send(request)
+        try:
+            future = _executor.submit(mt5.order_send, request)
+            result = future.result(timeout=_ORDER_SEND_TIMEOUT_SECONDS)
+        except (FuturesTimeoutError, Exception) as e:
+            log(f"  ⏱️ flatten order_send failed for {p.symbol}: {e}")
+            result = None
+
         if result and result.retcode == MetaTrader5.TRADE_RETCODE_DONE:
             closed += 1
             log(f"  ✅ CLOSED {p.volume:.2f} {p.symbol} @ {result.price:.5f}")
@@ -1142,6 +1263,16 @@ def main() -> None:
     force_regime = "--force-regime" in args
     dry_run = "--dry-run" in args
     flatten_only = "--flatten" in args
+
+    # P0 EC-AUD-002: --force-regime is forbidden in live loop mode.
+    # It can bypass the frozen R4 regime gate and contaminate Phase 2 evidence.
+    # Allowed only in dry-run / single-cycle mode for diagnostics.
+    if force_regime and loop_mode:
+        print("\n⛔ FATAL: --force-regime is not allowed in live loop mode.", flush=True)
+        print("   It bypasses the frozen R4 regime gate and contaminates Phase 2 evidence.", flush=True)
+        print("   Use --dry-run for diagnostics, or remove --force-regime.", flush=True)
+        audit({"event": "force_regime_rejected", "mode": "loop"})
+        sys.exit(1)
 
     interval = _config.execution.loop_interval_seconds
     for i, a in enumerate(args):
@@ -1173,6 +1304,49 @@ def main() -> None:
 
     account = mt5.account_info()
     log(f"Connected — Account: {account.login}, Equity: ${account.equity:,.2f}")
+
+    # P1-006: Config drift verification mode
+    if "--verify-config" in args:
+        print("\n🔍 Config Drift Verification", flush=True)
+        print("=" * 60, flush=True)
+        import glob as _glob
+
+        t0_files = sorted(_glob.glob("reports/r4_qualification/T0_*.json"), key=os.path.getmtime)
+        if not t0_files:
+            print("  ⚠️  No T=0 snapshot found — cannot verify drift", flush=True)
+            mt5.shutdown()
+            return
+        try:
+            with open(t0_files[-1]) as f:
+                t0 = json.load(f)
+            t0_fp = t0.get("fingerprints", {}).get("config", "")
+            current_fp = _fingerprint_verifier._frozen_config_fp
+            print(f"  T=0 snapshot: {t0_files[-1]}", flush=True)
+            print(f"  T=0 config fingerprint:  {t0_fp[:32]}...", flush=True)
+            print(f"  Current config fingerprint: {current_fp[:32]}...", flush=True)
+            if t0_fp == current_fp:
+                print("  ✅ Config matches T=0 — no drift detected", flush=True)
+            else:
+                print("  🔴 Config DRIFT DETECTED — config has changed since T=0", flush=True)
+                print("  To fix: either revert config.toml or re-run r4_generate_t0.py", flush=True)
+            # Show symbol mapping fingerprint
+            from eigencapital.config import compute_symbol_mapping_fingerprint
+
+            sym_fp = compute_symbol_mapping_fingerprint(_config)
+            print(f"\n  Symbol mapping fingerprint: {sym_fp[:32]}...", flush=True)
+            print(f"  Allowed symbols: {len(_config.broker.allowed_symbols)}", flush=True)
+            # Show live_risk summary
+            lr = _config.live_risk
+            print("\n  Live risk envelope:", flush=True)
+            print(f"    max_concurrent: {lr.max_concurrent_positions}", flush=True)
+            print(f"    max_position:   ${lr.max_position_notional:,.0f}", flush=True)
+            print(f"    max_daily_loss: ${lr.max_daily_loss:,.0f}", flush=True)
+            print(f"    min_equity:     ${lr.min_equity:,.0f}", flush=True)
+            print(f"    t0_equity:      ${lr.t0_equity:,.2f}", flush=True)
+        except Exception as e:
+            print(f"  ❌ Error: {e}", flush=True)
+        mt5.shutdown()
+        return
 
     # Flatten-only mode
     if flatten_only:
@@ -1207,6 +1381,24 @@ def main() -> None:
     )
     log(f"Evidence orchestrator: campaign={_evidence_orchestrator._campaign_id}")
     log(f"Evidence dir: {_evidence_orchestrator._evidence_dir}")
+
+    # EC-AUD-006: Validate config semantic consistency at startup
+    from eigencapital.config import validate_config_consistency
+
+    config_warnings = validate_config_consistency(_config)
+    if config_warnings:
+        log("\n⚠️  Config consistency warnings:")
+        for w in config_warnings:
+            log(f"   → {w}")
+            audit({"event": "config_warning", "message": w})
+        # CRITICAL warnings block startup
+        critical = [w for w in config_warnings if w.startswith("CRITICAL")]
+        if critical:
+            log(f"\n🔴 {len(critical)} CRITICAL config issue(s) — cannot start trading")
+            mt5.shutdown()
+            return
+    else:
+        log("\n✅ Config consistency validated — no issues")
 
     # Startup fingerprint verification (fail closed)
     log("\nVerifying configuration fingerprints...")

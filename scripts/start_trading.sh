@@ -41,7 +41,19 @@ SERVER_DIR="/tmp/mt5linux"
 BRIDGE_LOG="/tmp/mt5bridge.log"
 LOOP_LOG="reports/r4_loop/loop_stdout.log"
 MONITOR_LOG="reports/r4_loop/monitor_stdout.log"
-REBALANCE_INTERVAL=3600  # 1 hour
+# ID-015: Read interval from config (single source of truth)
+# Falls back to 3600 if config unavailable
+REBALANCE_INTERVAL=$(python3 -c "
+import sys, tomllib, os
+sys.path.insert(0, 'src')
+try:
+    cfg_path = os.path.join('configs', 'production', 'config.toml')
+    with open(cfg_path, 'rb') as f:
+        cfg = tomllib.load(f)
+    print(cfg.get('execution', {}).get('loop_interval_seconds', 3600))
+except Exception:
+    print(3600)
+" 2>/dev/null || echo 3600)
 MONITOR_INTERVAL=60
 
 # ── Parse Arguments ───────────────────────────────────────────────
@@ -318,7 +330,14 @@ else
     log "Starting rebalance loop (interval: ${REBALANCE_INTERVAL}s)..."
     REBALANCE_ARGS="--loop --interval $REBALANCE_INTERVAL"
     $DRY_RUN && REBALANCE_ARGS="$REBALANCE_ARGS --dry-run"
-    $FORCE_REGIME && REBALANCE_ARGS="$REBALANCE_ARGS --force-regime"
+    if $FORCE_REGIME; then
+        if $DRY_RUN; then
+            REBALANCE_ARGS="$REBALANCE_ARGS --force-regime"
+        else
+            log "  ⚠️  --force-regime is blocked in live mode (EC-AUD-002)"
+            log "     Use --dry-run for diagnostics with --force-regime"
+        fi
+    fi
 
     nohup python3 scripts/r4_rebalance_loop.py $REBALANCE_ARGS \
         >"$LOOP_LOG" 2>&1 &

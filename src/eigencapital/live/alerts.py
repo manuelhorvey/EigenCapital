@@ -17,7 +17,7 @@ import sys
 import time
 import warnings
 from dataclasses import dataclass
-from typing import List
+from typing import Any, List
 
 warnings.warn(
     "eigencapital.live.alerts is deprecated. Use eigencapital.live.structured_alerts instead.",
@@ -40,8 +40,8 @@ class Alert:
     ts_utc: str = ""
     details: dict | None = None
 
-    def to_dict(self) -> dict:
-        d = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "severity": self.severity,
             "event": self.event,
             "message": self.message,

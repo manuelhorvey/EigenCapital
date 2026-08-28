@@ -475,7 +475,7 @@ class Phase2ReportGenerator:
         ]
 
         # Regime distribution
-        regimes = {}
+        regimes: dict[str, int] = {}
         for t in trades:
             if t.entry_quality and t.entry_quality.regime_at_entry:
                 regime = t.entry_quality.regime_at_entry
@@ -521,7 +521,7 @@ class Phase2ReportGenerator:
             if t.holding_period:
                 bucket = t.holding_period.holding_period_bucket
                 if bucket not in distribution:
-                    distribution[bucket] = {"count": 0, "total_pnl": 0}
+                    distribution[bucket] = {"count": 0, "total_pnl": 0.0}
                 distribution[bucket]["count"] += 1
                 distribution[bucket]["total_pnl"] += t.holding_period.pnl_at_exit
 
@@ -559,7 +559,7 @@ class Phase2ReportGenerator:
         for t in trades:
             reason = t.exit_reason or "UNKNOWN"
             if reason not in reasons:
-                reasons[reason] = {"count": 0, "total_pnl": 0}
+                reasons[reason] = {"count": 0, "total_pnl": 0.0}
             reasons[reason]["count"] += 1
             reasons[reason]["total_pnl"] += t.net_pnl
 

@@ -277,7 +277,7 @@ class HealthMonitor:
 
     def get_stats(self) -> Dict[str, Any]:
         """Get health statistics."""
-        states = {}
+        states: dict[str, int] = {}
         for dim_health in self._dimensions.values():
             states[dim_health.state] = states.get(dim_health.state, 0) + 1
 

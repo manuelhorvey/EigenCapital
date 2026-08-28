@@ -202,7 +202,7 @@ class StructuredAlertDispatcher:
         # Check deduplication
         dedup_key = self._get_dedup_key(category.value, event_type)
         if not self._should_send(dedup_key):
-            self._stats["total_deduplicated"] += 1
+            self._stats["total_deduplicated"] = self._stats["total_deduplicated"] + 1  # type: ignore[operator]
             # Return a placeholder - alert was deduplicated
             return Alert(
                 alert_id="DEDUP",
@@ -242,9 +242,11 @@ class StructuredAlertDispatcher:
             self._history = self._history[-self._max_history :]
 
         # Update stats
-        self._stats["total_dispatched"] += 1
-        self._stats["by_severity"][severity.value] = self._stats["by_severity"].get(severity.value, 0) + 1
-        self._stats["by_category"][category.value] = self._stats["by_category"].get(category.value, 0) + 1
+        self._stats["total_dispatched"] = self._stats["total_dispatched"] + 1  # type: ignore[operator]
+        by_sev: dict[str, int] = self._stats["by_severity"]  # type: ignore[assignment]
+        by_cat: dict[str, int] = self._stats["by_category"]  # type: ignore[assignment]
+        by_sev[severity.value] = by_sev.get(severity.value, 0) + 1
+        by_cat[category.value] = by_cat.get(category.value, 0) + 1
 
         return alert
 
@@ -299,7 +301,7 @@ class StructuredAlertDispatcher:
             ).encode()
 
             req = urllib.request.Request(
-                self._webhook_url,
+                self._webhook_url or "",
                 data=payload,
                 headers={"Content-Type": "application/json"},
                 method="POST",

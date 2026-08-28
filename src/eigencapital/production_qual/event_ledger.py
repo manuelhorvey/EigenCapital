@@ -241,9 +241,9 @@ class EventLedger:
         instantiating FingerprintVerifier without config (which produces an empty fingerprint).
         """
         try:
-            from eigencapital.config import EigenCapitalConfig
+            from eigencapital.config import load_config
 
-            config = EigenCapitalConfig.load()
+            config = load_config("production")
             import json
 
             data = config.to_dict()

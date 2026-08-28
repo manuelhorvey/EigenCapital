@@ -100,6 +100,11 @@ class FingerprintVerifier:
         self._frozen_config_fp = self._compute_config_fingerprint()
         self._verification_log: List[Dict[str, Any]] = []
         self._max_log_entries = 100  # Bounded retention
+        # P2-011: Cache immutable fingerprints (manifest, risk, live_risk)
+        self._cached_manifest_fp: str = ""
+        self._cached_risk_fp: str = ""
+        self._cached_live_risk_fp: str = ""
+        self._cache_populated: bool = False
 
     def _compute_risk_fingerprint(self) -> str:
         """Compute deterministic fingerprint of RiskPolicy."""
@@ -124,9 +129,13 @@ class FingerprintVerifier:
         now = datetime.now(UTC).isoformat()
         checks: List[FingerprintCheck] = []
 
-        # 1. R4 Manifest fingerprint
+        # 1. R4 Manifest fingerprint (P2-011: cached — manifest is immutable)
         try:
-            current_fp = self._manifest.compute_identity()
+            if self._cache_populated and self._cached_manifest_fp:
+                current_fp = self._cached_manifest_fp
+            else:
+                current_fp = self._manifest.compute_identity()
+                self._cached_manifest_fp = current_fp
             match = current_fp == self._frozen_manifest_fp
             checks.append(
                 FingerprintCheck(
@@ -148,9 +157,13 @@ class FingerprintVerifier:
                 )
             )
 
-        # 2. RiskPolicy fingerprint
+        # 2. RiskPolicy fingerprint (P2-011: cached — risk policy is immutable)
         try:
-            current_risk_fp = self._compute_risk_fingerprint()
+            if self._cache_populated and self._cached_risk_fp:
+                current_risk_fp = self._cached_risk_fp
+            else:
+                current_risk_fp = self._compute_risk_fingerprint()
+                self._cached_risk_fp = current_risk_fp
             match = current_risk_fp == self._frozen_risk_fp
             checks.append(
                 FingerprintCheck(
@@ -172,9 +185,13 @@ class FingerprintVerifier:
                 )
             )
 
-        # 3. LiveRiskConfig fingerprint
+        # 3. LiveRiskConfig fingerprint (P2-011: cached — config is frozen at startup)
         try:
-            current_lr_fp = self._live_risk.compute_fingerprint()
+            if self._cache_populated and self._cached_live_risk_fp:
+                current_lr_fp = self._cached_live_risk_fp
+            else:
+                current_lr_fp = self._live_risk.compute_fingerprint()
+                self._cached_live_risk_fp = current_lr_fp
             match = current_lr_fp == self._frozen_live_risk_fp
             checks.append(
                 FingerprintCheck(
@@ -236,6 +253,10 @@ class FingerprintVerifier:
                 )
 
         all_verified = all(c.status == VerificationStatus.VERIFIED.value for c in checks)
+        # P2-011: Mark cache as populated after first successful verification
+        if all_verified:
+            self._cache_populated = True
+
         result = FingerprintVerificationResult(
             all_verified=all_verified,
             checks=tuple(checks),

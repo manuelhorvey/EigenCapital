@@ -220,8 +220,19 @@ def main() -> None:
     execute_mode = "--execute" in sys.argv
     force_regime = "--force-regime" in sys.argv
 
+    # P0 EC-AUD-003: This script bypasses the canonical safety stack
+    # (fingerprint verification, 7 risk gates, reconciliation, evidence collection).
+    # It is QUARANTINED and must not be used for live order submission.
+    # All trading must go through scripts/r4_rebalance_loop.py.
     print("=" * 60)
     print("  R4 LIVE ORDER EXECUTION")
+    print("  ⛔ QUARANTINED: This script bypasses canonical safety gates.", flush=True)
+    print("     Use scripts/r4_rebalance_loop.py for all live trading.", flush=True)
+    if execute_mode:
+        print("  ❌ --execute is DISABLED on this quarantined script.", flush=True)
+        print("     All orders must go through the canonical rebalance loop.", flush=True)
+        sys.exit(1)
+
     if execute_mode:
         print("  ⚠️  EXECUTE MODE — real orders will be submitted")
     else:

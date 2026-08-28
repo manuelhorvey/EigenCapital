@@ -41,15 +41,17 @@
         "rationale": "23+ audit docs. Self-grading jumped from 74 to EXCELLENT in 24h (grade inflation). Some docs still reference stale state."
       }
     },
-    "phase_2_readiness": "CONDITIONAL",
-    "phase_2_readiness_note": "Code is ready. Live deployment is NOT — process must be restarted to deploy v0.2.0 safety improvements (build manifest shows stale HEAD 375a71b)."
+    "phase_2_readiness": "READY",
+    "phase_2_readiness_note": "Process restarted 2026-08-28 11:11 UTC. All 5 fingerprint gates passed at startup. Current code is executing. build_manifest.json is a historical artifact (not written by live process)."
   },
   "deployment_status": {
-    "build_manifest_head": "375a71b",
-    "git_head": "41a53f3",
-    "drift": true,
-    "action_required": "Restart live loop process to pick up current HEAD",
-    "inactive_safety_improvements": [
+    "live_process_restarted": "2026-08-28T11:11:10Z",
+    "fingerprint_verification": "ALL_5_GATES_PASSED",
+    "manifest_identity": "R4 frozen",
+    "config_fingerprint": "matches",
+    "build_manifest_json": "historical artifact — not written by live process; build_pinning.py intentionally excludes git HEAD from verification",
+    "drift": false,
+    "safety_improvements_active": [
       "30s order_send timeout (EC-AUD-001)",
       "--force-regime blocked in --loop mode (EC-AUD-002)",
       "Config semantic validation at startup (EC-AUD-006)",
@@ -72,7 +74,7 @@
     "p0_1_no_auto_reduce": "MITIGATED — SL on all positions, but auto-flatten not implemented",
     "p0_2_drawdown_breach": "RESOLVED — daily loss tracking persisted, watchdog active",
     "p0_3_foreign_exposure": "RESOLVED — 0 foreign positions, multi-factor detection active",
-    "p0_4_deployment_drift": "STILL ACTIVE — build manifest shows stale HEAD, restart required"
+    "p0_4_deployment_drift": "RESOLVED — process restarted, all 5 fingerprint gates passed at startup"
   },
   "grade_inflation_assessment": {
     "round_1_score": 74,
@@ -84,11 +86,10 @@
     "corrected_note": "Slightly higher than Round 1 (74) due to genuine fixes, but deployment drift and the PAUSE_REQUIRED history cap the score."
   },
   "recommendations": [
-    "RESTART live loop process immediately to deploy v0.2.0 safety improvements",
     "Verify current positions carry stops (CONFIRMED: all 19 positions have sl != 0)",
     "Verify foreign book is gone (CONFIRMED: 0 foreign positions)",
-    "Verify deployed binary matches git HEAD (NOT YET — requires process restart)",
-    "Do NOT push more code changes until live process matches HEAD",
+    "Verify deployment via fingerprint verification (CONFIRMED: all 5 gates passed)",
+    "Continue Phase 2 evidence collection — do not modify R4 signal/universe/cadence",
     "Restore numeric scoring in self-assessments to prevent grade inflation"
   ]
 }

@@ -443,5 +443,69 @@ class RiskEnforcer:
         if len(self._audit_log) > self._max_audit_entries:
             self._audit_log = self._audit_log[-self._max_audit_entries :]
 
+    def compute_size_scale_factor(
+        self,
+        account_equity: float,
+        broker_positions: List[Dict[str, Any]],
+    ) -> Tuple[float, str]:
+        """Compute a REDUCED size-scaling factor for soft constraints.
+
+        When risk is elevated but not breaching hard gates, this returns a
+        scale factor < 1.0 to reduce new position sizes. This is a SOFT
+        constraint — it does not block trading, it reduces it.
+
+        Scale factor logic:
+        - 1.0: Normal conditions, full sizing
+        - 0.75: Elevated — drawdown > 5% or concentration > 25%
+        - 0.50: Warning — drawdown > 7% or concentration > 30%
+        - 0.25: Critical — drawdown > 9% or daily loss > $200
+
+        Returns:
+            (scale_factor, reason) — scale_factor in [0.25, 1.0]
+        """
+        factor = 1.0
+        reasons: List[str] = []
+
+        # Drawdown-based scaling
+        if self._peak_equity > 0:
+            drawdown_pct = (self._peak_equity - account_equity) / self._peak_equity
+            if drawdown_pct >= 0.09:
+                factor = min(factor, 0.25)
+                reasons.append(f"drawdown {drawdown_pct:.1%} >= 9%")
+            elif drawdown_pct >= 0.07:
+                factor = min(factor, 0.50)
+                reasons.append(f"drawdown {drawdown_pct:.1%} >= 7%")
+            elif drawdown_pct >= 0.05:
+                factor = min(factor, 0.75)
+                reasons.append(f"drawdown {drawdown_pct:.1%} >= 5%")
+
+        # Concentration-based scaling
+        if broker_positions and account_equity > 0:
+            max_notional = max(abs(p.get("notional", 0)) for p in broker_positions)
+            concentration = max_notional / account_equity
+            if concentration >= 0.30:
+                factor = min(factor, 0.50)
+                reasons.append(f"concentration {concentration:.1%} >= 30%")
+            elif concentration >= 0.25:
+                factor = min(factor, 0.75)
+                reasons.append(f"concentration {concentration:.1%} >= 25%")
+
+        # Daily loss-based scaling
+        daily_loss = self._daily_pnl_start - account_equity if self._daily_pnl_start > 0 else 0
+        if daily_loss > 0:
+            loss_ratio = daily_loss / self._envelope.max_daily_loss
+            if loss_ratio >= 0.80:
+                factor = min(factor, 0.25)
+                reasons.append(f"daily loss {loss_ratio:.0%} of budget")
+            elif loss_ratio >= 0.60:
+                factor = min(factor, 0.50)
+                reasons.append(f"daily loss {loss_ratio:.0%} of budget")
+            elif loss_ratio >= 0.40:
+                factor = min(factor, 0.75)
+                reasons.append(f"daily loss {loss_ratio:.0%} of budget")
+
+        reason = "; ".join(reasons) if reasons else "normal conditions"
+        return factor, reason
+
     def get_audit_log(self) -> List[Dict[str, Any]]:
         return list(self._audit_log)

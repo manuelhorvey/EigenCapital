@@ -51,6 +51,8 @@ data/features/
 # Reports & logs (runtime artifacts)
 reports/r4_loop/
 reports/r4_qualification/evidence/
+reports/r4_safety/safety_audit.jsonl
+reports/r4_safety/safety_audit.mirror.jsonl
 reports/t0_snapshot.json
 reports/t0_snapshot.md
 reports/instrument_eligibility.json

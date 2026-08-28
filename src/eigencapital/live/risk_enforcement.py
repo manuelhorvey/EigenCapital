@@ -358,7 +358,20 @@ class RiskEnforcer:
         )
 
     def _check_position_protection(self, positions: List[Dict], now: str, state_hash: str) -> RiskGateResult:
-        """Gate 6: Check if positions have SL protection."""
+        """Gate 6: Check if positions have SL protection.
+
+        IMPORTANT: This gate returns CRITICAL but does NOT block trading.
+        R4 uses signal-based exits (rotation, sign-flip, regime-ride), not
+        SL-based exits. The catastrophic SL is a safety backstop only — it
+        protects against extreme gap events but is not R4's primary exit
+        mechanism. Missing SL is logged as CRITICAL for audit trail, but
+        trading continues because:
+          1. Signal-based exits are the actual exit mechanism
+          2. Catastrophic SL is applied asynchronously by catastrophic_protection.py
+          3. Blocking here would halt trading during normal SL placement latency
+
+        Do NOT refactor this to block trading without understanding the above.
+        """
         if not self._envelope.require_sl_on_positions:
             return RiskGateResult(
                 gate_name="position_protection",

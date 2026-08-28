@@ -98,7 +98,7 @@ class RiskObserver:
         max_concentration_pct: float = 0.30,
         max_margin_utilization: float = 0.80,
         stale_threshold_seconds: float = 300.0,
-        min_equity: float = 4000.0,
+        min_equity: float = 4000.0,  # F-003: should match config.live_risk.min_equity
     ) -> None:
         """Initialize risk observer.
 
@@ -108,7 +108,7 @@ class RiskObserver:
             max_concentration_pct: Maximum concentration in single instrument
             max_margin_utilization: Maximum margin utilization
             stale_threshold_seconds: Threshold for stale data detection
-            min_equity: Minimum equity floor ($)
+            min_equity: Minimum equity floor ($) — should come from config.live_risk.min_equity
         """
         self._max_daily_loss = max_daily_loss
         self._max_drawdown_pct = max_drawdown_pct
@@ -582,15 +582,9 @@ class RiskObserver:
         observations = latest.get("observations", {})
 
         # Compute rolling metrics from recent history
-        recent = self._history[-min(60, len(self._history)):]  # Last 60 observations
-        drawdowns = [
-            obs.get("observations", {}).get("drawdown", {}).get("value", 0)
-            for obs in recent
-        ]
-        daily_losses = [
-            obs.get("observations", {}).get("daily_loss", {}).get("value", 0)
-            for obs in recent
-        ]
+        recent = self._history[-min(60, len(self._history)) :]  # Last 60 observations
+        drawdowns = [obs.get("observations", {}).get("drawdown", {}).get("value", 0) for obs in recent]
+        daily_losses = [obs.get("observations", {}).get("daily_loss", {}).get("value", 0) for obs in recent]
 
         return {
             "timestamp": latest.get("timestamp"),

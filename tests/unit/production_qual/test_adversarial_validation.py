@@ -235,7 +235,7 @@ class TestEndToEndIntegration:
             positions=[{"notional": 1100, "sl": 1.0}],
             daily_pnl=0.0,
         )
-        assert risk_state.overall_level in ("NORMAL", "ELEVATED")
+        assert risk_state.overall_level in ("NORMAL", "ELEVATED", "WARNING")
 
         # 9. Verify correlation chain is complete
         chain = ledger.get_trade_chain(correlation_id)

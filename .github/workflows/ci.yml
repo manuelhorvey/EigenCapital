@@ -30,8 +30,13 @@ jobs:
       - name: Lint with ruff
         run: ruff check src/eigencapital/ scripts/
 
-      - name: Type check with mypy
-        run: mypy src/eigencapital/ --ignore-missing-imports || true
+      - name: Type check critical packages with mypy
+        run: |
+          # EC-AUD-010: Gate mypy on critical safety packages (fail on errors)
+          mypy src/eigencapital/live/ src/eigencapital/reconciliation/ src/eigencapital/production_qual/ \
+            --ignore-missing-imports --no-error-summary
+          # Full codebase check (informational only, does not fail CI)
+          mypy src/eigencapital/ --ignore-missing-imports || true
 
       - name: Run tests with coverage
         run: |

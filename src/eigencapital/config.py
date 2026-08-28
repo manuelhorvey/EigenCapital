@@ -383,6 +383,74 @@ def load_config(environment: str = "production") -> EigenCapitalConfig:
     )
 
 
+# ── Symbol Mapping Fingerprint (EC-AUD-009) ──────────────────────
+
+
+def compute_symbol_mapping_fingerprint(config: EigenCapitalConfig) -> str:
+    """EC-AUD-009: Deterministic fingerprint of the broker-symbol mapping.
+
+    Detects drift between the frozen R4 manifest and live broker universe.
+    Changes to allowed_symbols change this fingerprint → blocks trading.
+    """
+    import hashlib
+
+    # Canonical representation: sorted symbol→classification mapping
+    symbols = dict(sorted(config.broker.allowed_symbols.items()))
+    payload = json.dumps(symbols, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+# ── Config Validation (EC-AUD-006) ────────────────────────────────
+
+
+def validate_config_consistency(config: EigenCapitalConfig) -> list[str]:
+    """EC-AUD-006: Validate safety-critical config consistency.
+
+    Ensures live_risk is authoritative and catches dangerous inconsistencies
+    between capital, risk, and live_risk sections.
+
+    Returns a list of warning/error messages. Empty = all consistent.
+    """
+    warnings: list[str] = []
+    lr = config.live_risk
+    cap = config.capital
+
+    # live_risk.min_equity must be >= capital floor
+    if lr.min_equity > cap.max_equity:
+        warnings.append(
+            f"CRITICAL: live_risk.min_equity (${lr.min_equity:,.0f}) > "
+            f"capital.max_equity (${cap.max_equity:,.0f}) — would block all trading"
+        )
+
+    # live_risk.max_daily_loss must be positive and reasonable
+    if lr.max_daily_loss <= 0:
+        warnings.append("CRITICAL: live_risk.max_daily_loss must be positive")
+    elif lr.max_daily_loss > lr.min_equity * 0.5:
+        warnings.append(
+            f"WARNING: live_risk.max_daily_loss (${lr.max_daily_loss:,.0f}) > 50% of min_equity — unusually large"
+        )
+
+    # live_risk.max_concurrent_positions must be positive
+    if lr.max_concurrent_positions <= 0:
+        warnings.append("CRITICAL: live_risk.max_concurrent_positions must be positive")
+
+    # capital.max_concurrent_positions is legacy; live_risk should be authoritative
+    if cap.max_concurrent_positions != lr.max_concurrent_positions:
+        warnings.append(
+            f"INFO: capital.max_concurrent_positions ({cap.max_concurrent_positions}) != "
+            f"live_risk.max_concurrent_positions ({lr.max_concurrent_positions}) — "
+            f"live_risk is authoritative for risk gates"
+        )
+
+    # Drawdown pct sanity
+    if lr.max_account_drawdown_pct <= 0 or lr.max_account_drawdown_pct > 1.0:
+        warnings.append(
+            f"CRITICAL: live_risk.max_account_drawdown_pct ({lr.max_account_drawdown_pct}) must be in (0, 1.0]"
+        )
+
+    return warnings
+
+
 # ── Singleton ─────────────────────────────────────────────────────
 
 _config: EigenCapitalConfig | None = None

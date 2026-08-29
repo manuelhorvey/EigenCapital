@@ -99,7 +99,8 @@ class BarNormalizer(BaseNormalizer):
         high_price = self._parse_float(data, "high", record)
         low_price = self._parse_float(data, "low", record)
         close_price = self._parse_float(data, "close", record)
-        volume = self._parse_int(data, "volume", record, required=False) or 0
+        volume_raw = self._parse_int(data, "volume", record, required=False)
+        volume = volume_raw if volume_raw is not None else 0
 
         # VWAP (optional)
         vwap_str = data.get("vwap")

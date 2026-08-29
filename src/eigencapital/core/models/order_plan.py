@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 
 class Urgency(str):
@@ -74,6 +74,7 @@ class OrderPlan:
     version: str = "v1"
 
     # Class-level registry
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate plan_id is non-empty
@@ -203,6 +204,3 @@ class OrderPlanSide:
     @property
     def is_sell(self) -> bool:
         return self.value == "SELL"
-
-
-OrderPlan._registry = {}

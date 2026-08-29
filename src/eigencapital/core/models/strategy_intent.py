@@ -26,7 +26,7 @@ Critical constraints:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 
 class Horizon(str):
@@ -64,6 +64,8 @@ class StrategyIntent:
     strategy_config_hash: str = ""  # SHA256(strategy parameters + strategy configuration)
     strategy_artifact_hash: str = ""  # SHA256(strategy implementation / code)
     decision_snapshot_id: str | None = None  # back to DecisionSnapshot
+
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate direction: must be 1, -1, or 0
@@ -209,6 +211,3 @@ class StrategyIntent:
             "horizon": self.horizon,
             "target_risk_value": self.target_risk,
         }
-
-
-StrategyIntent._registry = {}

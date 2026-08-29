@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 
 @dataclass(frozen=True)
@@ -51,6 +51,7 @@ class PortfolioTarget:
     version: str = "v1"
 
     # Class-level registry
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate target_quantity is finite
@@ -168,6 +169,3 @@ class PortfolioTargetSide:
     @property
     def is_flat(self) -> bool:
         return self.value == "FLAT"
-
-
-PortfolioTarget._registry = {}

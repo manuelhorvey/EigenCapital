@@ -16,7 +16,7 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 
 @dataclass(frozen=True)
@@ -59,6 +59,7 @@ class Bar:
     data_version: str = "v1"
 
     # Class-level registry
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # INVARIANT: timestamp_utc == bar_end_utc
@@ -216,6 +217,3 @@ class BarInterval:
     def __post_init__(self) -> None:
         if self.value not in self.VALID_INTERVALS:
             raise ValueError(f"Invalid bar_interval: {self.value}. Must be one of {self.VALID_INTERVALS}")
-
-
-Bar._registry = {}

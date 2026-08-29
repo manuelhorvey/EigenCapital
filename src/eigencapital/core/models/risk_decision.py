@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 from .risk_check_result import RiskCheckResult
 
@@ -68,6 +68,7 @@ class RiskDecision:
     version: str = "v1"
 
     # Class-level registry
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate decision is one of APPROVED, REJECTED, REDUCED
@@ -216,6 +217,3 @@ class RiskDecision:
             f"  var={self.var} ({self.var_method})\n"
             f"  reason={self.reason[:60]}..."
         )
-
-
-RiskDecision._registry = {}

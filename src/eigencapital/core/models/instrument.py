@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 INFINITY = float("inf")
 
@@ -57,6 +57,7 @@ class Instrument:
     metadata_version: str = "v1"
 
     # Class-level registry for cross-model references
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate invariants
@@ -148,6 +149,3 @@ def validate_asset_class(asset_class: str) -> None:
     """Validate asset class is one of the permitted values."""
     if asset_class not in INSTRUMENT_ASSET_CLASSES:
         raise ValueError(f"Invalid asset_class: {asset_class}. Must be one of {INSTRUMENT_ASSET_CLASSES}")
-
-
-Instrument._registry = {}

@@ -25,7 +25,7 @@ Responsibilities:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import ClassVar, Dict
 
 
 @dataclass
@@ -58,6 +58,8 @@ class OrderLifecycle:
     _fills: Dict[str, float] = field(default_factory=dict)  # fill_id -> filled_quantity
 
     # Class-level tracking across all lifecycles
+
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate order_quantity is positive
@@ -229,6 +231,3 @@ class OrderLifecycle:
     def __repr_short__(self) -> str:
         """Short representation."""
         return f"OL({self.order_id[:8]}...){self.status}"
-
-
-OrderLifecycle._registry = {}

@@ -18,8 +18,8 @@ interface DimensionGroup {
 const DIMENSION_GROUPS: DimensionGroup[] = [
   { label: "Capital", dimensions: ["drawdown", "daily_loss", "loss_velocity", "equity_floor"] },
   { label: "Exposure", dimensions: ["gross_exposure", "net_exposure", "concentration", "position_count", "sector_breakdown"] },
-  { label: "Execution / Protection", dimensions: ["margin", "sl_protection", "stale_data"] },
-  { label: "Diagnostic", dimensions: ["var"] },
+  { label: "Execution / Protection", dimensions: ["margin_utilization", "sl_protection", "stale_data", "slippage"] },
+  { label: "Diagnostic", dimensions: ["var_estimate"] },
 ];
 
 export default function Risk() {
@@ -111,7 +111,7 @@ export default function Risk() {
           <PanelContent>
             <RiskHeatmap
               items={allObs.map((o) => ({ name: o.dimension, level: o.level, value: o.value, limit: o.limit }))}
-              columns={window.innerWidth < 640 ? 3 : 5}
+              columns={3}
             />
           </PanelContent>
         </Panel>
@@ -128,7 +128,7 @@ export default function Risk() {
             <ExposurePieChart longExposure={longExposure} shortExposure={shortExposure} />
             <div className="mt-3 pt-3 border-t border-border-subtle grid grid-cols-2 gap-2">
               <Metric label="Gross" value={grossObs ? formatNumber(grossObs.value, 0) : "—"} status="neutral" />
-              <Metric label="Net" value={netObs ? formatNumber(netObs.value, 0) : "neutral" as const} status={netObs ? (netObs.value >= 0 ? "positive" : "negative") : "neutral"} />
+              <Metric label="Net" value={netObs ? formatNumber(netObs.value, 0) : "—"} status={netObs ? (netObs.value >= 0 ? "positive" : "negative") : "neutral"} />
             </div>
           </PanelContent>
         </Panel>
@@ -217,7 +217,7 @@ export default function Risk() {
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <StatusDot level={level} size="xs" />
                         <span className="text-xs font-medium text-text-primary">{formatDimName(obs.dimension)}</span>
-                        {obs.dimension === "var_estimate" && <StatusBadge variant="purple" size="sm">DIAG</StatusBadge>}
+                        {(obs.dimension === "var_estimate" || obs.dimension === "slippage") && <StatusBadge variant="purple" size="sm">DIAG</StatusBadge>}
                       </div>
                       <div className="flex items-center gap-3 shrink-0 sm:ml-auto">
                         {obs.limit && (

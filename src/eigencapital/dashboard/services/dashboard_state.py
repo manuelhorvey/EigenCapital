@@ -343,14 +343,16 @@ class DashboardStateService:
             margin_free = getattr(account, "margin_free", 0) or 0
             margin_used = getattr(account, "margin", 0) or 0
 
-            # Compute drawdown from risk envelope t0_equity
+            # Compute drawdown and daily loss from risk envelope
             drawdown_pct = 0.0
+            daily_loss_remaining = 0.0
             try:
                 from eigencapital.live.risk_enforcement import RiskEnvelope
                 env = RiskEnvelope.from_config()
                 t0 = getattr(env, "t0_equity", balance)
                 hwm = max(equity, t0)
                 drawdown_pct = (hwm - equity) / max(hwm, 1)
+                daily_loss_remaining = getattr(env, "max_daily_loss", 250.0)
             except Exception:
                 pass
 
@@ -364,7 +366,7 @@ class DashboardStateService:
                 "drawdown": 0,
                 "drawdown_pct": drawdown_pct,
                 "daily_pnl": 0,
-                "daily_loss_remaining": 250,
+                "daily_loss_remaining": daily_loss_remaining,
                 "unrealized_pnl": 0,
                 "currency": account.currency,
                 "timestamp": datetime.now(UTC).isoformat(),

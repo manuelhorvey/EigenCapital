@@ -12,7 +12,6 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
 from eigencapital.dashboard.api.routes import (
@@ -41,7 +40,7 @@ app.add_middleware(
         origin.strip()
         for origin in os.environ.get(
             "DASHBOARD_CORS_ORIGINS",
-            "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
+            "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000",
         ).split(",")
         if origin.strip()
     ],
@@ -62,6 +61,7 @@ async def add_security_headers(request: Request, call_next: Any) -> Any:
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     return response
+
 
 # Include routers
 app.include_router(system.router, prefix="/api/v1")
@@ -122,6 +122,7 @@ async def api_v1_root() -> dict[str, Any]:
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Global exception handler — never expose stack traces to browser."""
     import logging
+
     logging.exception("Unhandled exception: %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,

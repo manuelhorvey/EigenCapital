@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
 from datetime import UTC, datetime
 from typing import Any, AsyncGenerator
 
@@ -124,37 +123,55 @@ async def websocket_live(websocket: WebSocket) -> None:
             while True:
                 try:
                     await asyncio.sleep(30)
-                    await websocket.send_json({
-                        "type": "heartbeat",
-                        "timestamp": datetime.now(UTC).isoformat(),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "heartbeat",
+                            "timestamp": datetime.now(UTC).isoformat(),
+                        }
+                    )
                 except asyncio.CancelledError:
                     break
                 except Exception:
                     break
 
-        # Run broadcasters
+        # Run broadcasters — track tasks for clean cancellation
         broadcaster_task = asyncio.create_task(state_broadcaster())
         heartbeat_task = asyncio.create_task(heartbeat_sender())
 
-        # Listen for client messages
-        while True:
-            try:
-                data = await websocket.receive_text()
-                msg = json.loads(data)
+        try:
+            # Listen for client messages
+            while True:
+                try:
+                    data = await websocket.receive_text()
+                    msg = json.loads(data)
 
-                if msg.get("type") == "request_state":
-                    state = await get_live_state()
-                    await websocket.send_json(state)
-                elif msg.get("type") == "ping":
-                    await websocket.send_json({
-                        "type": "pong",
-                        "timestamp": datetime.now(UTC).isoformat(),
-                    })
-            except WebSocketDisconnect:
-                break
-            except json.JSONDecodeError:
-                continue
+                    if msg.get("type") == "request_state":
+                        state = await get_live_state()
+                        await websocket.send_json(state)
+                    elif msg.get("type") == "ping":
+                        await websocket.send_json(
+                            {
+                                "type": "pong",
+                                "timestamp": datetime.now(UTC).isoformat(),
+                            }
+                        )
+                except WebSocketDisconnect:
+                    break
+                except json.JSONDecodeError:
+                    continue
+        finally:
+            # Cancel background tasks on disconnect
+            broadcaster_task.cancel()
+            heartbeat_task.cancel()
+            # Suppress CancelledError from task cancellation
+            try:
+                await broadcaster_task
+            except asyncio.CancelledError:
+                pass
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
 
     except WebSocketDisconnect:
         pass

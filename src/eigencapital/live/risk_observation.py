@@ -19,10 +19,13 @@ All observations are recorded to the event ledger for Phase 2 qualification.
 
 from __future__ import annotations
 
+import json
+import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, List
 
 
@@ -122,6 +125,10 @@ class RiskObserver:
         self._daily_pnl_start = 0.0
         self._last_observation_time = time.time()
 
+        # Per-position excursion tracking (MAE/MFE)
+        self._excursion_path = Path("reports/r4_loop/position_excursion.json")
+        self._excursions: Dict[str, Dict[str, Any]] = self._load_excursions()
+
         # Observation history
         self._history: List[Dict[str, Any]] = []
         self._max_history = 1000
@@ -210,6 +217,9 @@ class RiskObserver:
         # 14. Slippage monitoring observation
         slippage_obs = self._observe_slippage(positions)
         observations["slippage"] = slippage_obs
+
+        # 15. Per-position MAE/MFE tracking
+        self._update_excursions(positions)
 
         # Compute overall state
         critical_dims = [k for k, v in observations.items() if v.level == RiskObservationLevel.CRITICAL.value]
@@ -791,6 +801,144 @@ class RiskObserver:
             timestamp=datetime.now(UTC).isoformat(),
             details={"adverse_positions": adverse_positions},
         )
+
+    # ─── Per-Position MAE/MFE Tracking ─────────────────────────────
+
+    def _load_excursions(self) -> Dict[str, Dict[str, Any]]:
+        """Load persisted excursion state from disk."""
+        if not self._excursion_path.exists():
+            return {}
+        try:
+            with open(self._excursion_path) as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+        except (json.JSONDecodeError, OSError):
+            pass
+        return {}
+
+    def _save_excursions(self) -> None:
+        """Persist excursion state to disk atomically."""
+        try:
+            self._excursion_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self._excursion_path.with_suffix(".tmp")
+            with open(tmp, "w") as f:
+                json.dump(self._excursions, f, indent=2, default=str)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(str(tmp), str(self._excursion_path))
+        except OSError:
+            pass
+
+    def _update_excursions(self, positions: List[Dict[str, Any]]) -> None:
+        """Update per-position MAE/MFE from current position data.
+
+        For each open position, tracks:
+        - entry_price: the entry price at observation start
+        - highest_price: highest price seen since entry (for MFE on longs)
+        - lowest_price: lowest price seen since entry (for MAE on longs)
+        - direction: BUY or SELL
+
+        MAE and MFE are computed as percentage of entry price.
+        """
+        current_tickets = {str(p.get("ticket", "")) for p in positions}
+
+        for pos in positions:
+            ticket = str(pos.get("ticket", ""))
+            if not ticket:
+                continue
+
+            entry_price = pos.get("price_open", 0) or pos.get("entry_price", 0)
+            current_price = pos.get("price_current", 0) or pos.get("current_price", 0)
+            direction = pos.get("direction", "BUY")
+            # Normalize direction from numeric type (0=BUY)
+            pos_type = pos.get("type", 0)
+            if isinstance(pos_type, int):
+                direction = "BUY" if pos_type == 0 else "SELL"
+
+            if entry_price <= 0 or current_price <= 0:
+                continue
+
+            if ticket in self._excursions:
+                # Update existing tracking
+                exc = self._excursions[ticket]
+                exc["current_price"] = current_price
+                exc["last_update"] = datetime.now(UTC).isoformat()
+
+                # Update extremes
+                prev_high = exc.get("highest_price", current_price)
+                prev_low = exc.get("lowest_price", current_price)
+                exc["highest_price"] = max(prev_high, current_price)
+                exc["lowest_price"] = min(prev_low, current_price)
+
+                # Compute MAE/MFE as percentage of entry
+                ep = exc["entry_price"]
+                hi = exc["highest_price"]
+                lo = exc["lowest_price"]
+
+                if direction == "BUY":
+                    # Long: MFE = (highest - entry) / entry, MAE = (entry - lowest) / entry
+                    exc["mfe_pct"] = max(0.0, (hi - ep) / ep)
+                    exc["mae_pct"] = max(0.0, (ep - lo) / ep)
+                    exc["mfe_price"] = hi
+                    exc["mae_price"] = lo
+                else:
+                    # Short: MFE = (entry - lowest) / entry, MAE = (highest - entry) / entry
+                    exc["mfe_pct"] = max(0.0, (ep - lo) / ep)
+                    exc["mae_pct"] = max(0.0, (hi - ep) / ep)
+                    exc["mfe_price"] = lo
+                    exc["mae_price"] = hi
+            else:
+                # New position — initialize tracking with excursion from entry
+                if direction == "BUY":
+                    init_mfe = max(0.0, (current_price - entry_price) / entry_price)
+                    init_mae = max(0.0, (entry_price - current_price) / entry_price)
+                    init_mfe_price = current_price if current_price > entry_price else entry_price
+                    init_mae_price = current_price if current_price < entry_price else entry_price
+                else:
+                    init_mfe = max(0.0, (entry_price - current_price) / entry_price)
+                    init_mae = max(0.0, (current_price - entry_price) / entry_price)
+                    init_mfe_price = current_price if current_price < entry_price else entry_price
+                    init_mae_price = current_price if current_price > entry_price else entry_price
+
+                self._excursions[ticket] = {
+                    "ticket": ticket,
+                    "symbol": pos.get("symbol", "?"),
+                    "direction": direction,
+                    "entry_price": entry_price,
+                    "current_price": current_price,
+                    "highest_price": max(entry_price, current_price),
+                    "lowest_price": min(entry_price, current_price),
+                    "mfe_pct": init_mfe,
+                    "mae_pct": init_mae,
+                    "mfe_price": init_mfe_price,
+                    "mae_price": init_mae_price,
+                    "opened_at": datetime.now(UTC).isoformat(),
+                    "last_update": datetime.now(UTC).isoformat(),
+                }
+
+        # Remove entries for closed positions
+        closed = set(self._excursions.keys()) - current_tickets
+        for ticket in closed:
+            del self._excursions[ticket]
+
+        # Persist every cycle
+        self._save_excursions()
+
+    def get_position_excursions(self) -> Dict[str, Dict[str, Any]]:
+        """Get per-position MAE/MFE data.
+
+        Returns dict keyed by ticket number, each containing:
+        - symbol, direction, entry_price, current_price
+        - mae_pct, mfe_pct (percentage of entry)
+        - mae_price, mfe_price (absolute price levels)
+        - highest_price, lowest_price (extremes since entry)
+        """
+        return dict(self._excursions)
+
+    def get_excursion_for_ticket(self, ticket: int) -> Dict[str, Any] | None:
+        """Get MAE/MFE data for a specific position ticket."""
+        return self._excursions.get(str(ticket))
 
     def get_history(self) -> List[Dict[str, Any]]:
         """Get observation history."""

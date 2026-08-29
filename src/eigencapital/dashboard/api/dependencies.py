@@ -6,7 +6,7 @@ import os
 import time
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -22,7 +22,7 @@ RATE_LIMIT_MAX = 100  # requests per window
 
 
 async def get_api_key(
-    credentials: HTTPAuthorizationCredentials | None = Security(security),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(security)],
 ) -> str:
     """Validate API key from Authorization header.
 
@@ -52,9 +52,7 @@ async def check_rate_limit(request: Request) -> None:
     now = time.time()
 
     # Clean old entries
-    _rate_limits[client_ip] = [
-        t for t in _rate_limits[client_ip] if now - t < RATE_LIMIT_WINDOW
-    ]
+    _rate_limits[client_ip] = [t for t in _rate_limits[client_ip] if now - t < RATE_LIMIT_WINDOW]
 
     if len(_rate_limits[client_ip]) >= RATE_LIMIT_MAX:
         raise HTTPException(

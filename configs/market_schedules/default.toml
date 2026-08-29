@@ -1,0 +1,307 @@
+# EigenCapital Market Schedules
+# Every instrument declares an authoritative trading schedule.
+# All components (signal, risk, execution, reconciliation, watchdog)
+# consume this schedule rather than making implicit weekday/weekend assumptions.
+
+# ═══════════════════════════════════════════════════════════════════
+# Forex — WEEKDAY, 24h sessions, Mon-Fri
+# ═══════════════════════════════════════════════════════════════════
+
+[instruments.EURUSD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+description = "EUR/USD major FX pair"
+
+[instruments.EURUSD.sessions]
+open = "00:00"
+close = "00:00"  # 24h
+
+[instruments.GBPUSD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+description = "GBP/USD major FX pair"
+
+[instruments.GBPUSD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.AUDUSD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.AUDUSD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.NZDUSD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.NZDUSD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.USDCAD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.USDCAD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.USDCHF]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.USDCHF.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.AUDCHF]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.AUDCHF.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.AUDCAD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.AUDCAD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.AUDNZD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.AUDNZD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.NZDCHF]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.NZDCHF.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.NZDCAD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.NZDCAD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.GBPCHF]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.GBPCHF.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.GBPCAD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.GBPCAD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.GBPNZD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.GBPNZD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.GBPAUD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.GBPAUD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.EURCHF]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.EURCHF.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.EURCAD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.EURCAD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.EURAUD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.EURAUD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.EURNZD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.EURNZD.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.EURGBP]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.EURGBP.sessions]
+open = "00:00"
+close = "00:00"
+
+[instruments.CADCHF]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "forex"
+
+[instruments.CADCHF.sessions]
+open = "00:00"
+close = "00:00"
+
+# ═══════════════════════════════════════════════════════════════════
+# Metals — WEEKDAY, Sun evening – Fri evening
+# ═══════════════════════════════════════════════════════════════════
+
+[instruments.XAUUSD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "metals"
+description = "Gold vs USD"
+
+[instruments.XAUUSD.sessions]
+open = "22:00"
+close = "22:00"
+
+# ═══════════════════════════════════════════════════════════════════
+# Indices — WEEKDAY, extended hours
+# ═══════════════════════════════════════════════════════════════════
+
+[instruments.US30]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "indices"
+description = "US30 Dow Jones index CFD"
+
+[instruments.US30.sessions]
+open = "23:00"
+close = "20:00"
+
+# ═══════════════════════════════════════════════════════════════════
+# Energy — WEEKDAY
+# ═══════════════════════════════════════════════════════════════════
+
+[instruments.USOIL]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "energy"
+description = "WTI Crude Oil CFD"
+
+[instruments.USOIL.sessions]
+open = "01:00"
+close = "23:00"
+
+# ═══════════════════════════════════════════════════════════════════
+# Crypto — CONTINUOUS_24_7, with maintenance windows
+# ═══════════════════════════════════════════════════════════════════
+
+[instruments.BTCUSD]
+session_type = "CONTINUOUS_24_7"
+timezone = "UTC"
+trading_days_per_year = 365
+bars_per_trading_day = 288
+asset_class = "crypto"
+description = "Bitcoin vs USD — 24/7 trading"
+
+[[instruments.BTCUSD.maintenance]]
+day = 5  # Saturday
+start = "04:00"
+end = "04:30"
+description = "Saturday maintenance window"

@@ -30,9 +30,9 @@ export default function Evidence() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-base lg:text-lg font-bold text-text-primary tracking-tight">Evidence</h1>
-          <span className="text-[11px] text-text-muted font-mono hidden sm:inline">Campaign: {qual?.campaign_id || "—"}</span>
+          <span className="text-[11px] text-text-muted font-mono hidden sm:inline">Campaign: {qual?.campaign_id || "No data"}</span>
         </div>
-        <FreshnessIndicator level={qual?.freshness === "LIVE" ? "live" : qual?.freshness === "STALE" ? "stale" : "unknown"} compact />
+        <FreshnessIndicator level={qual?.freshness === "LIVE" ? "live" : "stale"} timestamp={qual?.timestamp} compact />
       </div>
 
       {/* Campaign Status */}
@@ -44,7 +44,7 @@ export default function Evidence() {
           {qual?.evidence_insufficient ? <AlertTriangle className="w-5 h-5 text-warning shrink-0" /> : <CheckCircle className="w-5 h-5 text-success shrink-0" />}
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-text-primary">{qual?.overall_status || "UNKNOWN"}</h2>
+              <h2 className="text-sm font-bold text-text-primary">{qual?.overall_status || "No data"}</h2>
               <StatusBadge variant={qual?.evidence_insufficient ? "warning" : "success"} size="sm">
                 {qual?.evidence_insufficient ? "COLLECTING" : "SUFFICIENT"}
               </StatusBadge>
@@ -156,8 +156,8 @@ export default function Evidence() {
             {[
               { label: "Observations", value: String(shadow?.observations || 0), color: "text-purple" as const },
               { label: "Reductions", value: String(shadow?.hypothetical_reductions || 0), color: "text-purple" as const },
-              { label: "Actual P&L", value: shadow?.actual_pnl ? formatCurrency(shadow.actual_pnl) : "—", color: "text-success" as const },
-              { label: "Hypothetical", value: shadow?.hypothetical_pnl ? formatCurrency(shadow.hypothetical_pnl) : "—", color: "text-purple" as const },
+              { label: "Actual P&L", value: shadow?.actual_pnl ? formatCurrency(shadow.actual_pnl) : "No data", color: "text-success" as const },
+              { label: "Hypothetical", value: shadow?.hypothetical_pnl ? formatCurrency(shadow.hypothetical_pnl) : "No data", color: "text-purple" as const },
             ].map((item) => (
               <div key={item.label} className="bg-purple-subtle rounded-md px-3 py-2">
                 <p className="text-[10px] text-purple/60 uppercase tracking-wider">{item.label}</p>

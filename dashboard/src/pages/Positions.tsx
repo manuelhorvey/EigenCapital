@@ -90,7 +90,7 @@ export default function Positions() {
       {/* Mobile metrics row */}
       <div className="sm:hidden flex items-center gap-3">
         <Metric label="Equity" value={formatCurrency(account?.equity || 0)} status="neutral" />
-        <FreshnessIndicator level={account?.freshness === "LIVE" ? "live" : "stale"} compact />
+        <FreshnessIndicator level={account?.freshness === "LIVE" ? "live" : "stale"} timestamp={account?.timestamp} compact />
       </div>
 
       {/* Toolbar */}
@@ -256,15 +256,15 @@ export default function Positions() {
               <Metric label="Size" value={formatNumber(Math.abs(selectedPos.size), 2)} status="neutral" />
               <Metric label="P&L" value={formatCurrency(selectedPos.unrealized_pnl)} status={selectedPos.unrealized_pnl >= 0 ? "positive" : "negative"} />
               <Metric label="P&L %" value={`${selectedPos.unrealized_pnl_pct >= 0 ? "+" : ""}${(selectedPos.unrealized_pnl_pct * 100).toFixed(2)}%`} status={selectedPos.unrealized_pnl_pct >= 0 ? "positive" : "negative"} />
-              <Metric label="Holding" value={selectedPos.holding_time || "—"} status="neutral" />
+              <Metric label="Holding" value={selectedPos.holding_time || "No data"} status="neutral" />
             </div>
 
             {/* Risk & Protection row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 pb-4 border-b border-border-subtle">
               <Metric label="Stop Loss" value={selectedPos.stop_loss ? formatNumber(selectedPos.stop_loss, 5) : "NOT SET"} status={selectedPos.stop_loss ? "neutral" : "negative"} />
-              <Metric label="Distance to SL" value={selectedPos.distance_to_sl ? formatNumber(selectedPos.distance_to_sl, 5) : "—"} status="neutral" />
-              <Metric label="MAE" value={selectedPos.mae != null ? formatCurrency(selectedPos.mae) : "—"} status="neutral" />
-              <Metric label="MFE" value={selectedPos.mfe != null ? formatCurrency(selectedPos.mfe) : "—"} status="neutral" />
+              <Metric label="Distance to SL" value={selectedPos.distance_to_sl ? formatNumber(selectedPos.distance_to_sl, 5) : "No data"} status="neutral" />
+              <Metric label="MAE" value={selectedPos.mae != null ? formatCurrency(selectedPos.mae) : "No data"} status="neutral" />
+              <Metric label="MFE" value={selectedPos.mfe != null ? formatCurrency(selectedPos.mfe) : "No data"} status="neutral" />
             </div>
 
             {/* Lifecycle & Provenance */}
@@ -311,7 +311,7 @@ export default function Positions() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-text-muted">Attribution</span>
-                    <span className="text-[10px] font-mono text-text-muted">{selectedPos.attribution_state || "—"}</span>
+                    <span className="text-[10px] font-mono text-text-muted">{selectedPos.attribution_state || "No data"}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-text-muted">Last Update</span>
@@ -346,7 +346,7 @@ export default function Positions() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-text-muted">Freshness</span>
-                    <FreshnessIndicator level={selectedPos.freshness === "LIVE" ? "live" : "stale"} compact />
+                    <FreshnessIndicator level={selectedPos.freshness === "LIVE" ? "live" : "stale"} timestamp={selectedPos.last_update} compact />
                   </div>
                 </div>
               </div>
@@ -412,9 +412,9 @@ export default function Positions() {
                     <Metric label="Entry" value={formatNumber(pos.entry_price, 5)} status="neutral" />
                     <Metric label="Mark" value={formatNumber(pos.current_price, 5)} status="neutral" />
                     <Metric label="SL" value={pos.stop_loss ? formatNumber(pos.stop_loss, 5) : "NOT SET"} status={pos.stop_loss ? "neutral" : "negative"} />
-                    <Metric label="Dist SL" value={pos.distance_to_sl ? formatNumber(pos.distance_to_sl, 5) : "—"} status="neutral" />
-                    <Metric label="MAE" value={pos.mae != null ? formatCurrency(pos.mae) : "—"} status="neutral" />
-                    <Metric label="MFE" value={pos.mfe != null ? formatCurrency(pos.mfe) : "—"} status="neutral" />
+                    <Metric label="Dist SL" value={pos.distance_to_sl ? formatNumber(pos.distance_to_sl, 5) : "No data"} status="neutral" />
+                    <Metric label="MAE" value={pos.mae != null ? formatCurrency(pos.mae) : "No data"} status="neutral" />
+                    <Metric label="MFE" value={pos.mfe != null ? formatCurrency(pos.mfe) : "No data"} status="neutral" />
                   </div>
                   {/* Lifecycle */}
                   <div className="pt-2 border-t border-border-subtle">

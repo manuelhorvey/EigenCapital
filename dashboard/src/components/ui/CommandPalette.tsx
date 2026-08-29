@@ -37,6 +37,11 @@ export default function CommandPalette() {
     (c) => c.label.toLowerCase().includes(query.toLowerCase())
   );
 
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    setSelectedIdx(0);
+  };
+
   const handleOpen = useCallback(() => {
     setOpen(true);
     setQuery("");
@@ -59,9 +64,7 @@ export default function CommandPalette() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  useEffect(() => {
-    setSelectedIdx(0);
-  }, [query]);
+
 
   const select = (path: string) => {
     navigate(path);
@@ -108,7 +111,7 @@ export default function CommandPalette() {
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Navigate to..."
             className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"

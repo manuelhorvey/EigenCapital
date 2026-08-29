@@ -1,15 +1,25 @@
-import { useMemo } from "react";
+import { useMemo, Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Layout from "./components/Layout";
-import Overview from "./pages/Overview";
-import Positions from "./pages/Positions";
-import Risk from "./pages/Risk";
-import Reconciliation from "./pages/Reconciliation";
-import Evidence from "./pages/Evidence";
-import Events from "./pages/Events";
-import Alerts from "./pages/Alerts";
-import System from "./pages/System";
+import Skeleton from "./components/ui/Skeleton";
+
+const Overview = lazy(() => import("./pages/Overview"));
+const Positions = lazy(() => import("./pages/Positions"));
+const Risk = lazy(() => import("./pages/Risk"));
+const Reconciliation = lazy(() => import("./pages/Reconciliation"));
+const Evidence = lazy(() => import("./pages/Evidence"));
+const Events = lazy(() => import("./pages/Events"));
+const Alerts = lazy(() => import("./pages/Alerts"));
+const System = lazy(() => import("./pages/System"));
+
+function PageWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<Skeleton className="h-8 w-48 rounded" />}>
+      {children}
+    </Suspense>
+  );
+}
 
 function App() {
   const queryClient = useMemo(() => new QueryClient({
@@ -26,14 +36,14 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Overview />} />
-            <Route path="positions" element={<Positions />} />
-            <Route path="risk" element={<Risk />} />
-            <Route path="reconciliation" element={<Reconciliation />} />
-            <Route path="evidence" element={<Evidence />} />
-            <Route path="events" element={<Events />} />
-            <Route path="alerts" element={<Alerts />} />
-            <Route path="system" element={<System />} />
+            <Route index element={<PageWrapper><Overview /></PageWrapper>} />
+            <Route path="positions" element={<PageWrapper><Positions /></PageWrapper>} />
+            <Route path="risk" element={<PageWrapper><Risk /></PageWrapper>} />
+            <Route path="reconciliation" element={<PageWrapper><Reconciliation /></PageWrapper>} />
+            <Route path="evidence" element={<PageWrapper><Evidence /></PageWrapper>} />
+            <Route path="events" element={<PageWrapper><Events /></PageWrapper>} />
+            <Route path="alerts" element={<PageWrapper><Alerts /></PageWrapper>} />
+            <Route path="system" element={<PageWrapper><System /></PageWrapper>} />
           </Route>
         </Routes>
       </BrowserRouter>

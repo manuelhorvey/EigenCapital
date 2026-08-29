@@ -79,16 +79,16 @@ export default function Risk() {
             variant={risk?.overall_level === "NORMAL" ? "success" : risk?.any_critical ? "danger" : "warning"}
             size="md"
           >
-            {risk?.overall_level || "UNKNOWN"}
+            {risk?.overall_level || "No data"}
           </StatusBadge>
         </div>
-        <FreshnessIndicator level={risk?.freshness === "LIVE" ? "live" : risk?.freshness === "STALE" ? "stale" : "unknown"} compact />
+        <FreshnessIndicator level={risk?.freshness === "LIVE" ? "live" : "stale"} timestamp={risk?.timestamp} compact />
       </div>
 
       {/* Top status strip */}
       <div className="grid grid-cols-3 gap-px bg-border-subtle rounded-lg overflow-hidden">
         <div className={cn("bg-surface-raised px-3 lg:px-4 py-2.5 lg:py-3", risk?.overall_level === "NORMAL" && "border-l-2 border-l-success")}>
-          <Metric label="Overall" value={risk?.overall_level || "UNKNOWN"} status={risk?.overall_level === "NORMAL" ? "positive" : risk?.any_critical ? "negative" : "warning"} />
+          <Metric label="Overall" value={risk?.overall_level || "No data"} status={risk?.overall_level === "NORMAL" ? "positive" : risk?.any_critical ? "negative" : "warning"} />
         </div>
         <div className={cn("bg-surface-raised px-3 lg:px-4 py-2.5 lg:py-3", (risk?.critical_dimensions?.length || 0) > 0 && "border-l-2 border-l-danger")}>
           <Metric label="Critical" value={risk?.critical_dimensions?.length || 0} status={(risk?.critical_dimensions?.length || 0) > 0 ? "negative" : "neutral"} />
@@ -127,8 +127,8 @@ export default function Risk() {
           <PanelContent>
             <ExposurePieChart longExposure={longExposure} shortExposure={shortExposure} />
             <div className="mt-3 pt-3 border-t border-border-subtle grid grid-cols-2 gap-2">
-              <Metric label="Gross" value={grossObs ? formatNumber(grossObs.value, 0) : "—"} status="neutral" />
-              <Metric label="Net" value={netObs ? formatNumber(netObs.value, 0) : "—"} status={netObs ? (netObs.value >= 0 ? "positive" : "negative") : "neutral"} />
+              <Metric label="Gross" value={grossObs ? formatNumber(grossObs.value, 0) : "No data"} status="neutral" />
+              <Metric label="Net" value={netObs ? formatNumber(netObs.value, 0) : "No data"} status={netObs ? (netObs.value >= 0 ? "positive" : "negative") : "neutral"} />
             </div>
           </PanelContent>
         </Panel>
@@ -167,19 +167,19 @@ export default function Risk() {
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-text-muted">Daily Loss</span>
                 <span className="text-xs font-mono text-text-primary">
-                  {getObsForDim("daily_loss") ? formatNumber(getObsForDim("daily_loss")!.value, 2) : "—"}
+                  {getObsForDim("daily_loss") ? formatNumber(getObsForDim("daily_loss")!.value, 2) : "No data"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-text-muted">Loss Velocity</span>
                 <span className="text-xs font-mono text-text-primary">
-                  {getObsForDim("loss_velocity") ? formatNumber(getObsForDim("loss_velocity")!.value, 2) : "—"}
+                  {getObsForDim("loss_velocity") ? formatNumber(getObsForDim("loss_velocity")!.value, 2) : "No data"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-text-muted">Equity Floor</span>
                 <span className="text-xs font-mono text-text-primary">
-                  {getObsForDim("equity_floor") ? `$${formatNumber(getObsForDim("equity_floor")!.value, 0)}` : "—"}
+                  {getObsForDim("equity_floor") ? `$${formatNumber(getObsForDim("equity_floor")!.value, 0)}` : "No data"}
                 </span>
               </div>
             </div>

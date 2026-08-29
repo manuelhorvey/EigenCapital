@@ -47,6 +47,7 @@ Research → Validation → Frozen Strategy → Signal → Portfolio → Risk �
 | **Risk** | Independent risk boundary | Enforces limits before any order reaches broker |
 | **Execution** | Ticket-scoped closes, hedging-safe order generation | Auto-reconnect on stale MT5 session |
 | **Audit** | JSONL with full provenance chain | Crash-resistant audit trail |
+| **Data Infrastructure** | MarketSchedule, DataQuality, DataTruth | Canonical market availability, data quality, and provenance |
 
 ## Quick Start
 
@@ -106,7 +107,7 @@ python scripts/r4_attestation.py"
 
 | Component | Specification |
 |---|---|
-| **Python** | >= 3.11 (3.12 recommended) |
+| **Python** | >= 3.11 |
 | **OS** | Linux (Ubuntu/Debian production certified) |
 | **Arch** | x86_64 / ARM64 |
 | **Dependencies (research)** | numpy>=1.24, pandas>=2.0 |
@@ -121,6 +122,16 @@ python scripts/r4_attestation.py"
 ## Architecture
 
 ```
+                     Market Data
+                          ↓
+                     MarketSchedule (canonical calendar)
+                          ↓
+                     DataQuality (freshness, completeness, spread)
+                          ↓
+                     DataTruth (authoritative/derived/stale/unavailable)
+                          ↓
+                     MarketDataBridge
+                          ↓
                      R4 Signal (frozen)
                           ↓
                      Portfolio Construction
@@ -142,6 +153,8 @@ python scripts/r4_attestation.py"
                      Reconciliation
                           ↓
                      Audit Trail (JSONL)
+                          ↓
+                     Dashboard (read-only observer)
 ```
 
 ### Safety Stack
@@ -183,6 +196,26 @@ python scripts/r4_attestation.py"
 - Volatility-scaled sizing
 - Regime gate (no trade when vol > median)
 - Correlation monitoring (rolling 20/60/120-day)
+
+## Data Infrastructure
+
+EigenCapital maintains a canonical chain of truth for all market data:
+
+```
+MarketSchedule → DataQuality → DataTruth → MarketDataBridge
+```
+
+| Component | Purpose |
+|---|---|
+| **MarketSchedule** | Authoritative trading calendar per instrument (25 instruments: FX, metals, indices, energy, crypto) |
+| **DataQuality** | Freshness, completeness, spread, plausibility, timestamp integrity assessment |
+| **DataTruth** | Provenance tracking: AUTHORITATIVE / DERIVED / ESTIMATED / STALE / UNAVAILABLE / CORRUPT |
+| **MarketDataBridge** | Connects schedule → quality → truth; distinguishes expected vs unexpected data absence |
+| **NoSilentDegradation** | Platform invariant: missing/stale data never silently becomes valid-looking data |
+
+**Key invariant:** When the market is closed, missing data is `EXPECTED_MISSING` (not a failure). When the market is open, missing data is `UNEXPECTED_MISSING` (triggers risk response).
+
+See [`docs/architecture/DATA_INVARIANTS.md`](docs/architecture/DATA_INVARIANTS.md) for the full invariant specification.
 
 ## Qualification & Capital Scaling
 

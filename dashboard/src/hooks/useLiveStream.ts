@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Account, Position, HealthState, RiskState, Alert } from "../lib/api";
+import { getWsUrl } from "../lib/config";
 
 interface LiveState {
   account: Account | null;
@@ -16,7 +17,6 @@ interface UseLiveStreamReturn {
   error: string | null;
 }
 
-const WS_URL = `ws://${window.location.hostname}:8080/ws/live`;
 const RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_DELAY = 30000;
 
@@ -57,7 +57,7 @@ export function useLiveStream(): UseLiveStreamReturn {
       }
 
       try {
-        const ws = new WebSocket(WS_URL);
+        const ws = new WebSocket(getWsUrl());
         wsRef.current = ws;
 
         ws.onopen = () => {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
@@ -18,7 +19,7 @@ def get_state_service() -> DashboardStateService:
 
 @router.get("/health")
 async def get_system_health(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> dict:
     """Get overall system health summary."""
     health = state.get_system_health()
@@ -32,7 +33,7 @@ async def get_system_health(
 
 @router.get("/build", response_model=BuildIdentityDTO)
 async def get_build_identity(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> BuildIdentityDTO:
     """Get build identity and verification status."""
     build = state.get_build_identity()

@@ -28,7 +28,7 @@ export default function System() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-base lg:text-lg font-bold text-text-primary tracking-tight">System</h1>
-        <FreshnessIndicator level={build?.freshness === "LIVE" ? "live" : "unknown"} compact />
+        <FreshnessIndicator level={build?.freshness === "LIVE" ? "live" : "stale"} timestamp={build?.timestamp} compact />
       </div>
 
       {/* Build Status Banner */}
@@ -67,12 +67,12 @@ export default function System() {
         <PanelContent>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
             {[
-              { label: "Git HEAD", value: build?.git_head || "—" },
-              { label: "Build ID", value: build?.build_id || "—" },
-              { label: "Manifest", value: build?.manifest_identity || "—" },
-              { label: "Config", value: build?.config_fingerprint || "—" },
-              { label: "Strategy", value: build?.loop_script_sha256?.slice(0, 12) || "—" },
-              { label: "Dashboard", value: info?.dashboard_version || "—" },
+              { label: "Git HEAD", value: build?.git_head || "No data" },
+              { label: "Build ID", value: build?.build_id || "No data" },
+              { label: "Manifest", value: build?.manifest_identity || "No data" },
+              { label: "Config", value: build?.config_fingerprint || "No data" },
+              { label: "Strategy", value: build?.loop_script_sha256?.slice(0, 12) || "No data" },
+              { label: "Dashboard", value: info?.dashboard_version || "No data" },
             ].map((item) => (
               <div key={item.label} className="bg-surface-overlay rounded-md px-2.5 lg:px-3 py-2">
                 <p className="text-[9px] lg:text-[10px] text-text-muted uppercase tracking-wider">{item.label}</p>
@@ -133,7 +133,7 @@ export default function System() {
               <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1">System Health</p>
               <StatusDot
                 level={health?.status === "ok" ? "green" : "red"}
-                label={health?.status?.toUpperCase() || "—"}
+                label={health?.status?.toUpperCase() || "No data"}
                 size="xs"
               />
             </div>
@@ -141,7 +141,7 @@ export default function System() {
               <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Authorization</p>
               <StatusDot
                 level={health?.trading_authorization === "TRADING_AUTHORIZED" ? "green" : "red"}
-                label={health?.trading_authorization?.replace("TRADING_", "") || "—"}
+                label={health?.trading_authorization?.replace("TRADING_", "") || "No data"}
                 size="xs"
               />
             </div>

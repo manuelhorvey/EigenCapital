@@ -2,13 +2,14 @@ import { cn } from "../../lib/utils";
 
 type DotLevel = "green" | "yellow" | "red" | "blue" | "purple" | "gray";
 
-interface StatusDotProps {
-  level: DotLevel;
-  label?: string;
-  pulse?: boolean;
-  size?: "xs" | "sm" | "md";
-  className?: string;
-}
+const levelAriaLabels: Record<DotLevel, string> = {
+  green: "healthy",
+  yellow: "warning",
+  red: "critical",
+  blue: "informational",
+  purple: "diagnostic",
+  gray: "unknown",
+};
 
 const dotStyles: Record<DotLevel, string> = {
   green: "bg-success",
@@ -30,6 +31,14 @@ const textStyles: Record<DotLevel, string> = {
 
 const sizes = { xs: 5, sm: 6, md: 8 };
 
+interface StatusDotProps {
+  level: DotLevel;
+  label?: string;
+  pulse?: boolean;
+  size?: "xs" | "sm" | "md";
+  className?: string;
+}
+
 export default function StatusDot({ level, label, pulse = false, size = "sm", className }: StatusDotProps) {
   const px = sizes[size];
   return (
@@ -37,6 +46,8 @@ export default function StatusDot({ level, label, pulse = false, size = "sm", cl
       <span
         className={cn("shrink-0 rounded-full", dotStyles[level], pulse && "ec-pulse")}
         style={{ width: px, height: px }}
+        role="status"
+        aria-label={levelAriaLabels[level]}
       />
       {label && <span className="text-xs font-medium">{label}</span>}
     </div>

@@ -25,7 +25,7 @@ export default function Reconciliation() {
 
   const protectedCount = positions?.filter((p) => p.protected).length || 0;
   const totalCount = positions?.length || 0;
-  const status = recon?.overall_status || "UNKNOWN";
+  const status = recon?.overall_status || "No data";
   const isClean = status === "CLEAN";
 
   return (
@@ -38,7 +38,7 @@ export default function Reconciliation() {
             {status}
           </StatusBadge>
         </div>
-        <FreshnessIndicator level={recon?.freshness === "LIVE" ? "live" : recon?.freshness === "STALE" ? "stale" : "unknown"} compact />
+        <FreshnessIndicator level={recon?.freshness === "LIVE" ? "live" : "stale"} timestamp={recon?.timestamp} compact />
       </div>
 
       {/* Status banner */}

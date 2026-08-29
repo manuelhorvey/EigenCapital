@@ -1,13 +1,13 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, ReferenceLine } from "recharts";
 import { cn } from "../../lib/utils";
 
-// ─── Theme colors for charts ────────────────────────────────────────
+// ─── Theme colors for charts (color-blind safe palette) ──────────────
 const COLORS = {
-  success: "#10b981",
-  warning: "#f59e0b",
-  danger: "#ef4444",
-  purple: "#a78bfa",
-  info: "#3b82f6",
+  success: "#009B77",     // Deuteranopia-safe green
+  warning: "#F08A00",     // Deuteranopia-safe amber
+  danger: "#D33F49",      // Deuteranopia-safe red
+  purple: "#8C6FE6",      // Deuteranopia-safe purple
+  info: "#0072B5",        // Deuteranopia-safe blue
   muted: "#52525b",
   surface: "#18181b",
   border: "#27272a",
@@ -59,6 +59,41 @@ interface RiskUtilizationChartProps {
   className?: string;
 }
 
+function ChartSummary({ data, type }: { data: RiskBarData[]; type: "utilization" | "drawdown" | "exposure" | "heatmap" }) {
+  const items = data
+    .filter((d) => d.limit && d.limit > 0)
+    .map((d) => ({
+      ...d,
+      utilization: (d.value / d.limit!) * 100,
+      shortName: d.name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    }));
+
+  if (items.length === 0) return null;
+
+  const critical = items.filter((d) => d.utilization > 80);
+  const warning = items.filter((d) => d.utilization > 60 && d.utilization <= 80);
+  const normal = items.filter((d) => d.utilization <= 60);
+
+  let summary = "";
+  if (type === "utilization") {
+    summary = `Risk Utilization: ${items.length} dimensions tracked. ${critical.length} critical (>80%), ${warning.length} warning (60-80%), ${normal.length} normal (≤60%).`;
+  } else if (type === "drawdown") {
+    summary = `Drawdown monitoring active with warning at 60% and critical at 80% of limit.`;
+  } else if (type === "exposure") {
+    const long = items.find((d) => d.name.includes("long"))?.value || 0;
+    const short = items.find((d) => d.name.includes("short"))?.value || 0;
+    summary = `Exposure distribution: ${items.length} categories. Long ${long.toFixed(0)}, Short ${short.toFixed(0)}.`;
+  } else if (type === "heatmap") {
+    summary = `Risk heatmap: ${items.length} dimensions. ${critical.length} critical, ${warning.length} warning, ${normal.length} normal.`;
+  }
+
+  return (
+    <div className="sr-only" role="status" aria-live="polite">
+      {summary}
+    </div>
+  );
+}
+
 export function RiskUtilizationChart({ data, className }: RiskUtilizationChartProps) {
   // Only show dimensions with limits (utilizable dimensions)
   const chartData = data
@@ -79,6 +114,7 @@ export function RiskUtilizationChart({ data, className }: RiskUtilizationChartPr
 
   return (
     <div className={cn("w-full", className)}>
+      <ChartSummary data={data} type="utilization" />
       <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 32)}>
         <BarChart
           data={chartData}
@@ -130,8 +166,11 @@ export function DrawdownGauge({ current, max, label = "Drawdown", className }: D
   const pct = max > 0 ? Math.min((current / max) * 100, 100) : 0;
   const color = pct > 80 ? COLORS.danger : pct > 60 ? COLORS.warning : COLORS.success;
 
+  const summary = `Drawdown: ${current.toFixed(2)}% of ${max.toFixed(0)}% limit (${pct > 80 ? "critical" : pct > 60 ? "warning" : "normal"}). Warning threshold at 60%, critical at 80%.`;
+
   return (
     <div className={cn("w-full", className)}>
+      <div className="sr-only" role="status" aria-live="polite">{summary}</div>
       <div className="flex items-center justify-between mb-2">
         <span className="text-[10px] text-text-muted uppercase tracking-wider">{label}</span>
         <span className="text-xs font-mono text-text-primary">{current.toFixed(2)}% / {max.toFixed(0)}%</span>
@@ -182,9 +221,14 @@ export function ExposurePieChart({ longExposure, shortExposure, className }: Exp
   }
 
   const total = data.reduce((sum, d) => sum + d.value, 0);
+  const longPct = data.find((d) => d.name === "Long") ? ((data.find((d) => d.name === "Long")!.value / total) * 100).toFixed(1) : "0";
+  const shortPct = data.find((d) => d.name === "Short") ? ((data.find((d) => d.name === "Short")!.value / total) * 100).toFixed(1) : "0";
+
+  const summary = `Exposure distribution: ${data.length} categories. Long ${longPct}%, Short ${shortPct}%. Total notional ${(total / 1000).toFixed(1)}K.`;
 
   return (
     <div className={cn("flex items-center gap-4", className)}>
+      <div className="sr-only" role="status" aria-live="polite">{summary}</div>
       <div className="relative">
         <ResponsiveContainer width={120} height={120}>
           <PieChart>
@@ -248,11 +292,18 @@ interface RiskHeatmapProps {
 export function RiskHeatmap({ items, columns = 4, className }: RiskHeatmapProps) {
   const formatDimName = (dim: string) => dim.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+  const critical = items.filter((i) => getLevelColor(i.level) === COLORS.danger).length;
+  const warning = items.filter((i) => getLevelColor(i.level) === COLORS.warning).length;
+  const normal = items.filter((i) => getLevelColor(i.level) === COLORS.success).length;
+
+  const summary = `Risk heatmap: ${items.length} dimensions. ${critical} critical, ${warning} warning, ${normal} normal.`;
+
   return (
     <div
       className={cn("grid gap-px bg-border-subtle rounded-lg overflow-hidden", className)}
       style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
     >
+      <div className="sr-only" role="status" aria-live="polite">{summary}</div>
       {items.map((item) => {
         const color = getLevelColor(item.level);
         return (

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
@@ -20,14 +21,16 @@ def get_state_service() -> DashboardStateService:
 
 @router.get("", response_model=ReconciliationStatusDTO)
 async def get_reconciliation_status(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> ReconciliationStatusDTO:
     """Get reconciliation status — broker ↔ internal state."""
     recon = state.get_reconciliation_status()
 
     return ReconciliationStatusDTO(
         overall_status=recon["overall_status"],
-        last_reconciliation=datetime.fromisoformat(recon["last_reconciliation"]) if recon.get("last_reconciliation") else None,
+        last_reconciliation=datetime.fromisoformat(recon["last_reconciliation"])
+        if recon.get("last_reconciliation")
+        else None,
         checks_performed=recon["checks_performed"],
         checks_passed=recon["checks_passed"],
         checks_warning=recon["checks_warning"],

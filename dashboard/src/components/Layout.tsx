@@ -13,9 +13,10 @@ import {
 import { getSystemHealth } from "../lib/api";
 import { cn } from "../lib/utils";
 import StatusDot from "./ui/StatusDot";
-import FreshnessIndicator from "./ui/FreshnessIndicator";
 import CommandPalette from "./ui/CommandPalette";
 import MobileNav from "./MobileNav";
+import LiveConnectionIndicator from "./LiveConnectionIndicator";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 interface NavGroup {
   label: string;
@@ -67,6 +68,9 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-surface-base">
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <CommandPalette />
 
       {/* ═══ Desktop Sidebar ═══ */}
@@ -132,6 +136,7 @@ export default function Layout() {
             <span className="w-1.5 h-1.5 rounded-full bg-success" />
             <span className="text-[9px] text-text-muted uppercase tracking-wider">Read-only</span>
           </div>
+          <LiveConnectionIndicator compact showLabel={false} className="mt-2" />
         </div>
       </aside>
 
@@ -145,7 +150,7 @@ export default function Layout() {
             </div>
             <span className="text-xs font-bold text-text-primary">EigenCapital</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <StatusDot level={isAuthorized ? "green" : "red"} pulse={isAuthorized} size="xs" />
             <span className={cn(
               "text-[10px] font-semibold uppercase",
@@ -153,30 +158,23 @@ export default function Layout() {
             )}>
               {isAuthorized ? "LIVE" : "BLOCKED"}
             </span>
-            <FreshnessIndicator
-              level={systemHealth ? "live" : "disconnected"}
-              timestamp={systemHealth?.timestamp}
-              compact
-            />
           </div>
         </header>
 
         {/* ═══ Desktop TopBar ═══ */}
         <header className="hidden lg:flex h-11 shrink-0 items-center justify-end px-5 border-b border-border-primary bg-surface-base">
           <div className="flex items-center gap-4">
-            <FreshnessIndicator
-              level={systemHealth ? "live" : "disconnected"}
-              timestamp={systemHealth?.timestamp}
-              compact
-            />
+            <LiveConnectionIndicator compact={false} showLabel={true} />
             <CommandPalette />
           </div>
         </header>
 
         {/* ═══ Content ═══ */}
-        <main className="flex-1 overflow-y-auto pb-0 lg:pb-0 pb-14">
+        <main id="main-content" className="flex-1 overflow-y-auto pb-0 lg:pb-0 pb-14">
           <div className="p-4 lg:p-6 max-w-[1600px] mx-auto">
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </main>
       </div>

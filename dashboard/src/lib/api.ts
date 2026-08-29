@@ -1,4 +1,6 @@
-const API_BASE = '/api/v1';
+import { getApiBase } from "./config";
+
+const API_BASE = getApiBase();
 
 export async function fetchApi<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`);

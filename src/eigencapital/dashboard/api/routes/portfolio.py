@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
@@ -22,7 +23,7 @@ def get_state_service() -> DashboardStateService:
 
 @router.get("/account", response_model=AccountDTO)
 async def get_account(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> AccountDTO:
     """Get account state snapshot."""
     account = state.get_account_state()
@@ -31,7 +32,7 @@ async def get_account(
 
 @router.get("/positions", response_model=list[PositionDTO])
 async def get_positions(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> list[PositionDTO]:
     """Get all current positions."""
     positions = state.get_positions()
@@ -40,7 +41,7 @@ async def get_positions(
 
 @router.get("/summary", response_model=PortfolioSummaryDTO)
 async def get_portfolio_summary(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> PortfolioSummaryDTO:
     """Get portfolio-level summary."""
     positions = state.get_positions()
@@ -48,13 +49,9 @@ async def get_portfolio_summary(
     long_positions = [p for p in positions if p["direction"] == "BUY"]
     short_positions = [p for p in positions if p["direction"] == "SELL"]
 
-    gross_exposure = sum(
-        abs(p.get("size", 0) * p.get("current_price", 0)) for p in positions
-    )
+    gross_exposure = sum(abs(p.get("size", 0) * p.get("current_price", 0)) for p in positions)
     net_exposure = sum(
-        (p.get("size", 0) * p.get("current_price", 0))
-        * (1 if p["direction"] == "BUY" else -1)
-        for p in positions
+        (p.get("size", 0) * p.get("current_price", 0)) * (1 if p["direction"] == "BUY" else -1) for p in positions
     )
 
     # Concentration

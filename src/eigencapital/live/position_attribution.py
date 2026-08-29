@@ -58,21 +58,32 @@ class ClassifiedPosition:
 
 
 def classify_position(pos: dict[str, Any]) -> ClassifiedPosition:
-    magic = int(pos.get("magic", 0) or 0)
+    magic_raw = pos.get("magic")
+    magic = int(magic_raw) if magic_raw is not None else 0
     if magic == R4_MAGIC:
         pclass = PositionClass.R4_BOT
     elif magic == 0:
         pclass = PositionClass.MANUAL_MAGIC_0
     else:
         pclass = PositionClass.FOREIGN_MAGIC_UNKNOWN
+
+    type_raw = pos.get("type")
+    direction = "LONG" if (int(type_raw) if type_raw is not None else 0) == 0 else "SHORT"
+
+    volume_raw = pos.get("volume")
+    volume = float(volume_raw) if volume_raw is not None else 0.0
+
+    profit_raw = pos.get("profit")
+    profit = float(profit_raw) if profit_raw is not None else 0.0
+
     return ClassifiedPosition(
         ticket=pos.get("ticket"),
         symbol=str(pos.get("symbol", "?")),
-        direction="LONG" if int(pos.get("type", 0) or 0) == 0 else "SHORT",
-        volume=float(pos.get("volume", 0) or 0),
+        direction=direction,
+        volume=volume,
         magic=magic,
         comment=str(pos.get("comment", "")),
-        profit=float(pos.get("profit", 0) or 0),
+        profit=profit,
         pclass=pclass,
     )
 
@@ -181,14 +192,22 @@ def ledger_from_deals(deals: list[dict[str, Any]], known_magics: dict[int, str] 
     unattr = 0
     rows: list[dict[str, Any]] = []
     for d in deals:
-        magic = int(d.get("magic", 0) or 0)
+        magic_raw = d.get("magic")
+        magic = int(magic_raw) if magic_raw is not None else 0
         owner = known.get(magic)
         bucket = owner if owner else (f"MAGIC_{magic}" if magic != 0 else "UNATTRIBUTED_MAGIC_0")
         if owner is None:
             unattr += 1
         agg = by_magic.setdefault(bucket, {"deals": 0, "realized_pnl": 0.0})
         agg["deals"] += 1
-        pnl = float(d.get("profit", 0) or 0) + float(d.get("commission", 0) or 0) + float(d.get("swap", 0) or 0)
+        profit_raw = d.get("profit")
+        commission_raw = d.get("commission")
+        swap_raw = d.get("swap")
+        pnl = (
+            (float(profit_raw) if profit_raw is not None else 0.0)
+            + (float(commission_raw) if commission_raw is not None else 0.0)
+            + (float(swap_raw) if swap_raw is not None else 0.0)
+        )
         agg["realized_pnl"] += pnl
         rows.append(
             {

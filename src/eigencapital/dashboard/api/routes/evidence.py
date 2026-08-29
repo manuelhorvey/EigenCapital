@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
 from eigencapital.dashboard.schemas.evidence import (
-    AlertDTO,
-    BuildIdentityDTO,
     EventDTO,
     EventTimelineDTO,
     QualificationStatusDTO,
@@ -25,9 +24,9 @@ def get_state_service() -> DashboardStateService:
 
 @router.get("/events", response_model=EventTimelineDTO)
 async def get_event_timeline(
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=1, le=500, description="Items per page"),
-    state: DashboardStateService = Depends(get_state_service),
 ) -> EventTimelineDTO:
     """Get event timeline with pagination."""
     events = state.get_recent_events(limit=1000)
@@ -45,7 +44,6 @@ async def get_event_timeline(
             #   positions_before, positions_after, submitted, filled, closed, failed,
             #   orders, limit, error, diag, duration_seconds
             event_type = e.get("event_type") or e.get("type") or e.get("event") or "UNKNOWN"
-            status = e.get("status", "")
 
             # Build a human-readable message from available fields
             message = e.get("message") or e.get("action") or ""
@@ -65,7 +63,9 @@ async def get_event_timeline(
                     diag = e.get("diag", {})
                     reason = "regime off"
                     if diag:
-                        reason += f" (vol_now={diag.get('vol_now', '?'):.4f}, vol_median={diag.get('vol_median', '?'):.4f})"
+                        reason += (
+                            f" (vol_now={diag.get('vol_now', '?'):.4f}, vol_median={diag.get('vol_median', '?'):.4f})"
+                        )
                     message = f"Skipped: {reason}"
                 elif event_type == "closed":
                     message = e.get("message", "Position closed")
@@ -103,26 +103,41 @@ async def get_event_timeline(
             severity = e.get("severity")
             if not severity:
                 upper = event_type.upper()
-                if "error" in upper or "critical" in upper or "halt" in upper or "emergency" in upper or "flatten" in upper or "disconnect" in upper:
+                if (
+                    "error" in upper
+                    or "critical" in upper
+                    or "halt" in upper
+                    or "emergency" in upper
+                    or "flatten" in upper
+                    or "disconnect" in upper
+                ):
                     severity = "CRITICAL"
-                elif "warning" in upper or "skip" in upper or "fail" in upper or "mismatch" in upper or "concurrency" in upper:
+                elif (
+                    "warning" in upper
+                    or "skip" in upper
+                    or "fail" in upper
+                    or "mismatch" in upper
+                    or "concurrency" in upper
+                ):
                     severity = "WARNING"
                 else:
                     severity = "INFO"
 
-            parsed.append(EventDTO(
-                event_id=e.get("event_id", e.get("id", str(e.get("timestamp", "unknown")))),
-                event_type=event_type.upper().replace("_", " "),
-                timestamp=datetime.fromisoformat(e.get("timestamp", datetime.now(UTC).isoformat())),
-                symbol=e.get("symbol"),
-                ticket=e.get("ticket"),
-                correlation_id=e.get("correlation_id"),
-                severity=severity,
-                message=message,
-                details=e.get("details", e.get("diag", {})),
-                build_id=e.get("build_id"),
-                strategy_version=e.get("strategy_version"),
-            ))
+            parsed.append(
+                EventDTO(
+                    event_id=e.get("event_id", e.get("id", str(e.get("timestamp", "unknown")))),
+                    event_type=event_type.upper().replace("_", " "),
+                    timestamp=datetime.fromisoformat(e.get("timestamp", datetime.now(UTC).isoformat())),
+                    symbol=e.get("symbol"),
+                    ticket=e.get("ticket"),
+                    correlation_id=e.get("correlation_id"),
+                    severity=severity,
+                    message=message,
+                    details=e.get("details", e.get("diag", {})),
+                    build_id=e.get("build_id"),
+                    strategy_version=e.get("strategy_version"),
+                )
+            )
         except Exception:
             pass
 
@@ -139,7 +154,7 @@ async def get_event_timeline(
 
 @router.get("/qualification", response_model=QualificationStatusDTO)
 async def get_qualification(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> QualificationStatusDTO:
     """Get Phase 2 qualification status."""
     qual = state.get_qualification_status()
@@ -169,7 +184,7 @@ async def get_qualification(
 
 @router.get("/shadow-reduced", response_model=ShadowReducedDTO)
 async def get_shadow_reduced(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> ShadowReducedDTO:
     """Get shadow REDUCED counterfactual data."""
     reduced = state.get_shadow_reduced()

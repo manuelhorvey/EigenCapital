@@ -38,6 +38,7 @@ class ReconciliationStatusDTO(BaseModel):
     duplicate_orders: int = Field(default=0, description="Number of duplicate orders")
     foreign_positions: int = Field(default=0, description="Number of foreign positions")
     timestamp: datetime = Field(description="Status timestamp")
+    freshness: str | None = Field(default=None, description="LIVE, STALE, or UNKNOWN")
 
 
 class PositionReconciliationDTO(BaseModel):

@@ -81,4 +81,5 @@ async def get_portfolio_summary(
         protected_count=sum(1 for p in positions if p.get("protected", False)),
         unprotected_count=sum(1 for p in positions if not p.get("protected", False)),
         timestamp=datetime.now(UTC),
+        freshness=account.get("freshness"),
     )

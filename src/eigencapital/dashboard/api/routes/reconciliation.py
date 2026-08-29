@@ -38,4 +38,5 @@ async def get_reconciliation_status(
         duplicate_orders=recon["duplicate_orders"],
         foreign_positions=recon["foreign_positions"],
         timestamp=datetime.fromisoformat(recon["timestamp"]),
+        freshness=recon.get("freshness"),
     )

@@ -73,6 +73,7 @@ class QualificationStatusDTO(BaseModel):
     overall_status: str = Field(description="Overall qualification status")
     evidence_insufficient: bool = Field(description="Whether evidence is insufficient")
     timestamp: datetime = Field(description="Status timestamp")
+    freshness: str | None = Field(default=None, description="LIVE, STALE, or UNKNOWN")
 
 
 class ShadowReducedDTO(BaseModel):
@@ -89,6 +90,7 @@ class ShadowReducedDTO(BaseModel):
     counterfactual_difference: float | None = Field(default=None, description="P&L difference")
     label: str = Field(description="Would Have Happened — NOT APPLIED LIVE")
     timestamp: datetime = Field(description="Data timestamp")
+    freshness: str | None = Field(default=None, description="LIVE, STALE, or UNKNOWN")
 
 
 class AlertDTO(BaseModel):
@@ -120,3 +122,4 @@ class BuildIdentityDTO(BaseModel):
     drift_detected: bool = Field(default=False, description="Whether drift detected")
     drift_details: dict[str, Any] = Field(default_factory=dict, description="Drift details")
     timestamp: datetime = Field(description="Verification timestamp")
+    freshness: str | None = Field(default=None, description="LIVE, STALE, or UNKNOWN")

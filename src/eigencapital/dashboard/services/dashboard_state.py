@@ -491,7 +491,7 @@ class DashboardStateService:
                 with open(f) as fh:
                     snap = json.load(fh)
                 campaign_id = snap.get("campaign_id", snap.get("authorization_id", ""))
-                campaign_start = snap.get("timestamp", snap.get("authorization_timestamp"))
+                campaign_start = snap.get("snapshot_timestamp", snap.get("timestamp", snap.get("authorization_timestamp")))
                 break
             except Exception:
                 continue
@@ -515,6 +515,27 @@ class DashboardStateService:
         positions = self.get_positions()
         open_count = len(positions)
 
+        # Derive observation_days from evidence snapshots
+        observation_days = 0
+        snapshots_path = evidence_dir / "position_snapshots.jsonl"
+        if snapshots_path.exists():
+            try:
+                dates = set()
+                with open(snapshots_path) as f:
+                    for line in f:
+                        line = line.strip()
+                        if line:
+                            try:
+                                rec = json.loads(line)
+                                ts = rec.get("timestamp", "")
+                                if ts:
+                                    dates.add(ts[:10])  # YYYY-MM-DD
+                            except json.JSONDecodeError:
+                                pass
+                observation_days = len(dates)
+            except OSError:
+                pass
+
         total = sum(e_counts.values())
         insufficient = total < 30  # Need at least 30 trades for qualification
 
@@ -532,10 +553,32 @@ class DashboardStateService:
                 "total_trades": total_trades,
                 "open_trades": open_count,
                 "completed_lifecycles": completed,
-                "observation_days": 0,
+                "observation_days": observation_days,
                 "timestamp": now,
             },
-            "gates": [],
+            "gates": [
+                {
+                    "gate_id": "A",
+                    "name": "Minimum Trades",
+                    "status": "SUFFICIENT" if total_trades >= 10 else "COLLECTING",
+                    "details": {"required": 10, "current": total_trades},
+                    "timestamp": now,
+                },
+                {
+                    "gate_id": "B",
+                    "name": "Lifecycle Completion",
+                    "status": "SUFFICIENT" if completed >= 5 else "COLLECTING",
+                    "details": {"required": 5, "current": completed},
+                    "timestamp": now,
+                },
+                {
+                    "gate_id": "C",
+                    "name": "Observation Days",
+                    "status": "SUFFICIENT" if observation_days >= 5 else "COLLECTING",
+                    "details": {"required": 5, "current": observation_days},
+                    "timestamp": now,
+                },
+            ],
             "overall_status": "COLLECTING" if insufficient else "SUFFICIENT",
             "evidence_insufficient": insufficient,
             "timestamp": now,

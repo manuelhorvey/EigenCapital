@@ -407,30 +407,36 @@ def load_market_schedule(config: Dict[str, Any], instrument: str) -> MarketSched
     if isinstance(sessions_raw, dict):
         # TOML single session: {open: "00:00", close: "00:00"}
         if sessions_raw.get("open") and sessions_raw.get("close"):
-            sessions.append(TradingSession(
-                open_time=_parse_time(sessions_raw["open"]),
-                close_time=_parse_time(sessions_raw["close"]),
-                timezone=config.get("timezone", "UTC"),
-            ))
+            sessions.append(
+                TradingSession(
+                    open_time=_parse_time(sessions_raw["open"]),
+                    close_time=_parse_time(sessions_raw["close"]),
+                    timezone=config.get("timezone", "UTC"),
+                )
+            )
     elif isinstance(sessions_raw, list):
         for s in sessions_raw:
-            sessions.append(TradingSession(
-                open_time=_parse_time(s["open"]),
-                close_time=_parse_time(s["close"]),
-                timezone=config.get("timezone", "UTC"),
-            ))
+            sessions.append(
+                TradingSession(
+                    open_time=_parse_time(s["open"]),
+                    close_time=_parse_time(s["close"]),
+                    timezone=config.get("timezone", "UTC"),
+                )
+            )
 
     # Parse maintenance windows — TOML uses [[array of tables]], legacy uses list
     maintenance = []
     maintenance_raw = config.get("maintenance") or config.get("maintenance_windows", [])
     if isinstance(maintenance_raw, list):
         for mw in maintenance_raw:
-            maintenance.append(MaintenanceWindow(
-                day_of_week=mw.get("day"),
-                start_time=_parse_time(mw["start"]),
-                end_time=_parse_time(mw["end"]),
-                description=mw.get("description", ""),
-            ))
+            maintenance.append(
+                MaintenanceWindow(
+                    day_of_week=mw.get("day"),
+                    start_time=_parse_time(mw["start"]),
+                    end_time=_parse_time(mw["end"]),
+                    description=mw.get("description", ""),
+                )
+            )
 
     # Build details dict from flat keys
     details = {}

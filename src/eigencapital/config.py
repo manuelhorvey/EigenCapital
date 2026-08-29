@@ -111,30 +111,6 @@ class CapitalConfig:
 
 
 @dataclass(frozen=True)
-class RiskConfig:
-    """Risk policy configuration."""
-
-    max_drawdown_pct: float = 10.0
-    daily_loss_limit: float = 5000.0
-    weekly_loss_limit: float = 15000.0
-    max_gross_leverage: float = 2.0
-    max_net_leverage: float = 1.5
-    max_position_count: int = 10
-    min_equity: float = 50000.0
-    max_position_notional: float = 500000.0
-    max_position_risk_pct: float = 20.0
-    max_strategy_exposure_pct: float = 30.0
-    max_asset_class_exposure_pct: float = 40.0
-    max_concentration_pct: float = 25.0
-    kill_switch: bool = False
-
-    @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> RiskConfig:
-        fields = {f.name for f in cls.__dataclass_fields__.values()}
-        return cls(**{k: v for k, v in d.items() if k in fields})
-
-
-@dataclass(frozen=True)
 class StrategyConfig:
     """R4 strategy configuration."""
 
@@ -285,7 +261,6 @@ class EigenCapitalConfig:
     environment: str = "production"
     broker: BrokerConfig = field(default_factory=BrokerConfig)
     capital: CapitalConfig = field(default_factory=CapitalConfig)
-    risk: RiskConfig = field(default_factory=RiskConfig)
     live_risk: LiveRiskConfig = field(default_factory=LiveRiskConfig)
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
     health: HealthConfig = field(default_factory=HealthConfig)
@@ -300,7 +275,6 @@ class EigenCapitalConfig:
             "environment": self.environment,
             "broker": self.broker.__dict__,
             "capital": self.capital.__dict__,
-            "risk": self.risk.__dict__,
             "live_risk": self.live_risk.__dict__,
             "strategy": self.strategy.__dict__,
             "health": self.health.__dict__,
@@ -326,9 +300,16 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
     return result
 
 
-def _load_toml(path: Path) -> Dict[str, Any]:
-    """Load a TOML file, returning empty dict if not found."""
+def _load_toml(path: Path, required: bool = False) -> Dict[str, Any]:
+    """Load a TOML file.
+
+    Args:
+        path: Path to TOML file.
+        required: If True, raise FileNotFoundError when missing.
+    """
     if not path.exists():
+        if required:
+            raise FileNotFoundError(f"Required config file missing: {path}")
         return {}
     with open(path, "rb") as f:
         return tomllib.load(f)
@@ -339,13 +320,12 @@ def load_config(environment: str = "production") -> EigenCapitalConfig:
 
     Merge order:
     1. Base defaults (hardcoded in dataclasses)
-    2. configs/base.json (if exists)
-    3. configs/{environment}/config.json (if exists)
-    4. Environment variables (EIGENCAPITAL_* prefix)
+    2. configs/base.toml (optional — shared overrides across environments)
+    3. configs/{environment}/config.toml (environment-specific overrides)
     """
-    # Load base config
+    # Load base config (optional — environment config provides all production values)
     base_path = CONFIGS_DIR / "base.toml"
-    base_data = _load_toml(base_path)
+    base_data = _load_toml(base_path, required=False)
 
     # Load environment config
     env_path = CONFIGS_DIR / environment / "config.toml"
@@ -357,7 +337,6 @@ def load_config(environment: str = "production") -> EigenCapitalConfig:
     # Build config objects
     broker = BrokerConfig.from_dict(merged.get("broker", {}))
     capital = CapitalConfig.from_dict(merged.get("capital", {}))
-    risk = RiskConfig.from_dict(merged.get("risk", {}))
     live_risk = LiveRiskConfig.from_dict(merged.get("live_risk", {}))
     strategy = StrategyConfig.from_dict(merged.get("strategy", {}))
     health = HealthConfig.from_dict(merged.get("health", {}))
@@ -371,7 +350,6 @@ def load_config(environment: str = "production") -> EigenCapitalConfig:
         environment=environment,
         broker=broker,
         capital=capital,
-        risk=risk,
         live_risk=live_risk,
         strategy=strategy,
         health=health,

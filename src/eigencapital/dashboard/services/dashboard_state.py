@@ -408,7 +408,11 @@ class DashboardStateService:
                 else:
                     holding_time = f"{int(holding_secs / 86400)}d"
 
-                pnl_pct = (p.profit / max(abs(p.volume * p.price_open), 0.01)) if p.profit else 0
+                # P&L% = price movement percentage (direction-aware)
+                if p.type == 0:  # BUY/LONG
+                    pnl_pct = (p.price_current - p.price_open) / max(p.price_open, 0.00001)
+                else:  # SELL/SHORT
+                    pnl_pct = (p.price_open - p.price_current) / max(p.price_open, 0.00001)
 
                 result.append({
                     "ticket": p.ticket,

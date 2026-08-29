@@ -6,6 +6,7 @@ It cannot modify R4, risk limits, orders, positions, or qualification results.
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -37,10 +38,12 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
+        origin.strip()
+        for origin in os.environ.get(
+            "DASHBOARD_CORS_ORIGINS",
+            "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
+        ).split(",")
+        if origin.strip()
     ],
     allow_credentials=True,
     allow_methods=["GET"],
@@ -117,12 +120,19 @@ async def api_v1_root() -> dict[str, Any]:
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Global exception handler."""
+    """Global exception handler — never expose stack traces to browser."""
+    import logging
+    logging.exception("Unhandled exception: %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
         content={
             "error": "Internal server error",
-            "detail": str(exc),
+            "detail": "An unexpected error occurred",
+            "subsystem": "dashboard_api",
             "timestamp": datetime.now(UTC).isoformat(),
+        },
+        headers={
+            "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
+            "Access-Control-Allow-Credentials": "true",
         },
     )

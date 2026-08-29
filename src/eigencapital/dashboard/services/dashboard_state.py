@@ -578,7 +578,7 @@ class DashboardStateService:
             config_fp = getattr(config, "config_fingerprint", None) or getattr(
                 config.strategy, "manifest_fingerprint", ""
             )
-            identity = compute_build_identity(Path("."), config_fp)
+            identity = compute_build_identity(Path("."), str(config_fp))
 
             return {
                 "git_head": identity.git_head,
@@ -869,10 +869,10 @@ class DashboardStateService:
         completed = 0
         if self._decisions_path.exists():
             try:
-                with open(self._decisions_path) as f:
-                    for line in f:
+                with open(self._decisions_path) as fh:
+                    for raw_line in fh:
                         try:
-                            d = json.loads(line.strip())
+                            d = json.loads(raw_line.strip())
                             if d.get("event") in ("closed", "exit", "pnl_computed"):
                                 completed += 1
                         except json.JSONDecodeError:
@@ -890,12 +890,12 @@ class DashboardStateService:
         if snapshots_path.exists():
             try:
                 dates = set()
-                with open(snapshots_path) as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
+                with open(snapshots_path) as fh:
+                    for raw_line in fh:
+                        stripped = raw_line.strip()
+                        if stripped:
                             try:
-                                rec = json.loads(line)
+                                rec = json.loads(stripped)
                                 ts = rec.get("timestamp", "")
                                 if ts:
                                     dates.add(ts[:10])  # YYYY-MM-DD

@@ -8,6 +8,7 @@ import {
   getQualification,
   getBuildIdentity,
   getHealth,
+  getReconciliation,
 } from "../lib/api";
 import { formatCurrency, formatPercent, cn } from "../lib/utils";
 import Panel, { PanelHeader, PanelContent } from "../components/ui/Panel";
@@ -17,16 +18,7 @@ import Metric from "../components/ui/Metric";
 import HealthMatrix from "../components/ui/HealthMatrix";
 import Skeleton from "../components/ui/Skeleton";
 import FreshnessIndicator from "../components/ui/FreshnessIndicator";
-import {
-  ShieldCheck,
-  ShieldAlert,
-  ShieldX,
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  Zap,
-  Clock,
-} from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, TrendingUp, TrendingDown, Activity, Zap, Clock } from "lucide-react";
 
 export default function Overview() {
   const { data: health, isLoading: healthLoading } = useQuery({ queryKey: ["systemHealth"], queryFn: getSystemHealth, refetchInterval: 10000 });
@@ -37,9 +29,11 @@ export default function Overview() {
   const { data: risk } = useQuery({ queryKey: ["riskState"], queryFn: getRiskState, refetchInterval: 10000 });
   const { data: alerts } = useQuery({ queryKey: ["alerts"], queryFn: () => getAlerts(5), refetchInterval: 15000 });
   const { data: qual } = useQuery({ queryKey: ["qualification"], queryFn: getQualification, refetchInterval: 30000 });
+  const { data: recon } = useQuery({ queryKey: ["reconciliation"], queryFn: getReconciliation, refetchInterval: 15000 });
 
-  const authState = health?.trading_authorization || "UNKNOWN";
+  const authState = health?.trading_authorization ?? "UNKNOWN";
   const isAuthorized = authState === "TRADING_AUTHORIZED";
+  const displayAuthState = authState;
   const protectedCount = positions?.filter((p) => p.protected).length || 0;
   const totalCount = positions?.length || 0;
 
@@ -64,7 +58,7 @@ export default function Overview() {
         "rounded-lg border p-3 lg:p-4",
         isAuthorized
           ? "bg-success-subtle border-success/15"
-          : authState.includes("BLOCKED")
+          : authState?.includes("BLOCKED")
           ? "bg-danger-subtle border-danger/15"
           : "bg-warning-subtle border-warning/15"
       )}>
@@ -72,7 +66,7 @@ export default function Overview() {
           <div className="flex items-center gap-3">
             <div className={cn(
               "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
-              isAuthorized ? "bg-success/10" : authState.includes("BLOCKED") ? "bg-danger/10" : "bg-warning/10"
+              isAuthorized ? "bg-success/10" : authState?.includes("BLOCKED") ? "bg-danger/10" : "bg-warning/10"
             )}>
               {isAuthorized ? (
                 <ShieldCheck className="w-5 h-5 text-success" />
@@ -86,11 +80,11 @@ export default function Overview() {
               <div className="flex items-center gap-2">
                 <h1 className={cn(
                   "text-base lg:text-lg font-bold tracking-tight",
-                  isAuthorized ? "text-success" : authState.includes("BLOCKED") ? "text-danger" : "text-warning"
+                  isAuthorized ? "text-success" : authState?.includes("BLOCKED") ? "text-danger" : "text-warning"
                 )}>
-                  {authState}
+                  {displayAuthState}
                 </h1>
-                <StatusDot level={isAuthorized ? "green" : authState.includes("BLOCKED") ? "red" : "yellow"} pulse={isAuthorized} size="sm" />
+                <StatusDot level={isAuthorized ? "green" : authState?.includes("BLOCKED") ? "red" : "yellow"} pulse={isAuthorized} size="sm" />
               </div>
               <FreshnessIndicator
                 level={health ? "live" : "disconnected"}
@@ -105,11 +99,11 @@ export default function Overview() {
           <div className="hidden sm:flex items-center gap-6">
             <div className="text-right">
               <p className="text-[9px] text-text-muted uppercase tracking-wider">Campaign</p>
-              <p className="text-xs font-mono text-text-secondary mt-0.5">{qual?.campaign_id || "—"}</p>
+              <p className="text-xs font-mono text-text-secondary mt-0.5">{qual?.campaign_id || "No data"}</p>
             </div>
             <div className="text-right">
               <p className="text-[9px] text-text-muted uppercase tracking-wider">Build</p>
-              <p className="text-xs font-mono text-text-secondary mt-0.5">{build?.git_head?.slice(0, 7) || "—"}</p>
+              <p className="text-xs font-mono text-text-secondary mt-0.5">{build?.git_head?.slice(0, 7) || "No data"}</p>
             </div>
             <div className="text-right">
               <p className="text-[9px] text-text-muted uppercase tracking-wider">Positions</p>
@@ -122,7 +116,7 @@ export default function Overview() {
         <div className="sm:hidden flex items-center gap-4 mt-3 pt-3 border-t border-border-subtle/50">
           <div className="flex-1 min-w-0">
             <p className="text-[9px] text-text-muted uppercase">Build</p>
-            <p className="text-[11px] font-mono text-text-secondary truncate">{build?.git_head?.slice(0, 7) || "—"}</p>
+            <p className="text-[11px] font-mono text-text-secondary truncate">{build?.git_head?.slice(0, 7) || "No data"}</p>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[9px] text-text-muted uppercase">Positions</p>
@@ -130,7 +124,7 @@ export default function Overview() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[9px] text-text-muted uppercase">Campaign</p>
-            <p className="text-[11px] font-mono text-text-secondary truncate">{qual?.campaign_id || "—"}</p>
+            <p className="text-[11px] font-mono text-text-secondary truncate">{qual?.campaign_id || "No data"}</p>
           </div>
         </div>
 
@@ -171,7 +165,7 @@ export default function Overview() {
             variant={fullHealth?.overall_state === "HEALTHY" ? "success" : fullHealth?.blocking_dimensions?.length ? "danger" : "warning"}
             size="sm"
           >
-            {fullHealth?.overall_state || "UNKNOWN"}
+            {fullHealth?.overall_state || "No data"}
           </StatusBadge>
         </PanelHeader>
         <PanelContent noPadding>
@@ -184,24 +178,24 @@ export default function Overview() {
         {[
           {
             label: "Equity",
-            value: formatCurrency(account?.equity || 0),
-            sub: `Balance: ${formatCurrency(account?.balance || 0)}`,
+            value: account ? formatCurrency(account.equity) : "No data",
+            sub: account ? `Balance: ${formatCurrency(account.balance)}` : "Broker unavailable",
             status: "neutral" as const,
             freshness: account?.freshness,
           },
           {
             label: "Daily P&L",
-            value: formatCurrency(account?.daily_pnl || 0),
-            sub: `Budget: ${formatCurrency(account?.daily_loss_remaining || 0)}`,
-            status: (account?.daily_pnl ?? 0) >= 0 ? ("positive" as const) : ("negative" as const),
-            icon: (account?.daily_pnl ?? 0) >= 0 ? TrendingUp : TrendingDown,
+            value: account ? formatCurrency(account.daily_pnl) : "No data",
+            sub: account ? `Budget: ${formatCurrency(account.daily_loss_remaining)}` : "—",
+            status: account ? (account.daily_pnl >= 0 ? ("positive" as const) : ("negative" as const)) : ("neutral" as const),
+            icon: account ? (account.daily_pnl >= 0 ? TrendingUp : TrendingDown) : undefined,
             freshness: account?.freshness,
           },
           {
             label: "Drawdown",
-            value: formatPercent(account?.drawdown_pct || 0),
-            sub: `HWM: ${formatCurrency(account?.equity_high_water || 0)}`,
-            status: (account?.drawdown_pct ?? 0) > 0.05 ? ("warning" as const) : ("neutral" as const),
+            value: account ? formatPercent(account.drawdown_pct) : "No data",
+            sub: account ? `HWM: ${formatCurrency(account.equity_high_water)}` : "—",
+            status: account ? (account.drawdown_pct > 0.05 ? ("warning" as const) : ("neutral" as const)) : ("neutral" as const),
             freshness: account?.freshness,
           },
           {
@@ -212,14 +206,14 @@ export default function Overview() {
           },
           {
             label: "Exposure",
-            value: formatCurrency(account?.margin_used || 0),
-            sub: `Util: ${((account?.margin_utilization || 0) * 100).toFixed(1)}%`,
-            status: (account?.margin_utilization ?? 0) > 0.8 ? ("warning" as const) : ("neutral" as const),
+            value: account ? formatCurrency(account.margin_used) : "No data",
+            sub: account ? `Util: ${(account.margin_utilization * 100).toFixed(1)}%` : "—",
+            status: account ? (account.margin_utilization > 0.8 ? ("warning" as const) : ("neutral" as const)) : ("neutral" as const),
             freshness: account?.freshness,
           },
           {
             label: "Risk",
-            value: risk?.overall_level || "UNKNOWN",
+            value: risk?.overall_level || "No data",
             sub: risk?.any_critical ? "Critical detected" : "Nominal",
             status: risk?.overall_level === "NORMAL" ? ("positive" as const) : risk?.any_critical ? ("negative" as const) : ("warning" as const),
             freshness: risk?.freshness,
@@ -238,7 +232,7 @@ export default function Overview() {
               status={m.status}
             />
             {m.freshness && (
-              <FreshnessIndicator level={m.freshness === "LIVE" ? "live" : m.freshness === "STALE" ? "stale" : "unknown"} compact className="mt-1" />
+              <FreshnessIndicator level={m.freshness === "LIVE" ? "live" : "stale"} timestamp={account?.timestamp} compact className="mt-1" />
             )}
           </div>
         ))}
@@ -258,8 +252,8 @@ export default function Overview() {
             <div className="space-y-2">
               {[
                 { label: "SL Coverage", value: `${protectedCount} / ${totalCount} positions`, level: protectedCount === totalCount ? ("green" as const) : ("yellow" as const) },
-                { label: "Risk Envelope", value: risk?.overall_level === "NORMAL" ? "Within limits" : risk?.overall_level || "UNKNOWN", level: risk?.overall_level === "NORMAL" ? ("green" as const) : ("red" as const) },
-                { label: "Reconciliation", value: "Reconciled", level: "green" as const },
+                { label: "Risk Envelope", value: risk?.overall_level === "NORMAL" ? "Within limits" : risk?.overall_level || "No data", level: risk?.overall_level === "NORMAL" ? ("green" as const) : ("red" as const) },
+                { label: "Reconciliation", value: recon?.overall_status || "No data", level: recon?.overall_status === "CLEAN" ? ("green" as const) : recon?.overall_status ? ("yellow" as const) : ("gray" as const) },
                 { label: "Shadow REDUCED", value: "Simulation only", level: "purple" as const },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between py-1">

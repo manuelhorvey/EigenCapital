@@ -24,6 +24,8 @@ class AccountDTO(BaseModel):
     unrealized_pnl: float = Field(default=0, description="Total unrealized P&L")
     currency: str = Field(default="USD", description="Account currency")
     timestamp: datetime = Field(description="Snapshot timestamp")
+    freshness: str | None = Field(default=None, description="LIVE, STALE, or UNKNOWN")
+    source: str | None = Field(default=None, description="Data source")
 
 
 class PositionDTO(BaseModel):
@@ -46,6 +48,8 @@ class PositionDTO(BaseModel):
     protected: bool = Field(description="Whether SL is set")
     attribution_state: str | None = Field(default=None, description="Attribution state")
     last_update: datetime = Field(description="Last price update timestamp")
+    freshness: str | None = Field(default=None, description="LIVE, STALE, or UNKNOWN")
+    source: str | None = Field(default=None, description="Data source")
     details: dict[str, Any] = Field(default_factory=dict, description="Additional position details")
 
 
@@ -63,3 +67,4 @@ class PortfolioSummaryDTO(BaseModel):
     protected_count: int = Field(description="Positions with SL set")
     unprotected_count: int = Field(description="Positions without SL")
     timestamp: datetime = Field(description="Summary timestamp")
+    freshness: str | None = Field(default=None, description="LIVE, STALE, or UNKNOWN")

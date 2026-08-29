@@ -281,7 +281,8 @@ class DashboardStateService:
             from eigencapital.config import load_config
 
             config = load_config("production") if self._config is None else self._config
-            identity = compute_build_identity(Path("."), config.config_fingerprint)
+            config_fp = getattr(config, "config_fingerprint", None) or getattr(config.strategy, "manifest_fingerprint", "")
+            identity = compute_build_identity(Path("."), config_fp)
 
             return {
                 "git_head": identity.git_head,

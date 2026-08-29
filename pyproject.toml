@@ -56,8 +56,10 @@ markers = [
 source = ["eigencapital"]
 omit = [
     "tests/*",
-    "**/research/alpha/**",
-    "**/research/intraday/**",
+    "**/research/**",
+    "**/fidelity/**",
+    "**/micro_live/**",
+    "**/paper/**",
 ]
 
 [tool.coverage.report]

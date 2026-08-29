@@ -43,7 +43,7 @@ Research → Validation → Frozen Strategy → Signal → Portfolio → Risk �
 | Category | Module | Purpose |
 |---|---|---|
 | **Research** | Falsifiable hypotheses | Walk-forward, bootstrap, multiple-testing correction, deflated Sharpe |
-| **Strategy** | R4 frozen momentum | Immutable parameters, volatility-gated regimes |
+| **Strategy** | R4 frozen momentum | Volatility-normalized signal, frozen parameters |
 | **Risk** | Independent risk boundary | Enforces limits before any order reaches broker |
 | **Execution** | Ticket-scoped closes, hedging-safe order generation | Auto-reconnect on stale MT5 session |
 | **Audit** | JSONL with full provenance chain | Crash-resistant audit trail |
@@ -192,10 +192,8 @@ python scripts/r4_attestation.py"
 
 ### Portfolio-Level Risk
 
-- Signal clips weights to ±20%
 - Volatility-scaled sizing
-- Regime gate (no trade when vol > median)
-- Correlation monitoring (rolling 20/60/120-day)
+- Asset-class concentration monitoring
 
 ## Data Infrastructure
 

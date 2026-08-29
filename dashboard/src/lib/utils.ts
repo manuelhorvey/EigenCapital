@@ -25,42 +25,42 @@ export function formatNumber(value: number, decimals = 2): string {
 export function getStateColor(state: string): string {
   const upper = state.toUpperCase();
   if (upper.includes("HEALTHY") || upper.includes("NORMAL") || upper.includes("AUTHORIZED") || upper === "PASS") {
-    return "text-green-400";
+    return "text-success";
   }
   if (upper.includes("DEGRADED") || upper.includes("WARNING") || upper.includes("ELEVATED")) {
-    return "text-yellow-400";
+    return "text-warning";
   }
   if (upper.includes("BLOCKED") || upper.includes("CRITICAL") || upper.includes("HALT")) {
-    return "text-red-400";
+    return "text-danger";
   }
   if (upper.includes("CONTAINED")) {
-    return "text-orange-400";
+    return "text-warning";
   }
-  return "text-gray-400";
+  return "text-text-muted";
 }
 
 export function getStateBg(state: string): string {
   const upper = state.toUpperCase();
   if (upper.includes("HEALTHY") || upper.includes("NORMAL") || upper.includes("AUTHORIZED") || upper === "PASS") {
-    return "bg-green-500/20 border-green-500/30";
+    return "bg-success-subtle border-success/15";
   }
   if (upper.includes("DEGRADED") || upper.includes("WARNING") || upper.includes("ELEVATED")) {
-    return "bg-yellow-500/20 border-yellow-500/30";
+    return "bg-warning-subtle border-warning/15";
   }
   if (upper.includes("BLOCKED") || upper.includes("CRITICAL") || upper.includes("HALT")) {
-    return "bg-red-500/20 border-red-500/30";
+    return "bg-danger-subtle border-danger/15";
   }
   if (upper.includes("CONTAINED")) {
-    return "bg-orange-500/20 border-orange-500/30";
+    return "bg-warning-subtle border-warning/15";
   }
-  return "bg-gray-500/20 border-gray-500/30";
+  return "bg-surface-overlay border-border-primary";
 }
 
 export function getSeverityColor(severity: string): string {
   const upper = severity.toUpperCase();
-  if (upper === "CRITICAL") return "text-red-400";
-  if (upper === "WARNING") return "text-yellow-400";
-  return "text-blue-400";
+  if (upper === "CRITICAL") return "text-danger";
+  if (upper === "WARNING") return "text-warning";
+  return "text-info";
 }
 
 export function formatTimestamp(iso: string): string {

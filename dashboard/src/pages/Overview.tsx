@@ -140,9 +140,9 @@ export default function Overview() {
             { label: "Build", ok: build?.verified },
             { label: "Watchdog", ok: health?.status === "ok" },
             { label: "Risk", ok: !risk?.any_critical },
-            { label: "Recon", ok: true },
-            { label: "Broker", ok: true },
-            { label: "Data", ok: true },
+            { label: "Recon", ok: account?.freshness === "LIVE" },
+            { label: "Broker", ok: account?.freshness === "LIVE" },
+            { label: "Data", ok: risk?.freshness === "LIVE" || risk?.freshness === "STALE" },
           ].map((g) => (
             <span
               key={g.label}

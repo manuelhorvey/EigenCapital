@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -99,35 +98,300 @@ class DashboardStateService:
     def get_system_health(self) -> dict[str, Any]:
         """Read current system health from domain models.
 
-        Reads from the supervisor's health file (last_health.json) which
-        contains {alive, timestamp}. Derives overall_state and
-        trading_authorization from the alive flag.
+        Reads from multiple authoritative sources and populates per-dimension
+        health data for the HealthMatrix component.
+
+        Sources:
+        - loop_health.json (supervisor alive flag)
+        - supervisor_state.json (restart count, status, instance)
+        - risk_state.json (risk envelope health)
+        - reconciliation_state.json (broker reconciliation)
+        - Build identity (fingerprint verification)
+        - MT5 connectivity (broker connection)
+        - Evidence pipeline (qualification status)
         """
+        now = datetime.now(UTC)
+        dimensions: list[dict[str, Any]] = []
+        blocking: list[str] = []
+        overall_alive = False
+        health_timestamp = now.isoformat()
+
+        # ── 1. Supervisor health ──
+        supervisor_state = self._read_json(self._loop_dir / "supervisor_state.json")
+        supervisor_health = self._read_json(self._loop_dir / "loop_health.json")
+        # Fallback: monitor writes last_health.json
+        if supervisor_health is None:
+            supervisor_health = self._read_json(self._loop_dir / "last_health.json")
+
+        if supervisor_health is not None:
+            alive = supervisor_health.get("alive", False)
+            overall_alive = alive
+            health_timestamp = supervisor_health.get("timestamp", now.isoformat())
+
+            restart_count = 0
+            sup_status = "running"
+            if supervisor_state is not None:
+                restart_count = supervisor_state.get("restart_count", 0)
+                sup_status = supervisor_state.get("status", "running")
+
+            if alive and sup_status == "running":
+                dim_state = "HEALTHY"
+                msg = f"Supervisor running (PID {supervisor_health.get('pid', '?')})"
+            elif alive and sup_status == "halting":
+                dim_state = "DEGRADED"
+                msg = "Supervisor shutting down"
+                blocking.append("supervisor")
+            elif sup_status == "frozen":
+                dim_state = "HALTED"
+                msg = f"Supervisor frozen after {restart_count} restarts"
+                blocking.append("supervisor")
+            else:
+                dim_state = "HALTED"
+                msg = "Supervisor not responding"
+                blocking.append("supervisor")
+
+            dimensions.append({
+                "dimension": "supervisor",
+                "state": dim_state,
+                "message": msg,
+                "timestamp": health_timestamp,
+                "consecutive_failures": restart_count,
+                "details": {
+                    "pid": supervisor_health.get("pid"),
+                    "instance_id": supervisor_health.get("instance_id", ""),
+                    "restart_count": restart_count,
+                    "status": sup_status,
+                },
+            })
+        else:
+            # No health file at all
+            overall_alive = False
+            blocking.append("supervisor")
+            dimensions.append({
+                "dimension": "supervisor",
+                "state": "HALTED",
+                "message": "No supervisor health data found",
+                "timestamp": now.isoformat(),
+                "consecutive_failures": 0,
+                "details": {},
+            })
+
+        # ── 2. Broker connectivity (MT5) ──
+        broker_ok = False
         try:
-            health_path = self._loop_dir / "last_health.json"
-            if health_path.exists():
-                with open(health_path) as f:
-                    health_data = json.load(f)
-                freshness = self._assess_freshness(health_data.get("timestamp"))
-                alive = health_data.get("alive", False)
-                return {
-                    "overall_state": "HEALTHY" if alive else "HALTED",
-                    "trading_authorization": "TRADING_AUTHORIZED" if alive else "TRADING_HALTED",
-                    "dimensions": [],
-                    "blocking_dimensions": [] if alive else ["supervisor"],
-                    "timestamp": health_data.get("timestamp", datetime.now(UTC).isoformat()),
-                    "freshness": freshness,
-                }
+            from mt5linux import MetaTrader5
+
+            mt5 = MetaTrader5(host="127.0.0.1", port=8001)
+            if mt5.initialize():
+                account = mt5.account_info()
+                mt5.shutdown()
+                broker_ok = account is not None
         except Exception:
-            pass
+            broker_ok = False
+
+        if broker_ok:
+            dimensions.append({
+                "dimension": "broker",
+                "state": "HEALTHY",
+                "message": "MT5 broker connected",
+                "timestamp": now.isoformat(),
+                "consecutive_failures": 0,
+                "details": {},
+            })
+        else:
+            blocking.append("broker")
+            dimensions.append({
+                "dimension": "broker",
+                "state": "BLOCKED",
+                "message": "MT5 broker unreachable",
+                "timestamp": now.isoformat(),
+                "consecutive_failures": 0,
+                "details": {},
+            })
+
+        # ── 3. Risk envelope ──
+        risk_data = self._read_json(self._loop_dir / "risk_state.json")
+        if risk_data is not None:
+            risk_level = risk_data.get("overall_level", "UNKNOWN")
+            any_critical = risk_data.get("any_critical", False)
+            any_warning = risk_data.get("any_warning", False)
+
+            if risk_level == "NORMAL":
+                risk_state = "HEALTHY"
+                risk_msg = "Risk envelope within limits"
+            elif any_critical:
+                risk_state = "CRITICAL"
+                risk_msg = f"Critical risk: {', '.join(risk_data.get('critical_dimensions', []))}"
+                blocking.append("risk")
+            elif any_warning:
+                risk_state = "DEGRADED"
+                risk_msg = f"Elevated risk: {', '.join(risk_data.get('warning_dimensions', []))}"
+            else:
+                risk_state = "HEALTHY"
+                risk_msg = f"Risk level: {risk_level}"
+
+            dimensions.append({
+                "dimension": "risk_envelope",
+                "state": risk_state,
+                "message": risk_msg,
+                "timestamp": risk_data.get("timestamp", now.isoformat()),
+                "consecutive_failures": 0,
+                "details": {
+                    "overall_level": risk_level,
+                    "critical_count": len(risk_data.get("critical_dimensions", [])),
+                    "warning_count": len(risk_data.get("warning_dimensions", [])),
+                },
+            })
+        else:
+            dimensions.append({
+                "dimension": "risk_envelope",
+                "state": "DEGRADED",
+                "message": "Risk state data not available",
+                "timestamp": now.isoformat(),
+                "consecutive_failures": 0,
+                "details": {},
+            })
+
+        # ── 4. Reconciliation ──
+        recon_data = self._read_json(self._loop_dir / "reconciliation_state.json")
+        if recon_data is not None:
+            recon_status = recon_data.get("overall_status", "UNKNOWN")
+            if recon_status == "CLEAN":
+                recon_state = "HEALTHY"
+                recon_msg = "All positions reconciled"
+            elif recon_status == "WARNING":
+                recon_state = "DEGRADED"
+                foreign = recon_data.get("foreign_positions", 0)
+                recon_msg = f"{foreign} foreign position(s) detected"
+                if foreign > 0:
+                    blocking.append("reconciliation")
+            elif recon_status in ("CRITICAL", "HALT"):
+                recon_state = "BLOCKED"
+                recon_msg = f"Reconciliation {recon_status.lower()}"
+                blocking.append("reconciliation")
+            else:
+                recon_state = "DEGRADED"
+                recon_msg = f"Reconciliation status: {recon_status}"
+
+            dimensions.append({
+                "dimension": "reconciliation",
+                "state": recon_state,
+                "message": recon_msg,
+                "timestamp": recon_data.get("timestamp", now.isoformat()),
+                "consecutive_failures": 0,
+                "details": {
+                    "status": recon_status,
+                    "foreign_positions": recon_data.get("foreign_positions", 0),
+                    "missing_fills": recon_data.get("missing_fills", 0),
+                },
+            })
+        else:
+            # Derive from positions
+            positions = self.get_positions()
+            foreign = sum(1 for p in positions if not p.get("protected"))
+            if foreign > 0:
+                blocking.append("reconciliation")
+                dimensions.append({
+                    "dimension": "reconciliation",
+                    "state": "DEGRADED",
+                    "message": f"{foreign} unprotected position(s) — no reconciliation data",
+                    "timestamp": now.isoformat(),
+                    "consecutive_failures": 0,
+                    "details": {"foreign_positions": foreign},
+                })
+            else:
+                dimensions.append({
+                    "dimension": "reconciliation",
+                    "state": "HEALTHY",
+                    "message": "No reconciliation issues",
+                    "timestamp": now.isoformat(),
+                    "consecutive_failures": 0,
+                    "details": {},
+                })
+
+        # ── 5. Build verification ──
+        build = self.get_build_identity()
+        if build.get("verified", False):
+            dimensions.append({
+                "dimension": "build",
+                "state": "HEALTHY",
+                "message": f"Build verified ({build.get('build_id', '?')[:12]})",
+                "timestamp": build.get("timestamp", now.isoformat()),
+                "consecutive_failures": 0,
+                "details": {
+                    "git_head": build.get("git_head", ""),
+                    "build_id": build.get("build_id", ""),
+                },
+            })
+        else:
+            blocking.append("build")
+            dimensions.append({
+                "dimension": "build",
+                "state": "BLOCKED",
+                "message": "Build fingerprint drift detected",
+                "timestamp": build.get("timestamp", now.isoformat()),
+                "consecutive_failures": 0,
+                "details": {
+                    "git_head": build.get("git_head", ""),
+                    "drift_details": build.get("drift_details", {}),
+                },
+            })
+
+        # ── 6. Evidence pipeline ──
+        qual = self.get_qualification_status()
+        if qual.get("evidence_insufficient", True):
+            dimensions.append({
+                "dimension": "evidence",
+                "state": "DEGRADED",
+                "message": "Evidence still accumulating",
+                "timestamp": qual.get("timestamp", now.isoformat()),
+                "consecutive_failures": 0,
+                "details": {
+                    "total_trades": qual.get("evidence_maturity", {}).get("total_trades", 0),
+                    "observation_days": qual.get("evidence_maturity", {}).get("observation_days", 0),
+                },
+            })
+        else:
+            dimensions.append({
+                "dimension": "evidence",
+                "state": "HEALTHY",
+                "message": "Evidence sufficient",
+                "timestamp": qual.get("timestamp", now.isoformat()),
+                "consecutive_failures": 0,
+                "details": {
+                    "total_trades": qual.get("evidence_maturity", {}).get("total_trades", 0),
+                    "observation_days": qual.get("evidence_maturity", {}).get("observation_days", 0),
+                },
+            })
+
+        # ── Determine overall state ──
+        dim_states = [d["state"] for d in dimensions]
+        if "HALTED" in dim_states:
+            overall_state = "HALTED"
+            auth = "TRADING_HALTED"
+        elif "BLOCKED" in dim_states:
+            overall_state = "DEGRADED"
+            auth = "TRADING_BLOCKED"
+        elif "CRITICAL" in dim_states:
+            overall_state = "DEGRADED"
+            auth = "TRADING_BLOCKED"
+        elif overall_alive and "DEGRADED" not in dim_states:
+            overall_state = "HEALTHY"
+            auth = "TRADING_AUTHORIZED"
+        elif overall_alive:
+            overall_state = "DEGRADED"
+            auth = "TRADING_AUTHORIZED"  # Alive but some dimensions degraded
+        else:
+            overall_state = "UNKNOWN"
+            auth = "UNKNOWN"
 
         return {
-            "overall_state": "UNKNOWN",
-            "trading_authorization": "UNKNOWN",
-            "dimensions": [],
-            "blocking_dimensions": [],
-            "timestamp": datetime.now(UTC).isoformat(),
-            "freshness": DataFreshness.UNKNOWN.value,
+            "overall_state": overall_state,
+            "trading_authorization": auth,
+            "dimensions": dimensions,
+            "blocking_dimensions": blocking,
+            "timestamp": health_timestamp,
+            "freshness": self._assess_freshness(health_timestamp),
         }
 
     # ─── Risk State ────────────────────────────────────────────────
@@ -160,8 +424,8 @@ class DashboardStateService:
 
         # 2. Compute live from MT5 data using RiskObserver
         try:
-            from eigencapital.live.risk_observation import RiskObserver
             from eigencapital.live.risk_enforcement import RiskEnvelope
+            from eigencapital.live.risk_observation import RiskObserver
 
             env = RiskEnvelope.from_config()
             observer = RiskObserver(
@@ -213,17 +477,19 @@ class DashboardStateService:
 
                     # Convert MT5 position objects to dicts for RiskObserver
                     positions = []
-                    for p in (positions_raw or []):
-                        positions.append({
-                            "symbol": p.symbol,
-                            "volume": p.volume,
-                            "type": p.type,
-                            "price_open": p.price_open,
-                            "price_current": p.price_current,
-                            "sl": p.sl,
-                            "profit": p.profit,
-                            "ticket": p.ticket,
-                        })
+                    for p in positions_raw or []:
+                        positions.append(
+                            {
+                                "symbol": p.symbol,
+                                "volume": p.volume,
+                                "type": p.type,
+                                "price_open": p.price_open,
+                                "price_current": p.price_current,
+                                "sl": p.sl,
+                                "profit": p.profit,
+                                "ticket": p.ticket,
+                            }
+                        )
 
                     daily_pnl = equity - daily_start if daily_start > 0 else 0.0
 
@@ -277,11 +543,13 @@ class DashboardStateService:
     def get_build_identity(self) -> dict[str, Any]:
         """Read build identity from domain models."""
         try:
-            from eigencapital.live.build_pinning import compute_build_identity
             from eigencapital.config import load_config
+            from eigencapital.live.build_pinning import compute_build_identity
 
             config = load_config("production") if self._config is None else self._config
-            config_fp = getattr(config, "config_fingerprint", None) or getattr(config.strategy, "manifest_fingerprint", "")
+            config_fp = getattr(config, "config_fingerprint", None) or getattr(
+                config.strategy, "manifest_fingerprint", ""
+            )
             identity = compute_build_identity(Path("."), config_fp)
 
             return {
@@ -346,14 +614,55 @@ class DashboardStateService:
 
             # Compute drawdown and daily loss from risk envelope
             drawdown_pct = 0.0
+            drawdown_abs = 0.0
             daily_loss_remaining = 0.0
+            equity_hwm = equity
+            daily_pnl = 0.0
+            unrealized_pnl = 0.0
             try:
                 from eigencapital.live.risk_enforcement import RiskEnvelope
+
                 env = RiskEnvelope.from_config()
                 t0 = getattr(env, "t0_equity", balance)
-                hwm = max(equity, t0)
-                drawdown_pct = (hwm - equity) / max(hwm, 1)
                 daily_loss_remaining = getattr(env, "max_daily_loss", 250.0)
+
+                # Load persisted peak equity for true HWM
+                state_path = self._loop_dir / "runtime_state.json"
+                saved_peak = 0.0
+                if state_path.exists():
+                    try:
+                        with open(state_path) as f:
+                            rt_state = json.load(f)
+                        saved_peak = rt_state.get("peak_equity", 0)
+                    except Exception:
+                        pass
+
+                equity_hwm = max(equity, t0, saved_peak)
+                drawdown_abs = max(0.0, equity_hwm - equity)
+                drawdown_pct = drawdown_abs / max(equity_hwm, 1)
+
+                # Compute daily P&L from baseline
+                daily_start = 0.0
+                for bp in [self._loop_dir / "daily_baseline.json", self._data_dir / "daily_baseline.json"]:
+                    if bp.exists():
+                        try:
+                            with open(bp) as f:
+                                baseline = json.load(f)
+                            daily_start = baseline.get("equity", 0.0)
+                            break
+                        except Exception:
+                            pass
+                if daily_start > 0:
+                    daily_pnl = equity - daily_start
+
+                # Compute total unrealized P&L from live positions
+                try:
+                    live_positions = mt5.positions_get()
+                    for p in (live_positions or []):
+                        unrealized_pnl += getattr(p, "profit", 0) or 0
+                except Exception:
+                    pass
+
             except Exception:
                 pass
 
@@ -363,12 +672,12 @@ class DashboardStateService:
                 "free_margin": margin_free,
                 "margin_used": margin_used,
                 "margin_utilization": 1 - (margin_free / max(equity, 1)),
-                "equity_high_water": equity,
-                "drawdown": 0,
+                "equity_high_water": equity_hwm,
+                "drawdown": drawdown_abs,
                 "drawdown_pct": drawdown_pct,
-                "daily_pnl": 0,
+                "daily_pnl": daily_pnl,
                 "daily_loss_remaining": daily_loss_remaining,
-                "unrealized_pnl": 0,
+                "unrealized_pnl": unrealized_pnl,
                 "currency": account.currency,
                 "timestamp": datetime.now(UTC).isoformat(),
                 "freshness": DataFreshness.LIVE.value,
@@ -393,6 +702,9 @@ class DashboardStateService:
             if not positions:
                 return []
 
+            # Load persisted MAE/MFE excursion data from risk observer
+            excursions = self._read_json(self._loop_dir / "position_excursion.json") or {}
+
             now = datetime.now(UTC)
             result = []
             for p in positions:
@@ -414,27 +726,45 @@ class DashboardStateService:
                 else:  # SELL/SHORT
                     pnl_pct = (p.price_open - p.price_current) / max(p.price_open, 0.00001)
 
-                result.append({
-                    "ticket": p.ticket,
-                    "symbol": p.symbol,
-                    "direction": "BUY" if p.type == 0 else "SELL",
-                    "size": p.volume,
-                    "entry_price": p.price_open,
-                    "current_price": p.price_current,
-                    "unrealized_pnl": p.profit,
-                    "unrealized_pnl_pct": pnl_pct,
-                    "stop_loss": p.sl if p.sl > 0 else None,
-                    "distance_to_sl": abs(p.price_current - p.sl) if p.sl and p.sl > 0 else None,
-                    "mae": None,
-                    "mfe": None,
-                    "holding_time": holding_time,
-                    "risk_state": "NORMAL",
-                    "protected": p.sl > 0,
-                    "attribution_state": None,
-                    "last_update": now.isoformat(),
-                    "freshness": DataFreshness.LIVE.value,
-                    "source": "mt5",
-                })
+                # Derive per-position risk state from SL protection
+                has_sl = p.sl > 0
+                pos_risk_state = "NORMAL"
+                if not has_sl:
+                    pos_risk_state = "WARNING"  # Unprotected = elevated risk
+                elif pnl_pct < -0.02:
+                    pos_risk_state = "CRITICAL"  # >2% adverse move
+                elif pnl_pct < -0.01:
+                    pos_risk_state = "WARNING"   # >1% adverse move
+
+                # Read MAE/MFE from persisted excursion data
+                ticket_key = str(p.ticket)
+                exc = excursions.get(ticket_key)
+                mae = exc.get("mae_pct") if exc else None
+                mfe = exc.get("mfe_pct") if exc else None
+
+                result.append(
+                    {
+                        "ticket": p.ticket,
+                        "symbol": p.symbol,
+                        "direction": "BUY" if p.type == 0 else "SELL",
+                        "size": p.volume,
+                        "entry_price": p.price_open,
+                        "current_price": p.price_current,
+                        "unrealized_pnl": p.profit,
+                        "unrealized_pnl_pct": pnl_pct,
+                        "stop_loss": p.sl if p.sl > 0 else None,
+                        "distance_to_sl": abs(p.price_current - p.sl) if p.sl and p.sl > 0 else None,
+                        "mae": mae,
+                        "mfe": mfe,
+                        "holding_time": holding_time,
+                        "risk_state": pos_risk_state,
+                        "protected": has_sl,
+                        "attribution_state": None,
+                        "last_update": now.isoformat(),
+                        "freshness": DataFreshness.LIVE.value,
+                        "source": "mt5",
+                    }
+                )
             return result
         except Exception:
             return []
@@ -496,7 +826,9 @@ class DashboardStateService:
                 with open(f) as fh:
                     snap = json.load(fh)
                 campaign_id = snap.get("campaign_id", snap.get("authorization_id", ""))
-                campaign_start = snap.get("snapshot_timestamp", snap.get("timestamp", snap.get("authorization_timestamp")))
+                campaign_start = snap.get(
+                    "snapshot_timestamp", snap.get("timestamp", snap.get("authorization_timestamp"))
+                )
                 break
             except Exception:
                 continue
@@ -763,6 +1095,16 @@ class DashboardStateService:
         return alerts[-limit:]
 
     # ─── Helpers ───────────────────────────────────────────────────
+
+    def _read_json(self, path: Path) -> dict[str, Any] | None:
+        """Safely read a JSON file, returning None on any error."""
+        if not path.exists():
+            return None
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
 
     def _empty_account_state(self) -> dict[str, Any]:
         """Return empty account state with explicit NOT_AVAILABLE semantics."""

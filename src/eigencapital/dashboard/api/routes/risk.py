@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -22,7 +23,7 @@ def get_state_service() -> DashboardStateService:
 
 @router.get("", response_model=RiskStateDTO)
 async def get_risk_state(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> RiskStateDTO:
     """Get current risk state with all observation dimensions."""
     risk = state.get_risk_state()

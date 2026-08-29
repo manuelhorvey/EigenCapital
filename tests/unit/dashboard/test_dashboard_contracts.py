@@ -500,10 +500,10 @@ class TestDataFreshness:
         from eigencapital.dashboard.services.dashboard_state import DashboardStateService
 
         service = DashboardStateService()
-        # 2 minutes ago
+        # 90 seconds ago — within STALE range (30s-120s)
         from datetime import timedelta
 
-        ts = (datetime.now(UTC) - timedelta(minutes=2)).isoformat()
+        ts = (datetime.now(UTC) - timedelta(seconds=90)).isoformat()
         assert service._assess_freshness(ts) == "STALE"
 
     def test_freshness_assessment_unknown(self) -> None:

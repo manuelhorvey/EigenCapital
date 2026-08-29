@@ -210,7 +210,6 @@ class TestAlertSeverity:
             category="HEALTH",
             event_type="HEALTH_STATE_CHANGE",
             message="System halted",
-            severity_label="CRITICAL",
         )
         assert alert.severity == "CRITICAL"
 

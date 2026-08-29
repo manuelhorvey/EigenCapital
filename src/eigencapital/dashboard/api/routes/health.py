@@ -78,5 +78,4 @@ async def get_watchdog_state(
         state=watchdog_state,
         authorize_trading=is_authorized,
         reason=health.get("overall_state", "Unknown health state"),
-        timestamp=datetime.fromisoformat(health["timestamp"]),
     )

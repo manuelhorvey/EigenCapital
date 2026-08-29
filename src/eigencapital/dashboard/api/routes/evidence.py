@@ -163,6 +163,7 @@ async def get_qualification(
         },
         gates=qual.get("gates", []),
         timestamp=datetime.now(UTC),
+        freshness=qual.get("freshness"),
     )
 
 
@@ -182,6 +183,7 @@ async def get_shadow_reduced(
         actual_pnl=reduced.get("actual_pnl"),
         hypothetical_pnl=reduced.get("hypothetical_pnl"),
         counterfactual_difference=reduced.get("counterfactual_difference"),
+        freshness=reduced.get("freshness"),
         label="Would Have Happened — NOT APPLIED LIVE",
         timestamp=datetime.now(UTC),
     )

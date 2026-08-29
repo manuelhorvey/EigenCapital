@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
@@ -23,7 +24,7 @@ def get_state_service() -> DashboardStateService:
 
 @router.get("", response_model=SystemHealthDTO)
 async def get_system_health(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> SystemHealthDTO:
     """Get overall system health status."""
     health = state.get_system_health()
@@ -39,30 +40,27 @@ async def get_system_health(
 
 @router.get("/authorization", response_model=TradingAuthorizationDTO)
 async def get_trading_authorization(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> TradingAuthorizationDTO:
-    """Get trading authorization status."""
     health = state.get_system_health()
     auth_state = health["trading_authorization"]
-    is_authorized = auth_state == "TRADING_AUTHORIZED"
+
+    # Read actual build verification status — do not fabricate
+    build = state.get_build_identity()
+    fingerprint_status = "VERIFIED" if build.get("verified", False) else "DRIFT_DETECTED"
 
     return TradingAuthorizationDTO(
         status=auth_state,
         execution_mode="live",
-        fingerprint_status="VERIFIED",
+        fingerprint_status=fingerprint_status,
         timestamp=datetime.fromisoformat(health["timestamp"]),
     )
 
 
 @router.get("/watchdog", response_model=WatchdogDTO)
 async def get_watchdog_state(
-    state: DashboardStateService = Depends(get_state_service),
+    state: Annotated[DashboardStateService, Depends(get_state_service)],
 ) -> WatchdogDTO:
-    """Get watchdog state.
-
-    Returns the actual watchdog state from the health system.
-    If unavailable, returns UNKNOWN rather than fabricating a state.
-    """
     health = state.get_system_health()
     auth_state = health["trading_authorization"]
     is_authorized = auth_state == "TRADING_AUTHORIZED"

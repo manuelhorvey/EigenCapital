@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 
 @dataclass(frozen=True)
@@ -69,6 +69,7 @@ class Fill:
     version: str = "v1"
 
     # Class-level registry
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # INVARIANT: quantity is ALWAYS positive
@@ -226,6 +227,3 @@ class FillSide:
     @property
     def is_sell(self) -> bool:
         return self.value == "SELL"
-
-
-Fill._registry = {}

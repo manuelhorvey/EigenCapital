@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 
 class DataQualityStatus:
@@ -58,6 +58,7 @@ class MarketSnapshot:
     source: str | None = None
 
     # Class-level registry
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate data_quality is a known status
@@ -198,6 +199,3 @@ class MarketSnapshot:
     def is_stale(self) -> bool:
         """Check if snapshot is stale (data quality STALE)."""
         return self.data_quality == DataQualityStatus.STALE
-
-
-MarketSnapshot._registry = {}

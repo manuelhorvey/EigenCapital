@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 
 @dataclass(frozen=True)
@@ -63,6 +63,7 @@ class ApprovedTarget:
     version: str = "v1"
 
     # Class-level registry
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate decision is one of APPROVED, REDUCED, REJECTED
@@ -168,6 +169,3 @@ class ApprovedTarget:
             f"  decision={self.decision}\n"
             f"  reason={self.approval_reason[:80]}..."
         )
-
-
-ApprovedTarget._registry = {}

@@ -439,7 +439,7 @@ def load_market_schedule(config: Dict[str, Any], instrument: str) -> MarketSched
             )
 
     # Build details dict from flat keys
-    details = {}
+    details: Dict[str, Any] = {}
     for key in ("asset_class", "description"):
         if key in config:
             details[key] = config[key]
@@ -463,7 +463,7 @@ def load_schedules_from_file(path: Path) -> Dict[str, MarketSchedule]:
         data = tomllib.load(f)
 
     instruments = data.get("instruments", data)
-    schedules = {}
+    schedules: Dict[str, MarketSchedule] = {}
     for instrument, config in instruments.items():
         schedules[instrument] = load_market_schedule(config, instrument)
     return schedules
@@ -471,7 +471,7 @@ def load_schedules_from_file(path: Path) -> Dict[str, MarketSchedule]:
 
 def load_schedules_from_directory(directory: Path) -> Dict[str, MarketSchedule]:
     """Load all market schedules from a directory of JSON files."""
-    schedules = {}
+    schedules: Dict[str, MarketSchedule] = {}
     if not directory.exists():
         return schedules
     for path in sorted(directory.glob("*.json")):

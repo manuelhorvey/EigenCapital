@@ -49,7 +49,7 @@ class PortfolioState:
 
     def update_account_state(self) -> None:
         """Recompute account state from current positions."""
-        total_notional = sum(abs(p.quantity * p.average_entry_price) for p in self.positions.values())
+        total_notional = sum(abs(p.quantity * (p.average_entry_price or 0.0)) for p in self.positions.values())
         equity = self.current_cash + sum(p.unrealized_pnl for p in self.positions.values())
 
         self.account_state = AccountState(
@@ -260,7 +260,7 @@ class Portfolio:
                 if old_qty == 0:
                     new_avg = fill_price
                 else:
-                    new_avg = (old_qty * pos.average_entry_price + signed_qty * fill_price) / new_qty
+                    new_avg = (old_qty * (pos.average_entry_price or 0.0) + signed_qty * fill_price) / new_qty
             else:
                 new_avg = 0.0
 
@@ -269,7 +269,7 @@ class Portfolio:
             if old_qty != 0 and new_qty != 0 and (old_qty > 0) != (new_qty > 0):
                 # Position reversal or partial close
                 closed_qty = min(abs(old_qty), abs(signed_qty))
-                realized = closed_qty * (fill_price - pos.average_entry_price)
+                realized = closed_qty * (fill_price - (pos.average_entry_price or 0.0))
                 if old_qty < 0:
                     realized = -realized
 

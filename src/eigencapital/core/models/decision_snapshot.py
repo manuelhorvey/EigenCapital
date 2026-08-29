@@ -29,7 +29,7 @@ Flow: StrategyIntent + MarketState → DecisionSnapshot → PortfolioTarget → 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 
 @dataclass(frozen=True)
@@ -79,9 +79,9 @@ class DecisionSnapshot:
     # Market state at signal generation time
     market_state: Dict[str, Any] = field(default_factory=dict)  # free-form: regime, flags, etc.
     features: Dict[str, float] = field(default_factory=dict)  # computed feature vector at signal time
-    signal: object = None  # the StrategyIntent that was generated
+    signal: Any = None  # the StrategyIntent that was generated
     portfolio_state: Dict[str, Any] = field(default_factory=dict)  # positions, equity at signal time
-    risk_state: object = None  # the RiskDecision outcome
+    risk_state: Any = None  # the RiskDecision outcome
 
     # Explicit rationale
     risk_decision_reason: str = ""  # why approved/rejected/reduced
@@ -98,6 +98,8 @@ class DecisionSnapshot:
     parent_snapshot_ids: list | None = None  # → parent snapshots, for provenance
 
     # Internal tracking
+
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate snapshot_id is non-empty
@@ -313,6 +315,3 @@ class DecisionSnapshot:
             f"  git={self.git_commit[:8]}...\n"
             f"  dataset={self.dataset_version}"
         )
-
-
-DecisionSnapshot._registry = {}

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 from eigencapital.core.models.trial_metadata import TrialMetadata
 
@@ -96,6 +96,7 @@ class Experiment:
     meta: Dict[str, Any] = field(default_factory=dict)  # free-form notes, tags
 
     # Class-level registry
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate experiment_id is non-empty
@@ -347,6 +348,3 @@ class Experiment:
             f"  test={self.test_split}\n"
             f"  seed={self.random_seed}{trial_line}"
         )
-
-
-Experiment._registry = {}

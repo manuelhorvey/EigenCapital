@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,8 @@ class Position:
     realized_pnl_today: float = 0.0
     overnight: bool = False
     version: str = "v1"
+
+    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate quantity is numeric
@@ -176,6 +178,3 @@ class Position:
         if self.market_value != 0.0:
             return abs(self.quantity) * abs(self.market_value / max(abs(self.quantity), 1))
         return 0.0
-
-
-Position._registry = {}

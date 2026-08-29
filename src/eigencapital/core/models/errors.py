@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 """Domain-specific errors for invariant violations.
 
 All errors raised by domain model validation should be instances of
@@ -130,7 +134,7 @@ def check_invariant(condition: bool, message: str, model: str = "", field: str =
         raise InvariantViolation(message, model, field)
 
 
-def check_not_none(value: any, message: str, model: str = "", field: str = "") -> None:
+def check_not_none(value: Any, message: str, model: str = "", field: str = "") -> None:
     """Raise InvalidInput if value is None."""
     if value is None:
         raise InvalidInput(message, model, field)

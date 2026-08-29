@@ -28,6 +28,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from eigencapital.core.data_quality import DataQualityAssessor
 from eigencapital.dashboard.schemas.common import DataFreshness
 
 
@@ -150,31 +151,35 @@ class DashboardStateService:
                 msg = "Supervisor not responding"
                 blocking.append("supervisor")
 
-            dimensions.append({
-                "dimension": "supervisor",
-                "state": dim_state,
-                "message": msg,
-                "timestamp": health_timestamp,
-                "consecutive_failures": restart_count,
-                "details": {
-                    "pid": supervisor_health.get("pid"),
-                    "instance_id": supervisor_health.get("instance_id", ""),
-                    "restart_count": restart_count,
-                    "status": sup_status,
-                },
-            })
+            dimensions.append(
+                {
+                    "dimension": "supervisor",
+                    "state": dim_state,
+                    "message": msg,
+                    "timestamp": health_timestamp,
+                    "consecutive_failures": restart_count,
+                    "details": {
+                        "pid": supervisor_health.get("pid"),
+                        "instance_id": supervisor_health.get("instance_id", ""),
+                        "restart_count": restart_count,
+                        "status": sup_status,
+                    },
+                }
+            )
         else:
             # No health file at all
             overall_alive = False
             blocking.append("supervisor")
-            dimensions.append({
-                "dimension": "supervisor",
-                "state": "HALTED",
-                "message": "No supervisor health data found",
-                "timestamp": now.isoformat(),
-                "consecutive_failures": 0,
-                "details": {},
-            })
+            dimensions.append(
+                {
+                    "dimension": "supervisor",
+                    "state": "HALTED",
+                    "message": "No supervisor health data found",
+                    "timestamp": now.isoformat(),
+                    "consecutive_failures": 0,
+                    "details": {},
+                }
+            )
 
         # ── 2. Broker connectivity (MT5) ──
         broker_ok = False
@@ -190,24 +195,28 @@ class DashboardStateService:
             broker_ok = False
 
         if broker_ok:
-            dimensions.append({
-                "dimension": "broker",
-                "state": "HEALTHY",
-                "message": "MT5 broker connected",
-                "timestamp": now.isoformat(),
-                "consecutive_failures": 0,
-                "details": {},
-            })
+            dimensions.append(
+                {
+                    "dimension": "broker",
+                    "state": "HEALTHY",
+                    "message": "MT5 broker connected",
+                    "timestamp": now.isoformat(),
+                    "consecutive_failures": 0,
+                    "details": {},
+                }
+            )
         else:
             blocking.append("broker")
-            dimensions.append({
-                "dimension": "broker",
-                "state": "BLOCKED",
-                "message": "MT5 broker unreachable",
-                "timestamp": now.isoformat(),
-                "consecutive_failures": 0,
-                "details": {},
-            })
+            dimensions.append(
+                {
+                    "dimension": "broker",
+                    "state": "BLOCKED",
+                    "message": "MT5 broker unreachable",
+                    "timestamp": now.isoformat(),
+                    "consecutive_failures": 0,
+                    "details": {},
+                }
+            )
 
         # ── 3. Risk envelope ──
         risk_data = self._read_json(self._loop_dir / "risk_state.json")
@@ -230,27 +239,31 @@ class DashboardStateService:
                 risk_state = "HEALTHY"
                 risk_msg = f"Risk level: {risk_level}"
 
-            dimensions.append({
-                "dimension": "risk_envelope",
-                "state": risk_state,
-                "message": risk_msg,
-                "timestamp": risk_data.get("timestamp", now.isoformat()),
-                "consecutive_failures": 0,
-                "details": {
-                    "overall_level": risk_level,
-                    "critical_count": len(risk_data.get("critical_dimensions", [])),
-                    "warning_count": len(risk_data.get("warning_dimensions", [])),
-                },
-            })
+            dimensions.append(
+                {
+                    "dimension": "risk_envelope",
+                    "state": risk_state,
+                    "message": risk_msg,
+                    "timestamp": risk_data.get("timestamp", now.isoformat()),
+                    "consecutive_failures": 0,
+                    "details": {
+                        "overall_level": risk_level,
+                        "critical_count": len(risk_data.get("critical_dimensions", [])),
+                        "warning_count": len(risk_data.get("warning_dimensions", [])),
+                    },
+                }
+            )
         else:
-            dimensions.append({
-                "dimension": "risk_envelope",
-                "state": "DEGRADED",
-                "message": "Risk state data not available",
-                "timestamp": now.isoformat(),
-                "consecutive_failures": 0,
-                "details": {},
-            })
+            dimensions.append(
+                {
+                    "dimension": "risk_envelope",
+                    "state": "DEGRADED",
+                    "message": "Risk state data not available",
+                    "timestamp": now.isoformat(),
+                    "consecutive_failures": 0,
+                    "details": {},
+                }
+            )
 
         # ── 4. Reconciliation ──
         recon_data = self._read_json(self._loop_dir / "reconciliation_state.json")
@@ -273,96 +286,110 @@ class DashboardStateService:
                 recon_state = "DEGRADED"
                 recon_msg = f"Reconciliation status: {recon_status}"
 
-            dimensions.append({
-                "dimension": "reconciliation",
-                "state": recon_state,
-                "message": recon_msg,
-                "timestamp": recon_data.get("timestamp", now.isoformat()),
-                "consecutive_failures": 0,
-                "details": {
-                    "status": recon_status,
-                    "foreign_positions": recon_data.get("foreign_positions", 0),
-                    "missing_fills": recon_data.get("missing_fills", 0),
-                },
-            })
+            dimensions.append(
+                {
+                    "dimension": "reconciliation",
+                    "state": recon_state,
+                    "message": recon_msg,
+                    "timestamp": recon_data.get("timestamp", now.isoformat()),
+                    "consecutive_failures": 0,
+                    "details": {
+                        "status": recon_status,
+                        "foreign_positions": recon_data.get("foreign_positions", 0),
+                        "missing_fills": recon_data.get("missing_fills", 0),
+                    },
+                }
+            )
         else:
             # Derive from positions
             positions = self.get_positions()
             foreign = sum(1 for p in positions if not p.get("protected"))
             if foreign > 0:
                 blocking.append("reconciliation")
-                dimensions.append({
-                    "dimension": "reconciliation",
-                    "state": "DEGRADED",
-                    "message": f"{foreign} unprotected position(s) — no reconciliation data",
-                    "timestamp": now.isoformat(),
-                    "consecutive_failures": 0,
-                    "details": {"foreign_positions": foreign},
-                })
+                dimensions.append(
+                    {
+                        "dimension": "reconciliation",
+                        "state": "DEGRADED",
+                        "message": f"{foreign} unprotected position(s) — no reconciliation data",
+                        "timestamp": now.isoformat(),
+                        "consecutive_failures": 0,
+                        "details": {"foreign_positions": foreign},
+                    }
+                )
             else:
-                dimensions.append({
-                    "dimension": "reconciliation",
-                    "state": "HEALTHY",
-                    "message": "No reconciliation issues",
-                    "timestamp": now.isoformat(),
-                    "consecutive_failures": 0,
-                    "details": {},
-                })
+                dimensions.append(
+                    {
+                        "dimension": "reconciliation",
+                        "state": "HEALTHY",
+                        "message": "No reconciliation issues",
+                        "timestamp": now.isoformat(),
+                        "consecutive_failures": 0,
+                        "details": {},
+                    }
+                )
 
         # ── 5. Build verification ──
         build = self.get_build_identity()
         if build.get("verified", False):
-            dimensions.append({
-                "dimension": "build",
-                "state": "HEALTHY",
-                "message": f"Build verified ({build.get('build_id', '?')[:12]})",
-                "timestamp": build.get("timestamp", now.isoformat()),
-                "consecutive_failures": 0,
-                "details": {
-                    "git_head": build.get("git_head", ""),
-                    "build_id": build.get("build_id", ""),
-                },
-            })
+            dimensions.append(
+                {
+                    "dimension": "build",
+                    "state": "HEALTHY",
+                    "message": f"Build verified ({build.get('build_id', '?')[:12]})",
+                    "timestamp": build.get("timestamp", now.isoformat()),
+                    "consecutive_failures": 0,
+                    "details": {
+                        "git_head": build.get("git_head", ""),
+                        "build_id": build.get("build_id", ""),
+                    },
+                }
+            )
         else:
             blocking.append("build")
-            dimensions.append({
-                "dimension": "build",
-                "state": "BLOCKED",
-                "message": "Build fingerprint drift detected",
-                "timestamp": build.get("timestamp", now.isoformat()),
-                "consecutive_failures": 0,
-                "details": {
-                    "git_head": build.get("git_head", ""),
-                    "drift_details": build.get("drift_details", {}),
-                },
-            })
+            dimensions.append(
+                {
+                    "dimension": "build",
+                    "state": "BLOCKED",
+                    "message": "Build fingerprint drift detected",
+                    "timestamp": build.get("timestamp", now.isoformat()),
+                    "consecutive_failures": 0,
+                    "details": {
+                        "git_head": build.get("git_head", ""),
+                        "drift_details": build.get("drift_details", {}),
+                    },
+                }
+            )
 
         # ── 6. Evidence pipeline ──
         qual = self.get_qualification_status()
         if qual.get("evidence_insufficient", True):
-            dimensions.append({
-                "dimension": "evidence",
-                "state": "DEGRADED",
-                "message": "Evidence still accumulating",
-                "timestamp": qual.get("timestamp", now.isoformat()),
-                "consecutive_failures": 0,
-                "details": {
-                    "total_trades": qual.get("evidence_maturity", {}).get("total_trades", 0),
-                    "observation_days": qual.get("evidence_maturity", {}).get("observation_days", 0),
-                },
-            })
+            dimensions.append(
+                {
+                    "dimension": "evidence",
+                    "state": "DEGRADED",
+                    "message": "Evidence still accumulating",
+                    "timestamp": qual.get("timestamp", now.isoformat()),
+                    "consecutive_failures": 0,
+                    "details": {
+                        "total_trades": qual.get("evidence_maturity", {}).get("total_trades", 0),
+                        "observation_days": qual.get("evidence_maturity", {}).get("observation_days", 0),
+                    },
+                }
+            )
         else:
-            dimensions.append({
-                "dimension": "evidence",
-                "state": "HEALTHY",
-                "message": "Evidence sufficient",
-                "timestamp": qual.get("timestamp", now.isoformat()),
-                "consecutive_failures": 0,
-                "details": {
-                    "total_trades": qual.get("evidence_maturity", {}).get("total_trades", 0),
-                    "observation_days": qual.get("evidence_maturity", {}).get("observation_days", 0),
-                },
-            })
+            dimensions.append(
+                {
+                    "dimension": "evidence",
+                    "state": "HEALTHY",
+                    "message": "Evidence sufficient",
+                    "timestamp": qual.get("timestamp", now.isoformat()),
+                    "consecutive_failures": 0,
+                    "details": {
+                        "total_trades": qual.get("evidence_maturity", {}).get("total_trades", 0),
+                        "observation_days": qual.get("evidence_maturity", {}).get("observation_days", 0),
+                    },
+                }
+            )
 
         # ── Determine overall state ──
         dim_states = [d["state"] for d in dimensions]
@@ -473,7 +500,8 @@ class DashboardStateService:
                 if account:
                     equity = account.equity
                     balance = account.balance
-                    free_margin = getattr(account, "margin_free", 0) or 0
+                    free_margin_raw = getattr(account, "margin_free", None)
+                    free_margin = float(free_margin_raw) if free_margin_raw is not None else 0.0
 
                     # Convert MT5 position objects to dicts for RiskObserver
                     positions = []
@@ -609,8 +637,10 @@ class DashboardStateService:
 
             equity = account.equity
             balance = account.balance
-            margin_free = getattr(account, "margin_free", 0) or 0
-            margin_used = getattr(account, "margin", 0) or 0
+            margin_free_raw = getattr(account, "margin_free", None)
+            margin_free = float(margin_free_raw) if margin_free_raw is not None else 0.0
+            margin_used_raw = getattr(account, "margin", None)
+            margin_used = float(margin_used_raw) if margin_used_raw is not None else 0.0
 
             # Compute drawdown and daily loss from risk envelope
             drawdown_pct = 0.0
@@ -658,8 +688,10 @@ class DashboardStateService:
                 # Compute total unrealized P&L from live positions
                 try:
                     live_positions = mt5.positions_get()
-                    for p in (live_positions or []):
-                        unrealized_pnl += getattr(p, "profit", 0) or 0
+                    for p in live_positions or []:
+                        profit_raw = getattr(p, "profit", None)
+                        if profit_raw is not None:
+                            unrealized_pnl += float(profit_raw)
                 except Exception:
                     pass
 
@@ -734,7 +766,7 @@ class DashboardStateService:
                 elif pnl_pct < -0.02:
                     pos_risk_state = "CRITICAL"  # >2% adverse move
                 elif pnl_pct < -0.01:
-                    pos_risk_state = "WARNING"   # >1% adverse move
+                    pos_risk_state = "WARNING"  # >1% adverse move
 
                 # Read MAE/MFE from persisted excursion data
                 ticket_key = str(p.ticket)
@@ -1127,25 +1159,26 @@ class DashboardStateService:
         }
 
     def _assess_freshness(self, timestamp_str: str | None) -> str:
-        """Assess data freshness based on timestamp.
+        """Assess data freshness using the canonical DataQuality freshness dimension.
 
-        States:
-        - LIVE: < 30s old
-        - STALE: 30s-5min old
-        - UNKNOWN: > 5min old or no timestamp
+        Uses DataQualityAssessor's freshness check for consistency with
+        the platform's data quality layer.
         """
         if not timestamp_str:
             return DataFreshness.UNKNOWN.value
 
         try:
             ts = datetime.fromisoformat(timestamp_str)
-            age_seconds = (datetime.now(UTC) - ts).total_seconds()
-
-            if age_seconds < 30:
-                return DataFreshness.LIVE.value
-            elif age_seconds < 300:
-                return DataFreshness.STALE.value
-            else:
-                return DataFreshness.UNKNOWN.value
         except (ValueError, TypeError):
+            return DataFreshness.UNKNOWN.value
+
+        assessor = DataQualityAssessor("dashboard")
+        result = assessor.assess(price_timestamp=ts)
+
+        freshness_status = result.dimension_status("freshness")
+        if freshness_status.value == "PASS":
+            return DataFreshness.LIVE.value
+        elif freshness_status.value == "WARN":
+            return DataFreshness.STALE.value
+        else:
             return DataFreshness.UNKNOWN.value

@@ -4,6 +4,49 @@ All notable changes to EigenCapital will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [v0.4.0] - 2026-08-29
+
+### Added
+- **MarketSchedule**: Asset-agnostic trading calendar (25 instruments: FX, metals, indices, energy, crypto). TOML-configured. Supports WEEKDAY, EXTENDED, CONTINUOUS_24_7, CUSTOM session types with maintenance windows.
+- **DataQuality**: Unified quality assessment — freshness, completeness, spread, plausibility, timestamp integrity, source consistency, continuity. Produces QualityGrade (GOOD/DEGRADED/POOR/UNKNOWN) with per-dimension scores.
+- **DataTruth**: Platform-wide provenance hierarchy — AUTHORITATIVE/DERIVED/ESTIMATED/STALE/UNAVAILABLE/CORRUPT/UNKNOWN. TruthfulValue prevents silent data degradation. TruthRegistry tracks all metrics.
+- **MarketDataBridge**: Connects MarketSchedule → DataQuality → DataTruth. ExpectedDataState distinguishes EXPECTED_MISSING (market closed) from UNEXPECTED_MISSING (market open, data missing).
+- **NoSilentDegradation**: Platform-wide invariant — guard functions, decorator, transformation validator. MISSING/STALE/UNKNOWN must never silently become 0/NORMAL/SAFE.
+- **Per-position MAE/MFE tracking**: RiskObserver now tracks excursion per ticket with atomic JSON persistence.
+- **Dashboard v1 Production QA**: 15-phase audit with scorecard. Data Truth Matrix, V1 Certification.
+- **Health dimensions populated**: 6 dimensions from 6 data sources (supervisor, broker, risk, reconciliation, build, evidence).
+- **72 dashboard contract tests** (was 12 adversarial).
+- **43 integration tests** for MarketSchedule + DataQuality + DataTruth combinations.
+- **21 WebSocket resilience tests** — reconnection, resource leaks, concurrent safety.
+- **SYSTEM_TRUTH.md**: Compact concept → authority → consumer → test map.
+- **DATA_INVARIANTS.md**: Platform-wide architectural invariants.
+- **Full System Audit** and **Forensic Audit** reports.
+
+### Fixed
+- `daily_pnl` hardcoded to 0 → now computed from equity baseline.
+- `unrealized_pnl` hardcoded to 0 → now summed from live positions.
+- `drawdown` always 0 → now computed from persisted high-water mark.
+- Position `risk_state` always "NORMAL" → now derived from SL + P&L%.
+- `fingerprint_status` always "VERIFIED" → now reads actual build state.
+- WebSocket task leak → tasks properly cancelled on disconnect.
+- Overview `$0.00` when broker down → now shows "No data".
+- Overview "Reconciliation" always "Reconciled" → queries actual status.
+- `_assess_freshness` used own logic → now delegates to DataQualityAssessor.
+- 11 `None → 0` fallbacks eliminated across dashboard_state.py, position_attribution.py, bars.py.
+- Mobile top bar duplicate "LIVE" indicator removed.
+
+### Changed
+- Dashboard freshness assessment now uses canonical DataQuality layer.
+- Architecture diagram in README updated to show full canonical chain.
+- README now documents Data Infrastructure layer.
+
+### Architecture
+- Canonical chain established: MarketSchedule → DataQuality → DataTruth → MarketDataBridge → Risk/Authorization.
+- R4 parity verified: 34/34 parity tests pass, call graph audit confirms no infrastructure imports into R4.
+- REDUCED confirmed shadow-only: `approved_size = intended_size`.
+- Dashboard confirmed read-only: no POST/PUT/PATCH/DELETE routes.
+- No competing implementations of market availability, data quality, or data truth found.
+
 ## [v0.3.0] - 2026-08-28
 
 ### Added

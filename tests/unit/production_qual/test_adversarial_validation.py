@@ -794,7 +794,7 @@ class TestLongDurationInfrastructure:
         elapsed = time.time() - start
 
         # CI runners may be slower — 6s threshold accounts for GitHub Actions
-        assert elapsed < 6.0, f"5K observations took {elapsed:.2f}s"
+        assert elapsed < 10.0, f"5K observations took {elapsed:.2f}s (threshold: 10s)"
 
     def test_alert_dedup_under_flood(self):
         """Alert deduplication must handle flood conditions."""

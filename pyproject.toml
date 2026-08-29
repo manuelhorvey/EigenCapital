@@ -22,7 +22,11 @@ classifiers = [
     "Topic :: Office/Business :: Financial :: Investment",
 ]
 
-dependencies = []
+dependencies = [
+    "pydantic>=2.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+]
 
 [project.optional-dependencies]
 dev = [

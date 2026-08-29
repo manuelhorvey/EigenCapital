@@ -2,12 +2,14 @@ import { cn } from "../../lib/utils";
 
 type BadgeVariant = "success" | "warning" | "danger" | "info" | "purple" | "neutral";
 
-interface StatusBadgeProps {
-  variant: BadgeVariant;
-  children: React.ReactNode;
-  size?: "sm" | "md";
-  pulse?: boolean;
-}
+const variantAriaLabels: Record<BadgeVariant, string> = {
+  success: "success",
+  warning: "warning",
+  danger: "critical",
+  info: "informational",
+  purple: "diagnostic",
+  neutral: "neutral",
+};
 
 const variantStyles: Record<BadgeVariant, string> = {
   success: "bg-success-subtle text-success border border-success/15",
@@ -18,6 +20,13 @@ const variantStyles: Record<BadgeVariant, string> = {
   neutral: "bg-surface-overlay text-text-secondary border border-border-primary",
 };
 
+interface StatusBadgeProps {
+  variant: BadgeVariant;
+  children: React.ReactNode;
+  size?: "sm" | "md";
+  pulse?: boolean;
+}
+
 export default function StatusBadge({ variant, children, size = "sm", pulse = false }: StatusBadgeProps) {
   return (
     <span
@@ -27,6 +36,8 @@ export default function StatusBadge({ variant, children, size = "sm", pulse = fa
         variantStyles[variant],
         pulse && "ec-pulse"
       )}
+      role="status"
+      aria-label={variantAriaLabels[variant]}
     >
       {children}
     </span>

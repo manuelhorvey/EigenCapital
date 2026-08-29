@@ -269,6 +269,46 @@
   letter-spacing: -0.01em;
 }
 
+/* Focus visible utility for custom focus states */
+.focus-visible-ring {
+  outline: none;
+  ring: 2px;
+  ring-color: var(--color-border-focus);
+  ring-offset: 2px;
+  ring-offset-color: var(--color-surface-base);
+}
+
+/* Visually hidden utility for screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skip to main content link */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: var(--color-success);
+  color: var(--color-text-inverse);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  z-index: 100;
+  transition: top 0.2s;
+}
+.skip-link:focus {
+  top: 16px;
+}
+
 /* Tooltip */
 [data-ec-tooltip] {
   position: relative;

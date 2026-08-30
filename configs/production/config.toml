@@ -142,7 +142,7 @@ max_chase_attempts = 2           # Max chase attempts for partial fills
 max_age_seconds = 60.0           # Max age for unfilled orders
 max_cumulative_slippage_bps = 15.0 # Max cumulative slippage
 max_order_frequency = 10         # Max orders per hour
-max_orders_per_cycle = 8         # Max orders per rebalance cycle
+max_orders_per_cycle = 19        # Max orders per rebalance cycle (all R4 signals)
 loop_interval_seconds = 3600     # Default loop interval (1 hour)
 
 [alerts]

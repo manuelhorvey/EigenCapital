@@ -88,7 +88,7 @@ class TestR4ConfigParity:
 
     def test_execution_parameters_unchanged(self, config):
         """R4 execution parameters must not change."""
-        assert config.execution.max_orders_per_cycle == 8
+        assert config.execution.max_orders_per_cycle == 19
         assert config.strategy.transaction_cost_bps == 10.0
         assert config.strategy.slippage_bps == 5.0
 

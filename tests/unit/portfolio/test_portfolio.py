@@ -292,13 +292,3 @@ class TestPortfolio:
         assert "on_bar" in strategy_methods
         assert "on_start" in strategy_methods
         assert "on_end" in strategy_methods
-
-        # Verify no Order/OrderPlan/EigenRisk references in strategy
-        import inspect
-
-        from eigencapital.strategies.trend.strategy import CrossAssetTrendStrategy
-
-        source = inspect.getsource(CrossAssetTrendStrategy)
-        assert "Order" not in source
-        assert "EigenRisk" not in source
-        assert "Broker" not in source

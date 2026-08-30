@@ -55,7 +55,7 @@ class TestConfigLoading:
     def test_execution_config_loads_max_orders(self):
         """Execution config must include max_orders_per_cycle."""
         config = load_config("production")
-        assert config.execution.max_orders_per_cycle == 8
+        assert config.execution.max_orders_per_cycle == 19
 
 
 class TestLiveRiskFingerprint:

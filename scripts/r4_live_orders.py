@@ -40,6 +40,7 @@ from mt5linux import MetaTrader5
 
 R4_SYMBOLS = [
     "US30",
+    "USTEC",
     "AUDJPY",
     "AUDUSD",
     "AUDCHF",
@@ -73,6 +74,7 @@ R4_SYMBOLS = [
 ]
 
 ELIGIBLE_SYMBOLS = [
+    "USTEC",
     "AUDUSD",
     "AUDCHF",
     "AUDCAD",

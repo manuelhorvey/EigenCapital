@@ -5,16 +5,16 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from eigencapital.core.data_truth import (
-    MetricName,
     SOURCE_BROKER,
     SOURCE_DERIVED,
     SOURCE_RISK_ENGINE,
     STALENESS_ACCOUNT,
     STALENESS_POSITION,
     STALENESS_PRICE,
+    MetricName,
+    TruthfulValue,
     TruthLevel,
     TruthRegistry,
-    TruthfulValue,
 )
 
 
@@ -317,7 +317,8 @@ class TestStalenessThresholds:
 
     def test_build_is_infinite(self) -> None:
         from eigencapital.core.data_truth import STALENESS_BUILD
-        assert STALENESS_BUILD == float("inf")
+
+        assert float("inf") == STALENESS_BUILD
 
 
 class TestSourceConstants:

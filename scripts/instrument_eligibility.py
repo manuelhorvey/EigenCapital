@@ -29,6 +29,7 @@ from mt5linux import MetaTrader5
 
 R4_UNIVERSE = [
     "US30",
+    "USTEC",
     "AUDJPY",
     "AUDUSD",
     "AUDCHF",
@@ -63,6 +64,7 @@ R4_UNIVERSE = [
 
 ASSET_CLASSES = {
     "US30": "indices",
+    "USTEC": "indices",
     "AUDJPY": "forex",
     "AUDUSD": "forex",
     "AUDCHF": "forex",

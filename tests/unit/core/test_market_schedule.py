@@ -15,10 +15,13 @@ Tests:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, time as dt_time
+from datetime import UTC, datetime
+from datetime import time as dt_time
 from pathlib import Path
 
 import pytest
+
+from eigencapital.core.market_schedule import MarketSchedule
 
 
 class TestSessionTypes:
@@ -47,7 +50,7 @@ class TestSessionTypes:
 class TestWeekdaySchedule:
     """Verify WEEKDAY schedule (FX) behavior."""
 
-    def _make_fx(self) -> "MarketSchedule":
+    def _make_fx(self) -> MarketSchedule:
         from eigencapital.core.market_schedule import MarketSchedule, SessionType, TradingSession
 
         return MarketSchedule(
@@ -89,7 +92,7 @@ class TestWeekdaySchedule:
 class TestCryptoSchedule:
     """Verify CONTINUOUS_24_7 schedule (crypto) behavior."""
 
-    def _make_btc(self) -> "MarketSchedule":
+    def _make_btc(self) -> MarketSchedule:
         from eigencapital.core.market_schedule import MaintenanceWindow, MarketSchedule, SessionType
 
         return MarketSchedule(

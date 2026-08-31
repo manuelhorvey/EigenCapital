@@ -48,6 +48,7 @@ class BrokerConfig:
     allowed_symbols: Dict[str, str] = field(
         default_factory=lambda: {
             "US30": "indices",
+            "USTEC": "indices",
             "AUDJPY": "forex_excluded",
             "USOIL": "energy",
             "AUDUSD": "forex",
@@ -98,7 +99,7 @@ class CapitalConfig:
     max_total_drawdown: float = 1000.0
     max_position_size: float = 5000.0
     max_order_notional: float = 5000.0
-    max_concurrent_positions: int = 19
+    max_concurrent_positions: int = 20
     campaign_duration_days: int = 30
     max_spread: float = 0.0015
     max_slippage: float = 0.0008
@@ -228,7 +229,7 @@ class LiveRiskConfig:
     authoritative source for the live rebalance loop risk envelope.
     """
 
-    max_concurrent_positions: int = 19
+    max_concurrent_positions: int = 20
     max_position_notional: float = 2_500.0
     max_order_notional: float = 2_500.0
     max_per_position_loss_pct: float = 0.10

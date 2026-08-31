@@ -8,7 +8,6 @@ from eigencapital.core.data_quality import (
     DataQualityAssessor,
     DimensionStatus,
     QualityGrade,
-    QualityResult,
     QualityThresholds,
 )
 
@@ -108,33 +107,25 @@ class TestSpreadDimension:
 
     def test_normal_spread(self) -> None:
         assessor = DataQualityAssessor("EURUSD")
-        result = assessor.assess(
-            bid=1.085, ask=1.0855, expected_spread_max=0.001
-        )
+        result = assessor.assess(bid=1.085, ask=1.0855, expected_spread_max=0.001)
         dims = {d.dimension: d for d in result.dimensions}
         assert dims["spread"].status == DimensionStatus.PASS
 
     def test_elevated_spread(self) -> None:
         assessor = DataQualityAssessor("EURUSD")
-        result = assessor.assess(
-            bid=1.085, ask=1.087, expected_spread_max=0.001
-        )
+        result = assessor.assess(bid=1.085, ask=1.087, expected_spread_max=0.001)
         dims = {d.dimension: d for d in result.dimensions}
         assert dims["spread"].status == DimensionStatus.WARN
 
     def test_excessive_spread(self) -> None:
         assessor = DataQualityAssessor("EURUSD")
-        result = assessor.assess(
-            bid=1.085, ask=1.090, expected_spread_max=0.001
-        )
+        result = assessor.assess(bid=1.085, ask=1.090, expected_spread_max=0.001)
         dims = {d.dimension: d for d in result.dimensions}
         assert dims["spread"].status == DimensionStatus.FAIL
 
     def test_negative_spread(self) -> None:
         assessor = DataQualityAssessor("EURUSD")
-        result = assessor.assess(
-            bid=1.090, ask=1.085, expected_spread_max=0.001
-        )
+        result = assessor.assess(bid=1.090, ask=1.085, expected_spread_max=0.001)
         dims = {d.dimension: d for d in result.dimensions}
         assert dims["spread"].status == DimensionStatus.FAIL
 
@@ -144,25 +135,19 @@ class TestPlausibilityDimension:
 
     def test_price_in_range(self) -> None:
         assessor = DataQualityAssessor("EURUSD")
-        result = assessor.assess(
-            bid=1.085, ask=1.086, price_low=0.5, price_high=2.0
-        )
+        result = assessor.assess(bid=1.085, ask=1.086, price_low=0.5, price_high=2.0)
         dims = {d.dimension: d for d in result.dimensions}
         assert dims["plausibility"].status == DimensionStatus.PASS
 
     def test_price_too_low(self) -> None:
         assessor = DataQualityAssessor("EURUSD")
-        result = assessor.assess(
-            bid=0.1, ask=0.2, price_low=0.5, price_high=2.0
-        )
+        result = assessor.assess(bid=0.1, ask=0.2, price_low=0.5, price_high=2.0)
         dims = {d.dimension: d for d in result.dimensions}
         assert dims["plausibility"].status == DimensionStatus.FAIL
 
     def test_price_too_high(self) -> None:
         assessor = DataQualityAssessor("EURUSD")
-        result = assessor.assess(
-            bid=5.0, ask=5.1, price_low=0.5, price_high=2.0
-        )
+        result = assessor.assess(bid=5.0, ask=5.1, price_low=0.5, price_high=2.0)
         dims = {d.dimension: d for d in result.dimensions}
         assert dims["plausibility"].status == DimensionStatus.FAIL
 

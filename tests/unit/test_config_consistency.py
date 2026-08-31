@@ -34,28 +34,28 @@ class TestConfigLoading:
         assert config.broker.broker_name == "exness"
 
     def test_live_risk_config_loads(self):
-        """live_risk section must load from TOML."""
+        """live_risk config must load expected limits."""
         config = load_config("production")
         lr = config.live_risk
-        assert lr.max_concurrent_positions == 19
+        assert lr.max_concurrent_positions == 20
         assert lr.max_position_notional == 2500.0
         assert lr.max_daily_loss == 250.0
         assert lr.min_equity == 4000.0
         assert lr.t0_equity == 5010.94
 
     def test_strategy_config_loads_r4_params(self):
-        """Strategy config must include R4-specific parameters."""
+        """strategy config must load frozen R4 parameters."""
         config = load_config("production")
-        s = config.strategy
-        assert s.signal_lookback_long == 252
-        assert s.skip_months == 1
-        assert s.vol_lookback_signal == 60
-        assert s.risk_lookback == 20
+        st = config.strategy
+        assert st.signal_lookback_long == 252
+        assert st.skip_months == 1
+        assert st.vol_lookback_signal == 60
+        assert st.risk_lookback == 20
 
     def test_execution_config_loads_max_orders(self):
-        """Execution config must include max_orders_per_cycle."""
+        """execution config must load max_orders_per_cycle."""
         config = load_config("production")
-        assert config.execution.max_orders_per_cycle == 19
+        assert config.execution.max_orders_per_cycle == 20
 
 
 class TestLiveRiskFingerprint:
@@ -87,15 +87,15 @@ class TestConfigVsScriptConsistency:
         """Eligible symbols should be derived from broker config."""
         config = load_config("production")
         eligible = [sym for sym, cls in config.broker.allowed_symbols.items() if not cls.endswith("_excluded")]
-        # Must include core forex pairs
-        for sym in ["EURUSD", "GBPUSD", "AUDUSD", "USDCHF"]:
+        # Must include core forex pairs and USTEC
+        for sym in ["EURUSD", "GBPUSD", "AUDUSD", "USDCHF", "USTEC"]:
             assert sym in eligible, f"{sym} missing from eligible symbols"
 
     def test_risk_envelope_from_config(self):
         """RiskEnvelope values must match live_risk config."""
         config = load_config("production")
         lr = config.live_risk
-        assert lr.max_concurrent_positions == 19
+        assert lr.max_concurrent_positions == 20
         assert lr.max_position_notional == 2500.0
         assert lr.max_daily_loss == 250.0
         assert lr.min_equity == 4000.0
@@ -106,7 +106,7 @@ class TestConfigVsScriptConsistency:
         config = load_config("production")
         assert config.capital.max_equity == 5100.0
         assert config.capital.max_position_size == 5000.0
-        assert config.capital.max_concurrent_positions == 19
+        assert config.capital.max_concurrent_positions == 20
 
     def test_no_discrepancy_between_live_risk_and_capital(self):
         """live_risk.max_concurrent_positions must equal capital.max_concurrent_positions."""

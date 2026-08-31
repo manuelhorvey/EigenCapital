@@ -14,10 +14,11 @@ from __future__ import annotations
 
 import json
 import tempfile
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+
+from eigencapital.live.risk_observation import RiskObserver
 
 
 @pytest.fixture
@@ -31,7 +32,7 @@ def tmp_state_dir(tmp_path: Path) -> Path:
 class TestMAEMFETracking:
     """Verify per-position MAE/MFE tracking in RiskObserver."""
 
-    def _make_observer(self, state_dir: Path) -> "RiskObserver":
+    def _make_observer(self, state_dir: Path) -> RiskObserver:
         """Create a RiskObserver with temp excursion path."""
         from eigencapital.live.risk_observation import RiskObserver
 

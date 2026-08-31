@@ -19,7 +19,6 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from eigencapital.core.data_quality import (
-    DataQualityAssessor,
     ExpectedDataState,
     MarketDataBridge,
     QualityGrade,
@@ -28,24 +27,16 @@ from eigencapital.core.data_truth import (
     SOURCE_BROKER,
     SOURCE_DERIVED,
     MetricName,
+    TruthfulValue,
     TruthLevel,
     TruthRegistry,
-    TruthfulValue,
 )
 from eigencapital.core.market_schedule import (
-    MarketAvailability,
-    MarketSchedule,
-    MarketState,
-    SessionType,
-    TradingSession,
     crypto_24_7_schedule,
     fx_weekday_schedule,
-    MaintenanceWindow,
 )
 from eigencapital.core.no_silent_degradation import (
-    DegradedState,
     DegradationViolation,
-    TransformationCheck,
     guard_not_degraded,
     guard_not_none,
     guard_not_zero,
@@ -54,8 +45,6 @@ from eigencapital.core.no_silent_degradation import (
     no_silent_degradation,
     validate_transformation,
 )
-from datetime import time as dt_time
-
 
 # ═══════════════════════════════════════════════════════════════════
 # Integration: MarketSchedule + DataQuality Bridge
@@ -522,12 +511,8 @@ class TestDataTruthIntegration:
 
     def test_registry_tracks_all_metrics(self) -> None:
         reg = TruthRegistry()
-        reg.register(
-            MetricName.EQUITY, 5000, TruthLevel.AUTHORITATIVE, SOURCE_BROKER
-        )
-        reg.register(
-            MetricName.DRAWDOWN, None, TruthLevel.UNAVAILABLE, SOURCE_DERIVED
-        )
+        reg.register(MetricName.EQUITY, 5000, TruthLevel.AUTHORITATIVE, SOURCE_BROKER)
+        reg.register(MetricName.DRAWDOWN, None, TruthLevel.UNAVAILABLE, SOURCE_DERIVED)
 
         assert len(reg) == 2
         unreliable = reg.get_unreliable()

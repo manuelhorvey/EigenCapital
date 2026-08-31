@@ -272,6 +272,18 @@ description = "US30 Dow Jones index CFD"
 open = "23:00"
 close = "20:00"
 
+[instruments.USTEC]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "indices"
+description = "USTEC US Tech 100 index CFD"
+
+[instruments.USTEC.sessions]
+open = "23:00"
+close = "20:00"
+
 # ═══════════════════════════════════════════════════════════════════
 # Energy — WEEKDAY
 # ═══════════════════════════════════════════════════════════════════

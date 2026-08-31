@@ -12,10 +12,6 @@ These tests verify:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import get_type_hints
-
-import pytest
-
 
 # ═══════════════════════════════════════════════════════════════════
 # DTO Contract Tests
@@ -609,9 +605,7 @@ class TestReadOnlyGuarantee:
             for route in router.routes:
                 if hasattr(route, "methods"):
                     overlap = route.methods & mutation_methods
-                    assert not overlap, (
-                        f"Mutation method {overlap} found on {route.path} in {router_module.__name__}"
-                    )
+                    assert not overlap, f"Mutation method {overlap} found on {route.path} in {router_module.__name__}"
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -817,9 +811,7 @@ class TestHealthDimensions:
         service = DashboardStateService()
         health = service.get_system_health()
         for dim in health["dimensions"]:
-            assert dim["state"] in valid_states, (
-                f"Invalid state '{dim['state']}' in dimension '{dim['dimension']}'"
-            )
+            assert dim["state"] in valid_states, f"Invalid state '{dim['state']}' in dimension '{dim['dimension']}'"
 
     def test_blocking_dimensions_from_data(self) -> None:
         """Blocking dimensions must be derived from actual data, not hardcoded."""
@@ -830,9 +822,7 @@ class TestHealthDimensions:
         # Blocking dimensions should only contain dimensions that exist in the list
         dim_names = {d["dimension"] for d in health["dimensions"]}
         for blocking in health["blocking_dimensions"]:
-            assert blocking in dim_names, (
-                f"Blocking dimension '{blocking}' not in dimensions list {dim_names}"
-            )
+            assert blocking in dim_names, f"Blocking dimension '{blocking}' not in dimensions list {dim_names}"
 
     def test_health_overall_state_derived_from_dimensions(self) -> None:
         """Overall state must be consistent with dimension states."""
@@ -887,9 +877,7 @@ class TestHealthDimensions:
         assert len(health["dimensions"]) > 0
         # Each dimension should have a short enough name for the grid
         for dim in health["dimensions"]:
-            assert len(dim["dimension"]) <= 30, (
-                f"Dimension name '{dim['dimension']}' too long for grid display"
-            )
+            assert len(dim["dimension"]) <= 30, f"Dimension name '{dim['dimension']}' too long for grid display"
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -902,8 +890,9 @@ class TestDashboardSecurity:
 
     def test_no_mutation_imports(self) -> None:
         """Dashboard code must not import trading execution modules."""
-        import eigencapital.dashboard.services.dashboard_state as ds_module
         import inspect
+
+        import eigencapital.dashboard.services.dashboard_state as ds_module
 
         source = inspect.getsource(ds_module)
         dangerous_imports = [

@@ -15,9 +15,7 @@ from __future__ import annotations
 import asyncio
 import gc
 import json
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
+from unittest.mock import AsyncMock
 
 
 def _run(coro):
@@ -257,9 +255,7 @@ class TestResourceLeakDetection:
 
         gc.collect()
         refs_after = len(gc.get_referrers(cm))
-        assert refs_after - refs_before < 5, (
-            f"Reference leak: {refs_before} -> {refs_after}"
-        )
+        assert refs_after - refs_before < 5, f"Reference leak: {refs_before} -> {refs_after}"
 
     def test_broadcast_cleans_on_error(self) -> None:
         """Broadcast errors should clean up dead connections immediately."""

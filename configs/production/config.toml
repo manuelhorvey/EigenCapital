@@ -24,6 +24,7 @@ max_volume = 1.0          # Maximum lot size
 [broker.allowed_symbols]
 
 US30 = "indices"          # min lot $2,675 (fits $5K cap)
+USTEC = "indices"         # min lot fits campaign position limit
 USOIL = "energy"          # min lot fits $5K cap
 AUDJPY = "forex_excluded"  # min lot $114K (JPY)
 AUDUSD = "forex"          # min lot $716
@@ -68,7 +69,7 @@ max_daily_loss = 250.0           # $250 max daily loss
 max_total_drawdown = 1000.0      # $1,000 max total drawdown
 max_position_size = 5000.0       # $5,000 max position (fits XAUUSD $4,627 + US30 $2,687)
 max_order_notional = 5000.0      # $5,000 max order
-max_concurrent_positions = 19    # Maximum open positions (24 tradeable at $5K cap)
+max_concurrent_positions = 20    # Maximum open positions (24 tradeable at $5K cap)
 campaign_duration_days = 30      # 30-day qualification window
 max_spread = 0.0015              # Spread limit for capital checks (forex)
 max_slippage = 0.0008            # Slippage limit for capital checks
@@ -119,7 +120,7 @@ slippage_bps = 5.0               # 5 bps slippage
 # Live trading risk envelope — qualification-specific limits
 # These are STRICTER than the general [risk] section
 # and are the AUTHORITATIVE source for the rebalance loop
-max_concurrent_positions = 19
+max_concurrent_positions = 20
 max_position_notional = 2500.0
 max_order_notional = 2500.0
 max_per_position_loss_pct = 0.10
@@ -142,7 +143,7 @@ max_chase_attempts = 2           # Max chase attempts for partial fills
 max_age_seconds = 60.0           # Max age for unfilled orders
 max_cumulative_slippage_bps = 15.0 # Max cumulative slippage
 max_order_frequency = 10         # Max orders per hour
-max_orders_per_cycle = 19        # Max orders per rebalance cycle (all R4 signals)
+max_orders_per_cycle = 20        # Max orders per rebalance cycle (all R4 signals)
 loop_interval_seconds = 3600     # Default loop interval (1 hour)
 
 [alerts]

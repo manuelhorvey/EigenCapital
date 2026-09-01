@@ -405,8 +405,14 @@ class PortfolioDiagnostics:
     long_count: int
     short_count: int
 
+    # Methodology metadata
+    analytics_version: str = "1.0"
+    state_label: str = "pre_trade"  # pre_trade | post_trade | hypothetical
+
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "analytics_version": self.analytics_version,
+            "state_label": self.state_label,
             "timestamp": self.timestamp,
             "equity": self.equity,
             "position_count": self.position_count,
@@ -663,6 +669,8 @@ class PortfolioAnalyzer:
                     timestamp=data.get("timestamp", ""),
                     equity=data.get("equity", 0),
                     position_count=data.get("position_count", 0),
+                    analytics_version=data.get("analytics_version", "1.0"),
+                    state_label=data.get("state_label", "pre_trade"),
                     gross_exposure=data.get("gross_exposure", 0),
                     net_exposure=data.get("net_exposure", 0),
                     long_exposure=data.get("long_exposure", 0),

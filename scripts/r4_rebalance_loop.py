@@ -285,7 +285,9 @@ def fetch_d1_data(mt5, symbols: List[str], bars: int | None = None) -> Dict[str,
     return data
 
 
-def compute_r4_signal(data: Dict[str, pd.DataFrame], force_regime: bool = False) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+def compute_r4_signal(
+    data: Dict[str, pd.DataFrame], force_regime: bool = False
+) -> Tuple[pd.DataFrame, Dict[str, Any], pd.DataFrame]:
     """Frozen R4 signal — matches the research script exactly.
 
     Signal = (12-1 month momentum) → cross-sectional ranks → centered weights
@@ -346,7 +348,7 @@ def compute_r4_signal(data: Dict[str, pd.DataFrame], force_regime: bool = False)
         "signal_date": str(fin.index[-1].date()),
     }
 
-    return latest, diag
+    return latest, diag, returns_df
 
 
 # ── Order Generation ───────────────────────────────────────────────
@@ -861,7 +863,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             return {"status": "SKIP", "reason": "insufficient_data"}
 
     # 2. Compute signal
-    target_weights, diag = compute_r4_signal(data, force_regime)
+    target_weights, diag, returns_df = compute_r4_signal(data, force_regime)
 
     log(
         f"Signal: {diag['signal_date']} | Regime: {'ON' if diag['regime_on'] else 'OFF'} | "
@@ -1119,17 +1121,22 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             equity=equity,
             order_count=len(orders),
             order_symbols=[o[0] for o in orders],
+            returns_history=returns_df,
         )
         _analyzer.record(_diagnostics)
         corr_bets = _diagnostics.correlation_diagnostics.get("effective_bets", 0)
-        log(f"  📊 Portfolio: {_diagnostics.position_count} pos, "
+        log(
+            f"  📊 Portfolio: {_diagnostics.position_count} pos, "
             f"gross={_diagnostics.gross_leverage:.2f}x, "
             f"net={_diagnostics.net_leverage:.2f}x, "
             f"eff_positions={_diagnostics.effective_positions:.1f}, "
-            f"eff_bets={corr_bets:.1f}")
+            f"eff_bets={corr_bets:.1f}"
+        )
         if _diagnostics.largest_currency_factor:
-            log(f"  📊 Largest factor: {_diagnostics.largest_currency_factor} "
-                f"({_diagnostics.largest_currency_factor_pct:+.1%})")
+            log(
+                f"  📊 Largest factor: {_diagnostics.largest_currency_factor} "
+                f"({_diagnostics.largest_currency_factor_pct:+.1%})"
+            )
     except Exception as e:
         log(f"  ⚠️ Shadow analytics failed (non-blocking): {e}")
 

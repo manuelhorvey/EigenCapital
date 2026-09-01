@@ -1106,13 +1106,38 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         audit({"event": "aligned", "positions": len(pos_list), "diag": diag})
         return {"status": "ALIGNED", "diag": diag}
 
-    # 7. Display plan
+    # 7. Shadow portfolio analytics (read-only — no impact on orders)
+    try:
+        from eigencapital.live.portfolio_analytics import PortfolioAnalyzer
+
+        _analyzer = PortfolioAnalyzer(audit_dir=AUDIT_DIR)
+        _diagnostics = _analyzer.compute_diagnostics(
+            target_weights=target_weights,
+            current_positions=current_lots,
+            prices=prices,
+            contract_sizes=contract_sizes,
+            equity=equity,
+            order_count=len(orders),
+            order_symbols=[o[0] for o in orders],
+        )
+        _analyzer.record(_diagnostics)
+        log(f"  📊 Portfolio: {_diagnostics.position_count} pos, "
+            f"gross={_diagnostics.gross_leverage:.2f}x, "
+            f"net={_diagnostics.net_leverage:.2f}x, "
+            f"effective_bets={_diagnostics.effective_bets:.1f}")
+        if _diagnostics.largest_currency_factor:
+            log(f"  📊 Largest factor: {_diagnostics.largest_currency_factor} "
+                f"({_diagnostics.largest_currency_factor_pct:+.1%})")
+    except Exception as e:
+        log(f"  ⚠️ Shadow analytics failed (non-blocking): {e}")
+
+    # 8. Display plan
     log(f"Orders: {len(orders)}")
     for sym, side, lots, reason, ticket in orders:
         verb = "CLOSE" if ticket is not None else side
         log(f"  → {verb} {lots:.2f} {sym} ({reason})")
 
-    # 8. Execute
+    # 9. Execute
     if dry_run:
         log("📋 DRY RUN — no orders submitted")
         audit({"event": "dry_run", "orders": len(orders), "diag": diag})

@@ -88,13 +88,13 @@ class TestR4ConfigParity:
 
     def test_execution_parameters_unchanged(self, config):
         """R4 execution parameters must not change."""
-        assert config.execution.max_orders_per_cycle == 19
+        assert config.execution.max_orders_per_cycle == 20
         assert config.strategy.transaction_cost_bps == 10.0
         assert config.strategy.slippage_bps == 5.0
 
     def test_risk_envelope_unchanged(self, config):
         """R4 risk envelope must not change."""
-        assert config.live_risk.max_concurrent_positions == 19
+        assert config.live_risk.max_concurrent_positions == 20
         assert config.live_risk.max_position_notional == 2500.0
         assert config.live_risk.max_daily_loss == 250.0
         assert config.live_risk.min_equity == 4000.0

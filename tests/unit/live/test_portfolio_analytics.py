@@ -796,3 +796,111 @@ class TestCounterfactuals:
             # Weights should sum to approximately 1
             total = sum(abs(w) for w in iv["weights"].values())
             assert 0.9 <= total <= 1.1
+
+
+# ── Integration Test ─────────────────────────────────────────────
+
+
+class TestIntegration:
+    """Verify full path: computation → DTO → JSONL → read-back.
+
+    This catches mismatches between what compute_diagnostics returns
+    and what the rebalance loop (or other consumers) expect.
+    """
+
+    def test_full_pipeline_serialization_roundtrip(self, tmp_path):
+        """compute → record → read-back → verify all fields survive."""
+        analyzer = PortfolioAnalyzer(audit_dir=str(tmp_path))
+
+        # Use correlated returns to trigger correlation diagnostics
+        np.random.seed(42)
+        dates = pd.date_range("2026-01-01", periods=60)
+        returns = pd.DataFrame(
+            np.random.randn(60, 5) * 0.005,
+            index=dates,
+            columns=["EURUSD", "GBPUSD", "AUDUSD", "USDCHF", "USDCAD"],
+        )
+        returns["GBPUSD"] = returns["EURUSD"] * 0.8 + np.random.randn(60) * 0.001
+
+        current = {
+            "EURUSD": 0.01,
+            "GBPUSD": 0.01,
+            "AUDUSD": 0.01,
+            "USDCHF": -0.01,
+            "USDCAD": -0.01,
+        }
+        weights = pd.Series(
+            {
+                "EURUSD": 0.20,
+                "GBPUSD": 0.18,
+                "AUDUSD": 0.15,
+                "USDCHF": -0.15,
+                "USDCAD": -0.12,
+            }
+        )
+        prices = {"EURUSD": 1.08, "GBPUSD": 1.27, "AUDUSD": 0.65, "USDCHF": 0.88, "USDCAD": 1.36}
+        cs = {s: 100000 for s in prices}
+
+        # 1. Compute
+        diag = analyzer.compute_diagnostics(
+            weights,
+            current,
+            prices,
+            cs,
+            5000.0,
+            returns_history=returns,
+        )
+
+        # 2. Verify critical fields exist on the DTO
+        assert hasattr(diag, "effective_positions")
+        assert hasattr(diag, "herfindahl_index")
+        assert hasattr(diag, "gross_leverage")
+        assert hasattr(diag, "net_leverage")
+        assert hasattr(diag, "currency_exposure")
+        assert hasattr(diag, "correlation_diagnostics")
+        assert hasattr(diag, "counterfactuals")
+        assert hasattr(diag, "long_count")
+        assert hasattr(diag, "short_count")
+
+        # 3. Verify correlation diagnostics have effective_bets
+        cd = diag.correlation_diagnostics
+        assert "effective_bets" in cd
+        assert cd["effective_bets"] > 0
+
+        # 4. Record to JSONL
+        analyzer.record(diag)
+
+        # 5. Read back and verify all fields survive roundtrip
+        latest = analyzer.get_latest()
+        assert latest is not None
+        assert latest.effective_positions == diag.effective_positions
+        assert latest.gross_leverage == diag.gross_leverage
+        assert latest.net_leverage == diag.net_leverage
+        assert latest.currency_exposure == diag.currency_exposure
+        assert latest.correlation_diagnostics["effective_bets"] == cd["effective_bets"]
+        assert latest.long_count == diag.long_count
+        assert latest.short_count == diag.short_count
+
+    def test_rebalance_loop_log_fields_exist(self, tmp_path):
+        """Verify the fields the rebalance loop logs actually exist on the DTO."""
+        analyzer = PortfolioAnalyzer(audit_dir=str(tmp_path))
+
+        current = {"EURUSD": 0.01, "GBPUSD": 0.01}
+        weights = pd.Series({"EURUSD": 0.50, "GBPUSD": 0.50})
+        prices = {"EURUSD": 1.08, "GBPUSD": 1.27}
+        cs = {"EURUSD": 100000, "GBPUSD": 100000}
+
+        diag = analyzer.compute_diagnostics(weights, current, prices, cs, 5000.0)
+
+        # These are the exact fields the rebalance loop logs
+        assert hasattr(diag, "position_count")
+        assert hasattr(diag, "gross_leverage")
+        assert hasattr(diag, "net_leverage")
+        assert hasattr(diag, "effective_positions")
+        assert hasattr(diag, "correlation_diagnostics")
+        assert hasattr(diag, "largest_currency_factor")
+        assert hasattr(diag, "largest_currency_factor_pct")
+
+        # effective_bets comes from correlation_diagnostics, not top-level
+        corr_bets = diag.correlation_diagnostics.get("effective_bets", 0)
+        assert isinstance(corr_bets, (int, float))

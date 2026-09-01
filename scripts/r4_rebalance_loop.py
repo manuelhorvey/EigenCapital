@@ -1121,10 +1121,12 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             order_symbols=[o[0] for o in orders],
         )
         _analyzer.record(_diagnostics)
+        corr_bets = _diagnostics.correlation_diagnostics.get("effective_bets", 0)
         log(f"  📊 Portfolio: {_diagnostics.position_count} pos, "
             f"gross={_diagnostics.gross_leverage:.2f}x, "
             f"net={_diagnostics.net_leverage:.2f}x, "
-            f"effective_bets={_diagnostics.effective_bets:.1f}")
+            f"eff_positions={_diagnostics.effective_positions:.1f}, "
+            f"eff_bets={corr_bets:.1f}")
         if _diagnostics.largest_currency_factor:
             log(f"  📊 Largest factor: {_diagnostics.largest_currency_factor} "
                 f"({_diagnostics.largest_currency_factor_pct:+.1%})")

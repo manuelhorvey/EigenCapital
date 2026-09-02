@@ -4,6 +4,25 @@ All notable changes to EigenCapital will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [v0.5.0] - 2026-09-01
+
+### Added
+- **R4 live barbell portfolio**: 20-position structure with long risk assets + short safe havens
+  - LONG: USTEC (+17.3%), US30 (+7.5%), USOIL (+20.0%) + 12 FX pairs
+  - SHORT: XAUUSD (-19.7%), BTCUSD (-10.0%) + 5 FX pairs
+- **Shadow portfolio analytics**: Real-time diagnostics (gross/net leverage, effective positions, correlation bets) wired into rebalance loop as read-only observer
+- **Portfolio analytics versioning**: Added `version` field and `returns_history` wiring to `PortfolioDiagnostics`
+
+### Changed
+- Campaign tag: `R4-5K-20260827` — evidence trail continues unmodified
+- Strategy version: R4.0 (frozen, immutable)
+
+### Architecture
+- Barbell structure validated: R4 signal weights confirm conviction (USOIL +20%, XAUUSD -19.7%, BTCUSD -10%)
+- All 20 positions have SL protection, R4 magic (20260825), and verified fingerprints
+- Regime: ON (vol 7.6% < median 8.2%)
+- Account equity: ~$5,079 | Balance: $5,001
+
 ## [v0.4.0] - 2026-08-29
 
 ### Added

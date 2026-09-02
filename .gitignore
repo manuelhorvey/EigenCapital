@@ -52,6 +52,8 @@ data/features/
 reports/r4_loop/
 reports/r4_qualification/evidence/
 reports/r4_qualification/T0_*.json
+reports/r4_qualification/supervisor_dryrun_*.json
+reports/r4_qualification/supervisor_dryrun_*.md
 reports/r4_qualification/qualification_status.json
 reports/alerts.jsonl
 reports/r4_safety/safety_audit.jsonl

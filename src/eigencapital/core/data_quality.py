@@ -172,8 +172,25 @@ class DataQualityAssessor:
         )
     """
 
-    def __init__(self, instrument: str) -> None:
+    def __init__(
+        self,
+        instrument: str,
+        *,
+        thresholds: Dict[str, Any] | None = None,
+        asset_class: str | None = None,
+    ) -> None:
+        """Initialize assessor for an instrument.
+
+        Freshness tolerances default to 30s (warn) / 120s (fail) but can be
+        overridden per instrument via ``thresholds`` (QualityThresholds-style
+        dict) or by asset class (looked up in QualityThresholds).
+        """
         self.instrument = instrument
+        if thresholds is None and asset_class is not None:
+            thresholds = QualityThresholds.for_asset_class(asset_class)
+        thresholds = thresholds or {}
+        self._freshness_warn_seconds = float(thresholds.get("freshness_warn_seconds", 30.0))
+        self._freshness_fail_seconds = float(thresholds.get("freshness_fail_seconds", 120.0))
 
     def assess(
         self,
@@ -195,7 +212,14 @@ class DataQualityAssessor:
         dimensions: List[DimensionResult] = []
 
         # 1. Freshness
-        dimensions.append(self._check_freshness(price_timestamp, now))
+        dimensions.append(
+            self._check_freshness(
+                price_timestamp,
+                now,
+                warn_seconds=self._freshness_warn_seconds,
+                fail_seconds=self._freshness_fail_seconds,
+            )
+        )
 
         # 2. Completeness
         dimensions.append(self._check_completeness(bid, ask, mid, volume))
@@ -233,8 +257,18 @@ class DataQualityAssessor:
             source=actual_source or "",
         )
 
-    def _check_freshness(self, ts: datetime | None, now: datetime) -> DimensionResult:
-        """Is data recent?"""
+    def _check_freshness(
+        self,
+        ts: datetime | None,
+        now: datetime,
+        warn_seconds: float = 30.0,
+        fail_seconds: float = 120.0,
+    ) -> DimensionResult:
+        """Is data recent?
+
+        Thresholds default to 30s (warn) / 120s (fail) and are overridable
+        per instrument (Q9) — see __init__ thresholds/asset_class args.
+        """
         if ts is None:
             return DimensionResult(
                 dimension="freshness",
@@ -245,7 +279,7 @@ class DataQualityAssessor:
 
         age = (now - ts).total_seconds()
 
-        if age < 30:
+        if age < warn_seconds:
             return DimensionResult(
                 dimension="freshness",
                 status=DimensionStatus.PASS,
@@ -253,11 +287,12 @@ class DataQualityAssessor:
                 message=f"Data is {age:.0f}s old",
                 details={"age_seconds": age},
             )
-        elif age < 120:
+        elif age < fail_seconds:
+            score = max(0.0, 1.0 - (age - warn_seconds) / max(fail_seconds - warn_seconds, 1.0))
             return DimensionResult(
                 dimension="freshness",
                 status=DimensionStatus.WARN,
-                score=max(0.0, 1.0 - (age - 30) / 90),
+                score=score,
                 message=f"Data is {age:.0f}s old (approaching stale)",
                 details={"age_seconds": age},
             )
@@ -449,7 +484,12 @@ class DataQualityAssessor:
                 message="Insufficient timestamps for check",
             )
 
-        sorted_ts = sorted(timestamps)
+        # Avoid re-sorting when input is already monotonic (P2) — the
+        # timestamp_integrity dimension already scans the same list.
+        if all(timestamps[i] <= timestamps[i + 1] for i in range(len(timestamps) - 1)):
+            sorted_ts = timestamps
+        else:
+            sorted_ts = sorted(timestamps)
         gaps: List[float] = []
         for i in range(1, len(sorted_ts)):
             gap = (sorted_ts[i] - sorted_ts[i - 1]).total_seconds()

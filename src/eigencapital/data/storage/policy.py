@@ -288,7 +288,7 @@ class DatasetStore:
     @staticmethod
     def _require_pandas() -> Any:
         try:
-            import pandas  # type: ignore[import-untyped]
+            import pandas
         except ImportError as e:
             raise StorageEngineUnavailableError(StorageFormat.PARQUET) from e
         return pandas

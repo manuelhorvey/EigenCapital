@@ -88,20 +88,20 @@ class PaperBroker:
         if order.quantity <= 0:
             raise BrokerError(f"Order quantity must be positive, got {order.quantity}")
 
-        if order.instrument_id in self._order_states:
-            existing = self._order_states[order.instrument_id]
+        if order.order_id in self._order_states:
+            existing = self._order_states[order.order_id]
             if existing in (
                 OrderLifecycleState.SUBMITTED,
                 OrderLifecycleState.PARTIALLY_FILLED,
             ):
-                raise BrokerError(f"Order already active for {order.instrument_id}: {existing.value}")
+                raise BrokerError(f"Order already active: {existing.value}")
 
         # Store order
-        self._orders[order.instrument_id] = order
-        self._order_states[order.instrument_id] = OrderLifecycleState.SUBMITTED
-        self._fills[order.instrument_id] = []
+        self._orders[order.order_id] = order
+        self._order_states[order.order_id] = OrderLifecycleState.SUBMITTED
+        self._fills[order.order_id] = []
 
-        return order.instrument_id
+        return order.order_id
 
     def generate_fill(
         self,
@@ -195,10 +195,12 @@ class PaperBroker:
         self._positions[instrument] = new_position
 
         # Update cash (simplified — assumes no margin)
+        # Include commission in cash accounting
+        commission = fill.commission or 2.50  # default commission if not specified
         if order.side == "BUY":
-            self._cash -= fill.quantity * fill.fill_price
+            self._cash -= fill.quantity * fill.fill_price + commission
         else:
-            self._cash += fill.quantity * fill.fill_price
+            self._cash += fill.quantity * fill.fill_price - commission
 
     def cancel_order(self, order_id: str) -> bool:
         """Request order cancellation."""

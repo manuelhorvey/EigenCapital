@@ -127,6 +127,8 @@ class PositionManager:
             else:
                 realized = closed_qty * (pos.average_entry_price - fill.fill_price)
             pos.realized_pnl += realized
+            # Reset average_entry_price when position is fully closed
+            pos.average_entry_price = 0.0
 
         # Update average entry price for increasing positions
         if abs(new_quantity) > abs(old_quantity) and old_quantity != 0:

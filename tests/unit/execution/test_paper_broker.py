@@ -55,39 +55,41 @@ class TestPaperBroker:
         broker = PaperBroker()
         order = _make_order()
         order_id = broker.submit_order(order)
-        assert order_id == "ES"
-        assert broker.get_order_state("ES") == OrderLifecycleState.SUBMITTED
+        # Orders are keyed by order_id (not instrument_id) so multiple orders
+        # for the same instrument can coexist.
+        assert order_id == order.order_id
+        assert broker.get_order_state(order.order_id) == OrderLifecycleState.SUBMITTED
 
     def test_generate_fill(self):
         broker = PaperBroker()
         order = _make_order(quantity=10, price=5000)
         broker.submit_order(order)
-        fill = broker.generate_fill("ES", fill_price=5005)
+        fill = broker.generate_fill(order.order_id, fill_price=5005)
         assert fill.quantity == 10
-        assert broker.get_order_state("ES") == OrderLifecycleState.FILLED
+        assert broker.get_order_state(order.order_id) == OrderLifecycleState.FILLED
 
     def test_partial_fill(self):
         broker = PaperBroker()
         order = _make_order(quantity=100, price=5000)
         broker.submit_order(order)
-        fill1 = broker.generate_fill("ES", fill_price=5000, fill_quantity=40)
+        fill1 = broker.generate_fill(order.order_id, fill_price=5000, fill_quantity=40)
         assert fill1.quantity == 40
-        assert broker.get_order_state("ES") == OrderLifecycleState.PARTIALLY_FILLED
+        assert broker.get_order_state(order.order_id) == OrderLifecycleState.PARTIALLY_FILLED
 
-        fill2 = broker.generate_fill("ES", fill_price=5001, fill_quantity=60)
+        fill2 = broker.generate_fill(order.order_id, fill_price=5001, fill_quantity=60)
         assert fill2.quantity == 60
-        assert broker.get_order_state("ES") == OrderLifecycleState.FILLED
+        assert broker.get_order_state(order.order_id) == OrderLifecycleState.FILLED
 
     def test_fill_sum_never_exceeds_order(self):
         """Aggregate fills must not exceed order quantity."""
         broker = PaperBroker()
         order = _make_order(quantity=100, price=5000)
         broker.submit_order(order)
-        broker.generate_fill("ES", fill_price=5000, fill_quantity=60)
-        broker.generate_fill("ES", fill_price=5001, fill_quantity=50)  # Only 40 remaining
+        broker.generate_fill(order.order_id, fill_price=5000, fill_quantity=60)
+        broker.generate_fill(order.order_id, fill_price=5001, fill_quantity=50)  # Only 40 remaining
 
         # Total fills should be 100, not 110
-        fills = broker._fills["ES"]
+        fills = broker._fills[order.order_id]
         total = sum(f.quantity for f in fills)
         assert total <= 100
 
@@ -95,17 +97,17 @@ class TestPaperBroker:
         broker = PaperBroker()
         order = _make_order()
         broker.submit_order(order)
-        result = broker.reject_order("ES", "insufficient margin")
+        result = broker.reject_order(order.order_id, "insufficient margin")
         assert result is True
-        assert broker.get_order_state("ES") == OrderLifecycleState.REJECTED
+        assert broker.get_order_state(order.order_id) == OrderLifecycleState.REJECTED
 
     def test_cancel_order(self):
         broker = PaperBroker()
         order = _make_order()
         broker.submit_order(order)
-        result = broker.cancel_order("ES")
+        result = broker.cancel_order(order.order_id)
         assert result is True
-        assert broker.get_order_state("ES") == OrderLifecycleState.CANCELLED
+        assert broker.get_order_state(order.order_id) == OrderLifecycleState.CANCELLED
 
     def test_invalid_quantity_rejected(self):
         PaperBroker()
@@ -123,12 +125,42 @@ class TestPaperBroker:
             )
 
     def test_duplicate_order_rejected(self):
+        """Two orders with the same order_id must not both be active."""
         broker = PaperBroker()
         order1 = _make_order(quantity=10)
         order2 = _make_order(quantity=20)
         broker.submit_order(order1)
         with pytest.raises(BrokerError, match="already active"):
             broker.submit_order(order2)
+
+    def test_multiple_orders_same_instrument(self):
+        """Two orders for the same instrument with different order_ids coexist."""
+        broker = PaperBroker()
+        order1 = Order(
+            order_id="ORD-ES-1",
+            instrument_id="ES",
+            side="BUY",
+            quantity=10,
+            timestamp_utc="2025-01-15T10:00:00Z",
+            order_type="LIMIT",
+            limit_price=5000,
+            strategy_id="test_strategy",
+        )
+        order2 = Order(
+            order_id="ORD-ES-2",
+            instrument_id="ES",
+            side="BUY",
+            quantity=5,
+            timestamp_utc="2025-01-15T10:01:00Z",
+            order_type="LIMIT",
+            limit_price=5000,
+            strategy_id="test_strategy",
+        )
+        broker.submit_order(order1)
+        broker.submit_order(order2)
+        assert broker.get_order_state("ORD-ES-1") == OrderLifecycleState.SUBMITTED
+        assert broker.get_order_state("ORD-ES-2") == OrderLifecycleState.SUBMITTED
+        assert len(broker.get_open_orders()) == 2
 
     def test_fill_on_nonexistent_order(self):
         broker = PaperBroker()
@@ -139,7 +171,7 @@ class TestPaperBroker:
         broker = PaperBroker()
         order = _make_order(side="BUY", quantity=10, price=5000)
         broker.submit_order(order)
-        broker.generate_fill("ES", fill_price=5000)
+        broker.generate_fill(order.order_id, fill_price=5000)
         positions = broker.get_positions()
         assert positions["ES"] == 10.0
 
@@ -147,8 +179,8 @@ class TestPaperBroker:
         broker = PaperBroker(initial_capital=100000)
         order = _make_order(side="BUY", quantity=10, price=5000)
         broker.submit_order(order)
-        broker.generate_fill("ES", fill_price=5000)
-        # Cash should decrease by 10 * 5000 = 50000
+        broker.generate_fill(order.order_id, fill_price=5000)
+        # Cash should decrease by 10 * 5000 (notional) + commission
         assert broker.get_cash() < 100000
 
     def test_account_snapshot(self):
@@ -168,7 +200,7 @@ class TestPaperBroker:
         broker = PaperBroker()
         order = _make_order()
         broker.submit_order(order)
-        broker.generate_fill("ES", fill_price=5000)
+        broker.generate_fill(order.order_id, fill_price=5000)
         broker.reset()
         assert broker.get_cash() == 100000
         assert len(broker.get_open_orders()) == 0

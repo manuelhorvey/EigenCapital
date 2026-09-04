@@ -125,7 +125,11 @@ ORDER_INTENT_FILE = os.path.join(AUDIT_DIR, "order_intents.jsonl")  # EC-AUD-004
 
 _shutdown = False
 _cycle_counter = 0  # EC-AUD-004: monotonic cycle counter for intent correlation
-_risk_enforcer = RiskEnforcer(RISK_ENVELOPE)
+_risk_enforcer = RiskEnforcer(
+    RISK_ENVELOPE,
+    audit_log_path=os.path.join(AUDIT_DIR, "risk_gate_audit.jsonl"),
+    shadow_decisions_path=os.path.join(AUDIT_DIR, "shadow_decisions.jsonl"),
+)
 _fingerprint_verifier = FingerprintVerifier(config=_config)
 _evidence_orchestrator = EvidenceOrchestrator(
     campaign_id="R4-5K-20260827",

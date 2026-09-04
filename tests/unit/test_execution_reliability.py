@@ -30,7 +30,7 @@ from eigencapital.risk.policy import RiskPolicy
 
 
 def _gate_blocked(results, reason: BlockReason) -> bool:
-    return any(r.result != GateResult.PASS and r.reason == reason for r in results)
+    return any(r.result != GateResult.PASS and r.block_reason == reason for r in results)
 
 
 def _any_blocked(results) -> bool:
@@ -178,7 +178,7 @@ class TestRiskGateEnforcement:
         for r in results:
             assert hasattr(r, "result")
             assert hasattr(r, "gate_name")
-            assert hasattr(r, "reason")
+            assert hasattr(r, "block_reason")
             assert hasattr(r, "timestamp")
 
     def test_fingerprint_gate_present(self):

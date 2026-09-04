@@ -51,12 +51,18 @@ class BlockReason(str, Enum):
 
 @dataclass(frozen=True)
 class RiskGateResult:
-    """Result of a single risk gate check."""
+    """Result of a single risk gate check.
+
+    ``block_reason`` is only populated when the gate did NOT pass (BLOCK /
+    CRITICAL) — a PASS gate has no block reason. This makes the field name
+    semantically accurate (Q6): a passing connectivity gate no longer carries
+    ``BlockReason.BROKER_DISCONNECT``.
+    """
 
     gate_name: str
     result: GateResult
-    reason: BlockReason
-    message: str
+    block_reason: BlockReason | None = None
+    message: str = ""
     details: Dict[str, Any] = field(default_factory=dict)
     broker_state_hash: str = ""
     timestamp: str = ""
@@ -65,7 +71,8 @@ class RiskGateResult:
         return {
             "gate": self.gate_name,
             "result": self.result.value,
-            "reason": self.reason.value,
+            "reason": self.block_reason.value if self.block_reason else None,
+            "blocked": self.result != GateResult.PASS,
             "message": self.message,
             "details": self.details,
             "timestamp": self.timestamp,
@@ -115,15 +122,32 @@ class RiskEnforcer:
     Returns PASS or BLOCK with exact reason.
     """
 
-    def __init__(self, envelope: RiskEnvelope | None = None, *, max_audit_entries: int = 1000) -> None:
+    def __init__(
+        self,
+        envelope: RiskEnvelope | None = None,
+        *,
+        max_audit_entries: int = 1000,
+        audit_log_path: str | None = None,
+        shadow_decisions_path: str | None = None,
+    ) -> None:
+        """Initialize enforcer.
+
+        ``audit_log_path`` / ``shadow_decisions_path`` optionally enable
+        append-only JSONL persistence (P5): in-memory history is bounded and
+        lost on restart, so long-running deployments should supply paths to
+        keep the audit trail durable.
+        """
         self._envelope = envelope or RiskEnvelope()
         self._t0_equity = self._envelope.t0_equity
         self._peak_equity = self._t0_equity
-        self._daily_pnl_start = 0.0
+        self._daily_pnl_start: float | None = None  # None = not yet initialized
+        self._daily_start_initialized = False
         self._audit_log: List[Dict[str, Any]] = []
         self._max_audit_entries = max_audit_entries
         self._shadow_decisions: List[Dict[str, Any]] = []
         self._max_shadow_decisions = 10000
+        self._audit_log_path = audit_log_path
+        self._shadow_decisions_path = shadow_decisions_path
 
     def check_all(
         self,
@@ -212,7 +236,7 @@ class RiskEnforcer:
             return RiskGateResult(
                 gate_name="broker_connectivity",
                 result=GateResult.CRITICAL,
-                reason=BlockReason.BROKER_DISCONNECT,
+                block_reason=BlockReason.BROKER_DISCONNECT,
                 message="Broker data invalid: equity and free margin both zero",
                 broker_state_hash=state_hash,
                 timestamp=now,
@@ -220,7 +244,6 @@ class RiskEnforcer:
         return RiskGateResult(
             gate_name="broker_connectivity",
             result=GateResult.PASS,
-            reason=BlockReason.BROKER_DISCONNECT,
             message="Broker data valid",
             broker_state_hash=state_hash,
             timestamp=now,
@@ -241,7 +264,7 @@ class RiskEnforcer:
             return RiskGateResult(
                 gate_name="position_count",
                 result=GateResult.CRITICAL,
-                reason=BlockReason.POSITION_COUNT_BREACH,
+                block_reason=BlockReason.POSITION_COUNT_BREACH,
                 message=f"Broker reports {current} positions, limit is {limit} — ALREADY BREACHED",
                 details={"current": current, "limit": limit, "proposed": proposed},
                 broker_state_hash=state_hash,
@@ -252,7 +275,7 @@ class RiskEnforcer:
             return RiskGateResult(
                 gate_name="position_count",
                 result=GateResult.BLOCK,
-                reason=BlockReason.MAX_CONCURRENT,
+                block_reason=BlockReason.MAX_CONCURRENT,
                 message=f"Would create position #{proposed}, limit is {limit}",
                 details={"current": current, "limit": limit, "proposed": proposed},
                 broker_state_hash=state_hash,
@@ -262,7 +285,6 @@ class RiskEnforcer:
         return RiskGateResult(
             gate_name="position_count",
             result=GateResult.PASS,
-            reason=BlockReason.MAX_CONCURRENT,
             message=f"{current}/{limit} positions — {limit - current - target_new} slots remaining",
             details={"current": current, "limit": limit, "proposed": proposed},
             broker_state_hash=state_hash,
@@ -281,7 +303,7 @@ class RiskEnforcer:
             return RiskGateResult(
                 gate_name="account_drawdown",
                 result=GateResult.BLOCK,
-                reason=BlockReason.ACCOUNT_DRAWDOWN,
+                block_reason=BlockReason.ACCOUNT_DRAWDOWN,
                 message=f"Drawdown {dd_pct:.1%} exceeds limit {self._envelope.max_account_drawdown_pct:.0%}",
                 details={
                     "drawdown": drawdown,
@@ -296,7 +318,6 @@ class RiskEnforcer:
         return RiskGateResult(
             gate_name="account_drawdown",
             result=GateResult.PASS,
-            reason=BlockReason.ACCOUNT_DRAWDOWN,
             message=f"Drawdown {dd_pct:.1%} within limit {self._envelope.max_account_drawdown_pct:.0%}",
             details={
                 "drawdown_pct": dd_pct,
@@ -308,16 +329,28 @@ class RiskEnforcer:
         )
 
     def _check_daily_loss(self, equity: float, now: str, state_hash: str) -> RiskGateResult:
-        """Gate 4: Daily loss from start-of-day equity."""
-        daily_loss = self._daily_pnl_start - equity
-        if daily_loss < 0:
-            daily_loss = 0  # only track losses
+        """Gate 4: Daily loss from start-of-day equity.
+
+        If record_daily_start() has not been called, auto-initialize to current equity
+        (first observation). This prevents the gate from being silently ineffective.
+        """
+        if not self._daily_start_initialized:
+            self._daily_pnl_start = equity
+            self._daily_start_initialized = True
+            # First observation - no loss yet
+            daily_loss = 0.0
+        else:
+            start = self._daily_pnl_start
+            assert start is not None, "daily start initialized flag out of sync"
+            daily_loss = start - equity
+            if daily_loss < 0:
+                daily_loss = 0  # only track losses
 
         if daily_loss > self._envelope.max_daily_loss:
             return RiskGateResult(
                 gate_name="daily_loss",
                 result=GateResult.BLOCK,
-                reason=BlockReason.DAILY_LOSS,
+                block_reason=BlockReason.DAILY_LOSS,
                 message=f"Daily loss ${daily_loss:.2f} exceeds limit ${self._envelope.max_daily_loss:.2f}",
                 details={
                     "daily_loss": daily_loss,
@@ -330,7 +363,6 @@ class RiskEnforcer:
         return RiskGateResult(
             gate_name="daily_loss",
             result=GateResult.PASS,
-            reason=BlockReason.DAILY_LOSS,
             message=f"Daily loss ${daily_loss:.2f} within limit ${self._envelope.max_daily_loss:.2f}",
             details={"daily_loss": daily_loss},
             broker_state_hash=state_hash,
@@ -343,7 +375,7 @@ class RiskEnforcer:
             return RiskGateResult(
                 gate_name="equity_floor",
                 result=GateResult.CRITICAL,
-                reason=BlockReason.EQUITY_BELOW_MIN,
+                block_reason=BlockReason.EQUITY_BELOW_MIN,
                 message=f"Equity ${equity:,.2f} below minimum ${self._envelope.min_equity:,.2f}",
                 details={"equity": equity, "min": self._envelope.min_equity},
                 broker_state_hash=state_hash,
@@ -353,7 +385,6 @@ class RiskEnforcer:
         return RiskGateResult(
             gate_name="equity_floor",
             result=GateResult.PASS,
-            reason=BlockReason.EQUITY_BELOW_MIN,
             message=f"Equity ${equity:,.2f} above minimum ${self._envelope.min_equity:,.2f}",
             broker_state_hash=state_hash,
             timestamp=now,
@@ -378,7 +409,6 @@ class RiskEnforcer:
             return RiskGateResult(
                 gate_name="position_protection",
                 result=GateResult.PASS,
-                reason=BlockReason.NO_SL_PROTECTION,
                 message="SL check disabled",
                 broker_state_hash=state_hash,
                 timestamp=now,
@@ -391,7 +421,7 @@ class RiskEnforcer:
             return RiskGateResult(
                 gate_name="position_protection",
                 result=GateResult.CRITICAL,
-                reason=BlockReason.NO_SL_PROTECTION,
+                block_reason=BlockReason.NO_SL_PROTECTION,
                 message=f"{len(unprotected)} positions without SL: {', '.join(symbols)}",
                 details={"unprotected_count": len(unprotected), "symbols": symbols},
                 broker_state_hash=state_hash,
@@ -401,7 +431,6 @@ class RiskEnforcer:
         return RiskGateResult(
             gate_name="position_protection",
             result=GateResult.PASS,
-            reason=BlockReason.NO_SL_PROTECTION,
             message=f"All {len(positions)} positions have SL protection",
             broker_state_hash=state_hash,
             timestamp=now,
@@ -413,7 +442,7 @@ class RiskEnforcer:
             return RiskGateResult(
                 gate_name="fingerprint",
                 result=GateResult.CRITICAL,
-                reason=BlockReason.FINGERPRINT_DRIFT,
+                block_reason=BlockReason.FINGERPRINT_DRIFT,
                 message="Configuration fingerprint does not match T=0 snapshot",
                 broker_state_hash=state_hash,
                 timestamp=now,
@@ -422,7 +451,6 @@ class RiskEnforcer:
         return RiskGateResult(
             gate_name="fingerprint",
             result=GateResult.PASS,
-            reason=BlockReason.FINGERPRINT_DRIFT,
             message="Fingerprint matches T=0",
             broker_state_hash=state_hash,
             timestamp=now,
@@ -431,6 +459,7 @@ class RiskEnforcer:
     def record_daily_start(self, equity: float) -> None:
         """Record start-of-day equity for daily loss tracking."""
         self._daily_pnl_start = equity
+        self._daily_start_initialized = True
 
     def audit(self, results: List[RiskGateResult]) -> None:
         """Record gate results to audit log with bounded retention."""
@@ -441,9 +470,12 @@ class RiskEnforcer:
             "any_critical": any(r.result == GateResult.CRITICAL for r in results),
         }
         self._audit_log.append(entry)
-        # Bounded retention: keep only recent entries
+        # Bounded retention: keep only recent entries in memory
         if len(self._audit_log) > self._max_audit_entries:
             self._audit_log = self._audit_log[-self._max_audit_entries :]
+        # Durable append-only persistence (P5) — in-memory log alone is lost on restart
+        if self._audit_log_path:
+            self._append_jsonl(self._audit_log_path, entry)
 
     def compute_size_scale_factor(
         self,
@@ -493,7 +525,11 @@ class RiskEnforcer:
                 reasons.append(f"concentration {concentration:.1%} >= 25%")
 
         # Daily loss-based scaling
-        daily_loss = self._daily_pnl_start - account_equity if self._daily_pnl_start > 0 else 0
+        daily_loss = (
+            self._daily_pnl_start - account_equity
+            if self._daily_pnl_start is not None and self._daily_pnl_start > 0
+            else 0
+        )
         if daily_loss > 0:
             loss_ratio = daily_loss / self._envelope.max_daily_loss
             if loss_ratio >= 0.80:
@@ -551,6 +587,9 @@ class RiskEnforcer:
         self._shadow_decisions.append(record)
         if len(self._shadow_decisions) > self._max_shadow_decisions:
             self._shadow_decisions = self._shadow_decisions[-self._max_shadow_decisions :]
+        # Durable append-only persistence (P5)
+        if self._shadow_decisions_path:
+            self._append_jsonl(self._shadow_decisions_path, record)
 
         return record
 
@@ -560,3 +599,19 @@ class RiskEnforcer:
 
     def get_audit_log(self) -> List[Dict[str, Any]]:
         return list(self._audit_log)
+
+    @staticmethod
+    def _append_jsonl(path: str, record: Dict[str, Any]) -> None:
+        """Append one JSON record to a JSONL file, best-effort."""
+        import logging
+        import os
+
+        logger = logging.getLogger(__name__)
+        try:
+            dir_path = os.path.dirname(path)
+            if dir_path:
+                os.makedirs(dir_path, exist_ok=True)
+            with open(path, "a") as f:
+                f.write(json.dumps(record, sort_keys=True, default=str) + "\n")
+        except OSError as e:
+            logger.warning(f"Failed to persist risk record to {path}: {e}")

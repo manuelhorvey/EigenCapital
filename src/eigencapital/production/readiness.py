@@ -18,7 +18,6 @@ class ReadinessVerdict(str, Enum):
     NOT_READY = "not_ready"
     CONDITIONAL = "conditional"
     PRODUCTION_READY_FOR_SHADOW = "production_ready_for_shadow"
-    PRODUCTION_READY_FOR_RESTRICTED_LIVE = "production_ready_for_restricted_live"
 
 
 class ReadinessCheck(str, Enum):
@@ -350,10 +349,6 @@ class ReadinessResult:
             verdict = ReadinessVerdict.PRODUCTION_READY_FOR_SHADOW
         else:
             verdict = ReadinessVerdict.CONDITIONAL
-
-        # Never return unrestricted LIVE_READY
-        if verdict == ReadinessVerdict.PRODUCTION_READY_FOR_RESTRICTED_LIVE:
-            verdict = ReadinessVerdict.PRODUCTION_READY_FOR_SHADOW
 
         return cls(
             checks=tuple(checks),

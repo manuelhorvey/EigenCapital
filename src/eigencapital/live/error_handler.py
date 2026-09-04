@@ -102,14 +102,14 @@ def handle_fatal(
                     "error_type": type(error).__name__,
                 }
             )
-        except Exception:
-            logger.exception("Failed to record error to audit trail")
+        except Exception as e:
+            logger.exception(f"Failed to record error to audit trail: {e}")
 
     if escalate_fn:
         try:
             escalate_fn(escalate_state)
-        except Exception:
-            logger.exception("Failed to escalate health state")
+        except Exception as e:
+            logger.exception(f"Failed to escalate health state: {e}")
 
     if reraise:
         raise

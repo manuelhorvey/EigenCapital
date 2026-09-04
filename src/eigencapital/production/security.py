@@ -5,13 +5,19 @@ Verifies that:
 - Live credentials cannot be consumed by research paths
 - Configuration changes are auditable
 - No real credentials exist in the repository
+
+Unlike a pure record-keeping ledger, :class:`SecurityAudit` runs automated
+static scans (hardcoded credentials, research/live import separation) and
+records their outcomes as verified boundaries with evidence (S6).
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, List
 
 
@@ -114,6 +120,88 @@ class SecurityAudit:
                 "recommendation": recommendation,
             }
         )
+
+    # ── Automated scans (S6: audit must enforce, not just record) ────
+
+    def scan_for_hardcoded_credentials(self, src_dir: Path) -> None:
+        """Scan the source tree for hardcoded credentials and record findings.
+
+        Results are exposed both as ``findings`` (CRITICAL) and as a verified/
+        failed SecurityBoundary record so ``all_boundaries_verified`` reflects
+        the actual scan outcome rather than a manual assertion.
+        """
+        patterns = [
+            re.compile(r"""(?:password|passwd)\s*=\s*["'][^"']+["']""", re.IGNORECASE),
+            re.compile(r"""(?:api_key|apikey|api_secret)\s*=\s*["'][A-Za-z0-9_\-]{20,}["']""", re.IGNORECASE),
+        ]
+        violations: List[str] = []
+        for py_file in sorted(src_dir.rglob("*.py")):
+            if "test_" in py_file.name:
+                continue
+            content = py_file.read_text(errors="replace")
+            for pattern in patterns:
+                for match in pattern.finditer(content):
+                    line_no = content[: match.start()].count("\n") + 1
+                    violations.append(f"{py_file}:{line_no}: {match.group()[:80]}")
+
+        evidence = "No hardcoded credentials found" if not violations else "\n".join(violations[:10])
+        if violations:
+            for v in violations:
+                self.record_finding(
+                    category="credentials",
+                    severity="CRITICAL",
+                    description=v,
+                    recommendation="Move credential to environment variable / config secret store.",
+                )
+        self._boundaries.append(
+            SecurityBoundary(
+                component_a="codebase",
+                component_b="credentials",
+                separation_rule="no hardcoded passwords/api keys in source",
+                verified=not violations,
+                evidence=evidence,
+            )
+        )
+
+    def scan_research_live_separation(self, src_dir: Path) -> None:
+        """Verify research code never imports live execution (boundary scan)."""
+        research_dir = src_dir / "eigencapital" / "research"
+        violations: List[str] = []
+        if research_dir.exists():
+            for py_file in sorted(research_dir.rglob("*.py")):
+                content = py_file.read_text(errors="replace")
+                if "from eigencapital.execution" in content or "from eigencapital.live" in content:
+                    violations.append(str(py_file))
+
+        evidence = (
+            "Research code does not import live/execution modules" if not violations else "\n".join(violations[:10])
+        )
+        if violations:
+            self.record_finding(
+                category="research_execution_separation",
+                severity="CRITICAL",
+                description=f"{len(violations)} research file(s) import live/execution code",
+                recommendation="Move shared primitives into core/ instead of importing live code from research.",
+            )
+        self._boundaries.append(
+            SecurityBoundary(
+                component_a="research",
+                component_b="execution/live",
+                separation_rule="research cannot submit live orders",
+                verified=not violations,
+                evidence=evidence,
+            )
+        )
+
+    def run_automated_checks(self, src_dir: Path) -> None:
+        """Run all automated static security scans.
+
+        ``all_boundaries_verified`` then reflects automated scan outcomes plus
+        any manually asserted boundaries, so a green security audit requires
+        both to pass.
+        """
+        self.scan_for_hardcoded_credentials(src_dir)
+        self.scan_research_live_separation(src_dir)
 
     def get_boundaries(self) -> List[SecurityBoundary]:
         return list(self._boundaries)

@@ -63,8 +63,10 @@ class DashboardStateService:
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp, path)
-        except OSError:
-            pass
+        except OSError as e:
+            import logging
+
+            logging.getLogger(__name__).warning(f"Failed to persist JSON to {path}: {e}")
 
     def _append_jsonl(self, path: Path, record: dict[str, Any]) -> None:
         """Append a JSON line to a JSONL file."""
@@ -72,8 +74,10 @@ class DashboardStateService:
             self._ensure_dirs()
             with open(path, "a") as f:
                 f.write(json.dumps(record, sort_keys=True, default=str) + "\n")
-        except OSError:
-            pass
+        except OSError as e:
+            import logging
+
+            logging.getLogger(__name__).warning(f"Failed to append JSONL to {path}: {e}")
 
     def _wrap(self, data: dict[str, Any], source: str, freshness: str | None = None) -> dict[str, Any]:
         """Wrap response data with metadata envelope."""
@@ -191,7 +195,10 @@ class DashboardStateService:
                 account = mt5.account_info()
                 mt5.shutdown()
                 broker_ok = account is not None
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(f"MT5 connection check failed: {e}")
             broker_ok = False
 
         if broker_ok:
@@ -446,8 +453,10 @@ class DashboardStateService:
                     "timestamp": risk_data.get("timestamp", datetime.now(UTC).isoformat()),
                     "freshness": freshness,
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(f"Failed to read persisted risk state: {e}")
 
         # 2. Compute live from MT5 data using RiskObserver
         try:
@@ -472,8 +481,10 @@ class DashboardStateService:
                     saved_peak = rt_state.get("peak_equity", 0)
                     if saved_peak > observer._peak_equity:
                         observer._peak_equity = saved_peak
-                except Exception:
-                    pass
+                except Exception as e:
+                    import logging
+
+                    logging.getLogger(__name__).debug(f"Failed to load peak equity: {e}")
 
             # Load daily baseline — try r4_loop first, then reports root
             daily_start = 0.0
@@ -485,8 +496,10 @@ class DashboardStateService:
                         daily_start = baseline.get("equity", 0.0)
                         observer._daily_pnl_start = daily_start
                         break
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        import logging
+
+                        logging.getLogger(__name__).debug(f"Failed to load daily baseline: {e}")
 
             # Get live MT5 data
             from mt5linux import MetaTrader5
@@ -550,10 +563,14 @@ class DashboardStateService:
 
                     return result
 
-        except ImportError:
-            pass  # RiskObserver or RiskEnvelope not available
-        except Exception:
-            pass  # MT5 not connected or other error
+        except ImportError as e:
+            import logging
+
+            logging.getLogger(__name__).debug(f"RiskObserver not available: {e}")
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(f"MT5 connection or other error: {e}")
 
         return {
             "overall_level": "UNKNOWN",
@@ -602,7 +619,10 @@ class DashboardStateService:
                 "timestamp": datetime.now(UTC).isoformat(),
                 "freshness": DataFreshness.LIVE.value,
             }
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(f"Failed to get build identity: {e}")
             return {
                 "git_head": "",
                 "manifest_identity": "",
@@ -664,8 +684,10 @@ class DashboardStateService:
                         with open(state_path) as f:
                             rt_state = json.load(f)
                         saved_peak = rt_state.get("peak_equity", 0)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        import logging
+
+                        logging.getLogger(__name__).debug(f"Failed to load peak equity: {e}")
 
                 equity_hwm = max(equity, t0, saved_peak)
                 drawdown_abs = max(0.0, equity_hwm - equity)
@@ -680,8 +702,10 @@ class DashboardStateService:
                                 baseline = json.load(f)
                             daily_start = baseline.get("equity", 0.0)
                             break
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            import logging
+
+                            logging.getLogger(__name__).debug(f"Failed to load daily baseline: {e}")
                 if daily_start > 0:
                     daily_pnl = equity - daily_start
 
@@ -692,11 +716,15 @@ class DashboardStateService:
                         profit_raw = getattr(p, "profit", None)
                         if profit_raw is not None:
                             unrealized_pnl += float(profit_raw)
-                except Exception:
-                    pass
+                except Exception as e:
+                    import logging
 
-            except Exception:
-                pass
+                    logging.getLogger(__name__).debug(f"Failed to get live positions: {e}")
+
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).debug(f"Failed to get account state: {e}")
 
             return {
                 "equity": equity,
@@ -715,7 +743,10 @@ class DashboardStateService:
                 "freshness": DataFreshness.LIVE.value,
                 "source": "mt5",
             }
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(f"MT5 error in get_account_state: {e}")
             self._mt5_connected = False
             return self._empty_account_state()
 
@@ -798,7 +829,10 @@ class DashboardStateService:
                     }
                 )
             return result
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(f"Failed to get positions: {e}")
             return []
 
     # ─── Qualification ─────────────────────────────────────────────
@@ -847,7 +881,10 @@ class DashboardStateService:
                         level = ev.get("evidence_level", ev.get("level", "e0"))
                         if isinstance(level, str) and level.lower() in e_counts:
                             e_counts[level.lower()] += 1
-                    except Exception:
+                    except Exception as e:
+                        import logging
+
+                        logging.getLogger(__name__).debug(f"Failed to parse evidence file {f}: {e}")
                         e_counts["e0"] += 1
 
         # Find campaign ID from latest attestation or T0 snapshot
@@ -862,7 +899,10 @@ class DashboardStateService:
                     "snapshot_timestamp", snap.get("timestamp", snap.get("authorization_timestamp"))
                 )
                 break
-            except Exception:
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).debug(f"Failed to read campaign snapshot: {e}")
                 continue
 
         # Count completed lifecycles from decisions

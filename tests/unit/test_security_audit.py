@@ -96,6 +96,40 @@ class TestSecurityBoundaries:
         assert not violations, "Live code imports training:\n" + "\n".join(violations)
 
 
+class TestSecurityAuditAutomatedChecks:
+    """SecurityAudit must enforce, not just record (S6)."""
+
+    def test_scan_clean_tree_passes(self):
+        from eigencapital.production.security import SecurityAudit
+
+        audit = SecurityAudit()
+        audit.run_automated_checks(Path(__file__).resolve().parent.parent.parent / "src")
+        assert audit.all_boundaries_verified
+        assert audit.critical_findings == []
+
+    def test_scan_detects_hardcoded_password_in_fixture(self, tmp_path):
+        from eigencapital.production.security import SecurityAudit
+
+        fake_src = tmp_path / "eigencapital"
+        fake_src.mkdir(parents=True)
+        (fake_src / "bad.py").write_text('password = "hunter2secret"\n')
+        audit = SecurityAudit()
+        audit.run_automated_checks(tmp_path)
+        assert not audit.all_boundaries_verified
+        assert len(audit.critical_findings) >= 1
+
+    def test_scan_detects_research_importing_live(self, tmp_path):
+        from eigencapital.production.security import SecurityAudit
+
+        research = tmp_path / "eigencapital" / "research" / "alpha"
+        research.mkdir(parents=True)
+        (research / "bad.py").write_text("from eigencapital.live.risk import RiskEnforcer\n")
+        audit = SecurityAudit()
+        audit.run_automated_checks(tmp_path)
+        assert not audit.all_boundaries_verified
+        assert len(audit.critical_findings) >= 1
+
+
 class TestConfigurationManifest:
     def test_manifest_fingerprint_deterministic(self):
         from eigencapital.production.security import ConfigurationManifest

@@ -525,3 +525,139 @@ class TestRiskObservation:
             )
         # History should be bounded
         assert len(observer._history) <= 1000
+
+
+class TestLiveRiskEnforcementPipeline:
+    """Integration coverage for the live risk gate pipeline (T3).
+
+    Drives RiskEnforcer from broker-confirmed state (positions surfaced by the
+    paper broker lifecycle) across multiple cycles — including the daily-loss
+    baseline, drawdown blocking, and equity-floor criticality — plus durable
+    JSONL audit persistence.
+    """
+
+    def _broker_position(self, symbol, volume=0.01, sl=0.0, ptype=0, profit=0.0):
+        return {
+            "symbol": symbol,
+            "volume": volume,
+            "type": ptype,
+            "price_open": 1.1000,
+            "sl": sl,
+            "tp": 0.0,
+            "profit": profit,
+            "magic": 20260825,
+            "comment": "R4-Rebalance",
+        }
+
+    def test_multi_cycle_gating_with_broker_positions(self, tmp_path):
+        """Healthy cycles pass; a real broker position breach blocks entries."""
+        from eigencapital.core.models.order import Order
+        from eigencapital.execution.broker import PaperBroker
+        from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope
+
+        envelope = RiskEnvelope(
+            max_concurrent_positions=2,
+            max_position_notional=5000.0,
+            max_order_notional=1500.0,
+            max_daily_loss=250.0,
+            min_equity=4000.0,
+            max_account_drawdown_pct=0.10,
+            require_sl_on_positions=False,  # R4 uses signal-based exits
+            t0_equity=5010.94,
+        )
+        enforcer = RiskEnforcer(
+            envelope,
+            audit_log_path=str(tmp_path / "risk_gate_audit.jsonl"),
+        )
+        enforcer.record_daily_start(5010.94)
+
+        # Cycle 1: paper broker opens one position; gates pass.
+        broker = PaperBroker()
+        order = Order(
+            order_id="ORD-EURUSD-1",
+            instrument_id="EURUSD",
+            timestamp_utc="2025-01-15T10:00:00Z",
+            order_type="MARKET",
+            side="BUY",
+            quantity=0.1,
+            strategy_id="r4",
+        )
+        broker.submit_order(order)
+        broker.generate_fill(order.order_id, fill_price=1.1000)
+        broker_positions = [self._broker_position("EURUSD", volume=0.1)]
+
+        passed, results = enforcer.check_all(
+            broker_positions=broker_positions,
+            account_equity=5010.94,
+            account_free_margin=4000.0,
+            target_orders=1,
+        )
+        assert passed, [r.to_dict() for r in results]
+        assert all(r.result == GateResult.PASS for r in results)
+
+        # Cycle 2: 2 positions exist and 1 more is requested → position gate BLOCK.
+        broker_positions = [
+            self._broker_position("EURUSD", volume=0.1),
+            self._broker_position("GBPUSD", volume=0.1),
+        ]
+        passed, results = enforcer.check_all(
+            broker_positions=broker_positions,
+            account_equity=5010.94,
+            account_free_margin=4000.0,
+            target_orders=1,
+        )
+        assert not passed
+        gate = next(r for r in results if r.gate_name == "position_count")
+        assert gate.result == GateResult.BLOCK
+        assert gate.block_reason is not None
+
+        # Cycle 3: equity below floor → CRITICAL, fail-closed.
+        # (Rebase the daily baseline so the equity-floor gate — not the earlier
+        # daily-loss gate — is the one that trips.)
+        enforcer._peak_equity = 3900.0
+        enforcer.record_daily_start(3900.0)
+        passed, results = enforcer.check_all(
+            broker_positions=[],
+            account_equity=3900.0,
+            account_free_margin=3800.0,
+        )
+        assert not passed
+        gate = next(r for r in results if r.gate_name == "equity_floor")
+        assert gate.result == GateResult.CRITICAL
+
+        # Audit trail persisted across the session and on disk.
+        enforcer.audit(results)
+        assert len(enforcer.get_audit_log()) >= 1
+        persisted = (tmp_path / "risk_gate_audit.jsonl").read_text().strip().splitlines()
+        assert len(persisted) >= 1
+
+    def test_daily_loss_baseline_and_recovery(self, tmp_path):
+        """Daily-loss gate uses the recorded start-of-day equity (B5)."""
+        from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope
+
+        enforcer = RiskEnforcer(
+            RiskEnvelope(max_daily_loss=250.0, min_equity=4000.0, t0_equity=5010.94),
+            audit_log_path=str(tmp_path / "risk_gate_audit.jsonl"),
+        )
+        enforcer.record_daily_start(5010.94)
+
+        # Loss over $250 blocks.
+        passed, results = enforcer.check_all(
+            broker_positions=[],
+            account_equity=4700.0,
+            account_free_margin=4600.0,
+        )
+        gate = next(r for r in results if r.gate_name == "daily_loss")
+        assert not passed
+        assert gate.result == GateResult.BLOCK
+
+        # Equity recovered later in the day → gate passes again.
+        passed, results = enforcer.check_all(
+            broker_positions=[],
+            account_equity=5200.0,
+            account_free_margin=5100.0,
+        )
+        gate = next(r for r in results if r.gate_name == "daily_loss")
+        assert passed
+        assert gate.result == GateResult.PASS
+        assert gate.block_reason is None

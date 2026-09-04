@@ -25,6 +25,10 @@ from eigencapital.core.models.strategy_intent import StrategyIntent
 from eigencapital.risk.checks.account_checks import AccountState
 from eigencapital.risk.engine import EigenRiskEngine, RiskDecision
 
+# Default urgency for plans created by Portfolio (module-level singleton so the
+# default argument is a constant, not a per-call construction).
+_DEFAULT_URGENCY = Urgency("SESSION")
+
 
 @dataclass
 class PortfolioState:
@@ -49,7 +53,8 @@ class PortfolioState:
 
     def update_account_state(self) -> None:
         """Recompute account state from current positions."""
-        total_notional = sum(abs(p.quantity * (p.average_entry_price or 0.0)) for p in self.positions.values())
+        gross_exposure = sum(abs(p.quantity * (p.average_entry_price or 0.0)) for p in self.positions.values())
+        net_exposure = sum(p.quantity * (p.average_entry_price or 0.0) for p in self.positions.values())
         equity = self.current_cash + sum(p.unrealized_pnl for p in self.positions.values())
 
         self.account_state = AccountState(
@@ -57,8 +62,8 @@ class PortfolioState:
             peak_equity=max(self.account_state.peak_equity, equity),
             daily_pnl=self.account_state.daily_pnl,
             weekly_pnl=self.account_state.weekly_pnl,
-            gross_exposure=total_notional,
-            net_exposure=total_notional,
+            gross_exposure=gross_exposure,
+            net_exposure=net_exposure,
             position_count=sum(1 for p in self.positions.values() if p.quantity != 0),
         )
 
@@ -116,11 +121,13 @@ class Portfolio:
         self,
         risk_engine: EigenRiskEngine | None = None,
         execution_policy_version: str = "v1",
-        urgency: Urgency = Urgency.SESSION,
+        urgency: Urgency = _DEFAULT_URGENCY,
+        commission_per_trade: float = 2.50,
     ) -> None:
         self.risk_engine = risk_engine or EigenRiskEngine()
         self.execution_policy_version = execution_policy_version
         self.urgency = urgency
+        self.commission_per_trade = commission_per_trade
         self.state = PortfolioState()
 
     def process_intents(
@@ -180,11 +187,7 @@ class Portfolio:
         # Step 3: Route through EigenRisk
         self.state.update_account_state()
 
-        from eigencapital.core.models.risk_check_result import RiskCheckResult
-
         for target in decision.targets:
-            # Clear RiskCheckResult registry before each risk evaluation
-            RiskCheckResult._registry.clear()
             risk_result = self.risk_engine.evaluate(
                 account_state=self.state.account_state,
                 requested_notional=abs(target.target_market_value),
@@ -264,10 +267,12 @@ class Portfolio:
             else:
                 new_avg = 0.0
 
-            # Calculate realized P&L on closed portion
+            # Calculate realized P&L on the closed portion. Any fill that reduces
+            # or closes exposure (opposite direction to the existing position) —
+            # including partial closes and full closes through zero — books
+            # realized P&L on the closed quantity (T4).
             realized = 0.0
-            if old_qty != 0 and new_qty != 0 and (old_qty > 0) != (new_qty > 0):
-                # Position reversal or partial close
+            if old_qty != 0 and (old_qty > 0) != (signed_qty > 0):
                 closed_qty = min(abs(old_qty), abs(signed_qty))
                 realized = closed_qty * (fill_price - (pos.average_entry_price or 0.0))
                 if old_qty < 0:
@@ -283,7 +288,7 @@ class Portfolio:
             )
 
         # Update cash
-        commission = 2.50  # Simplified; production uses CostModel
+        commission = self.commission_per_trade
         if side == "BUY":
             self.state.current_cash -= quantity * fill_price + commission
         else:

@@ -148,6 +148,15 @@ class RiskEnforcer:
         self._max_shadow_decisions = 10000
         self._audit_log_path = audit_log_path
         self._shadow_decisions_path = shadow_decisions_path
+        # Crash/restart recovery (P1-B): replay the durable audit trail so a
+        # restarted process keeps enforcing the same baselines the crashed
+        # process was enforcing. CLEAN = first boot / no audit file yet;
+        # RESTORED = state recovered from a readable audit file;
+        # CORRUPTED = audit file unreadable → check_all() fails closed.
+        self._recovery_state = "CLEAN"
+        self._recovery_error = ""
+        if audit_log_path:
+            self._recover_state_from_audit()
 
     def check_all(
         self,
@@ -167,6 +176,19 @@ class RiskEnforcer:
             fingerprint_match: Whether config fingerprint matches T=0
         """
         now = datetime.now(UTC).isoformat()
+        # Fail closed if the persisted audit trail could not be replayed: a
+        # corrupted risk audit means the risk baselines cannot be trusted after
+        # a restart, so no new entries may be authorized (P1-B).
+        if self._recovery_state == "CORRUPTED":
+            return False, [
+                RiskGateResult(
+                    gate_name="state_recovery",
+                    result=GateResult.CRITICAL,
+                    block_reason=BlockReason.EMERGENCY,
+                    message=f"Risk audit log corrupted — fail closed until operator review: {self._recovery_error}",
+                    timestamp=now,
+                )
+            ]
         results: List[RiskGateResult] = []
         import hashlib
 
@@ -468,6 +490,13 @@ class RiskEnforcer:
             "gates": [r.to_dict() for r in results],
             "all_pass": all(r.result == GateResult.PASS for r in results),
             "any_critical": any(r.result == GateResult.CRITICAL for r in results),
+            # Runtime state snapshot — the restart recovery point (P1-B). Older
+            # audit files written without this block simply contribute nothing.
+            "runtime": {
+                "peak_equity": self._peak_equity,
+                "daily_pnl_start": self._daily_pnl_start,
+                "daily_start_initialized": self._daily_start_initialized,
+            },
         }
         self._audit_log.append(entry)
         # Bounded retention: keep only recent entries in memory
@@ -476,6 +505,75 @@ class RiskEnforcer:
         # Durable append-only persistence (P5) — in-memory log alone is lost on restart
         if self._audit_log_path:
             self._append_jsonl(self._audit_log_path, entry)
+
+    def _recover_state_from_audit(self) -> None:
+        """Replay the persisted audit trail to restore risk baseline state.
+
+        Restores peak equity and the start-of-day daily-loss baseline so a
+        restarted process enforces the same limits the crashed process was
+        enforcing. A missing file is a clean first boot (CLEAN). An unreadable
+        or torn audit file is CORRUPTED and fails closed: check_all() refuses
+        to authorize entries until an operator inspects the file.
+        """
+        import os
+
+        path = self._audit_log_path
+        if not path or not os.path.exists(path):
+            return  # First boot — nothing to restore
+
+        restored_peak: float | None = None
+        restored_daily_start: float | None = None
+        restored_daily_init = False
+        try:
+            with open(path) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        self._recovery_state = "CORRUPTED"
+                        self._recovery_error = f"unparseable JSON in audit log {path}"
+                        return
+                    if not isinstance(record, dict):
+                        continue
+                    runtime = record.get("runtime")
+                    if not isinstance(runtime, dict):
+                        continue
+                    peak = runtime.get("peak_equity")
+                    if isinstance(peak, (int, float)) and not isinstance(peak, bool):
+                        restored_peak = float(peak)
+                    start = runtime.get("daily_pnl_start")
+                    if isinstance(start, (int, float)) and not isinstance(start, bool):
+                        restored_daily_start = float(start)
+                    if runtime.get("daily_start_initialized") is True:
+                        restored_daily_init = True
+        except OSError as exc:
+            self._recovery_state = "CORRUPTED"
+            self._recovery_error = f"cannot read audit log {path}: {exc}"
+            return
+
+        restored_anything = False
+        if restored_peak is not None:
+            self._peak_equity = max(self._peak_equity, restored_peak)
+            restored_anything = True
+        if restored_daily_init and restored_daily_start is not None:
+            self._daily_pnl_start = restored_daily_start
+            self._daily_start_initialized = True
+            restored_anything = True
+        if restored_anything:
+            self._recovery_state = "RESTORED"
+
+    @property
+    def recovery_state(self) -> str:
+        """CLEAN (first boot), RESTORED (baselines replayed), or CORRUPTED."""
+        return self._recovery_state
+
+    @property
+    def recovery_error(self) -> str:
+        """Description of a CORRUPTED recovery, empty otherwise."""
+        return self._recovery_error
 
     def compute_size_scale_factor(
         self,

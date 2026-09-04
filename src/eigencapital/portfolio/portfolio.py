@@ -115,16 +115,28 @@ class Portfolio:
     4. Converts ApprovedTarget(s) to OrderPlan(s)
 
     Strategy CANNOT bypass Portfolio or EigenRisk.
+
+    Construction (P1-A): ``risk_engine`` is REQUIRED — there is deliberately no
+    default. EigenRiskEngine() by itself falls back to the research/backtest
+    RiskPolicy() profile, so a live caller who forgets the policy would silently
+    trade against institution-sized limits. Live paths must construct:
+
+        Portfolio(risk_engine=EigenRiskEngine(
+            policy=RiskPolicy.from_live_config(config.live_risk),
+        ))
+
+    Backtest/research callers that want the research profile pass
+    ``EigenRiskEngine()`` explicitly.
     """
 
     def __init__(
         self,
-        risk_engine: EigenRiskEngine | None = None,
+        risk_engine: EigenRiskEngine,
         execution_policy_version: str = "v1",
         urgency: Urgency = _DEFAULT_URGENCY,
         commission_per_trade: float = 2.50,
     ) -> None:
-        self.risk_engine = risk_engine or EigenRiskEngine()
+        self.risk_engine = risk_engine
         self.execution_policy_version = execution_policy_version
         self.urgency = urgency
         self.commission_per_trade = commission_per_trade

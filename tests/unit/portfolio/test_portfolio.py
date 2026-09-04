@@ -16,6 +16,8 @@ from eigencapital.portfolio.portfolio import (
     PortfolioState,
 )
 from eigencapital.risk.checks.account_checks import AccountState
+from eigencapital.risk.engine import EigenRiskEngine
+from eigencapital.risk.policy import RiskPolicy
 
 _counter = 0
 
@@ -24,6 +26,18 @@ def _next_id(prefix: str = "T") -> str:
     global _counter
     _counter += 1
     return f"{prefix}{_counter}"
+
+
+def _make_portfolio(**kwargs) -> Portfolio:
+    """Construct a Portfolio with an EXPLICIT risk engine.
+
+    Portfolio no longer has a default risk engine (P1-A): research/institution
+    defaults must never be applied silently. These orchestration tests use the
+    research profile deliberately; live construction must pass
+    ``EigenRiskEngine(policy=RiskPolicy.from_live_config(config.live_risk))``.
+    """
+    kwargs.setdefault("risk_engine", EigenRiskEngine(policy=RiskPolicy()))
+    return Portfolio(**kwargs)
 
 
 class TestPortfolioState:
@@ -73,7 +87,7 @@ class TestPortfolio:
 
     def test_process_empty_intents(self):
         """Test processing empty intent list."""
-        portfolio = Portfolio()
+        portfolio = _make_portfolio()
         decision = portfolio.process_intents([])
         assert len(decision.targets) == 0
         assert len(decision.risk_decisions) == 0
@@ -81,7 +95,7 @@ class TestPortfolio:
 
     def test_process_single_intent(self):
         """Test processing a single strategy intent."""
-        portfolio = Portfolio()
+        portfolio = _make_portfolio()
         intent = StrategyIntent(
             strategy_id="trend_v1",
             strategy_version="v1.0.0",
@@ -107,7 +121,7 @@ class TestPortfolio:
 
     def test_process_multiple_instruments(self):
         """Test processing intents for multiple instruments."""
-        portfolio = Portfolio()
+        portfolio = _make_portfolio()
         intents = [
             StrategyIntent(
                 strategy_id="trend_v1",
@@ -148,7 +162,7 @@ class TestPortfolio:
         """Test that risk rejection produces REJECTED approved target."""
         # Set cash to 0 so equity after update_account_state() is below min_equity
         # (update_account_state overwrites account_state from current state)
-        portfolio = Portfolio()
+        portfolio = _make_portfolio()
         portfolio.state.current_cash = 0.0
         # Set daily loss high enough to trigger FAIL
         portfolio.state.account_state = AccountState(
@@ -180,7 +194,7 @@ class TestPortfolio:
 
     def test_order_plan_generation(self):
         """Test that order plans are generated with correct delta."""
-        portfolio = Portfolio()
+        portfolio = _make_portfolio()
 
         # Set up existing position
         portfolio.state.positions["ES"] = Position(
@@ -214,7 +228,7 @@ class TestPortfolio:
 
     def test_apply_fill_buy(self):
         """Test applying a buy fill."""
-        portfolio = Portfolio()
+        portfolio = _make_portfolio()
         portfolio.apply_fill("ES", 4500.0, 1.0, "BUY")
 
         assert "ES" in portfolio.state.positions
@@ -224,7 +238,7 @@ class TestPortfolio:
 
     def test_apply_fill_sell(self):
         """Test applying a sell fill."""
-        portfolio = Portfolio()
+        portfolio = _make_portfolio()
         portfolio.apply_fill("ES", 4500.0, 1.0, "SELL")
 
         assert "ES" in portfolio.state.positions
@@ -233,7 +247,7 @@ class TestPortfolio:
 
     def test_apply_fill_average_price(self):
         """Test average price calculation on multiple fills."""
-        portfolio = Portfolio()
+        portfolio = _make_portfolio()
         portfolio.apply_fill("ES", 4500.0, 1.0, "BUY")
         portfolio.apply_fill("ES", 4600.0, 1.0, "BUY")
 
@@ -243,7 +257,7 @@ class TestPortfolio:
 
     def test_apply_fill_full_close_resets_average(self):
         """Closing a position fully must clear the average entry price."""
-        portfolio = Portfolio()
+        portfolio = _make_portfolio()
         portfolio.apply_fill("ES", 100.0, 2.0, "BUY")
         portfolio.apply_fill("ES", 110.0, 2.0, "SELL")
 
@@ -254,7 +268,7 @@ class TestPortfolio:
 
     def test_apply_fill_reversal_realized_pnl(self):
         """Crossing from long to short books realized P&L on the closed leg."""
-        portfolio = Portfolio()
+        portfolio = _make_portfolio()
         portfolio.apply_fill("ES", 100.0, 2.0, "BUY")  # long 2 @ 100
         portfolio.apply_fill("ES", 110.0, 3.0, "SELL")  # sells 3 → net short 1
 
@@ -266,7 +280,7 @@ class TestPortfolio:
 
     def test_apply_fill_reversal_short_to_long(self):
         """Crossing from short to long books positive realized P&L on a buy-back."""
-        portfolio = Portfolio()
+        portfolio = _make_portfolio()
         portfolio.apply_fill("ES", 100.0, 2.0, "SELL")  # short 2 @ 100
         portfolio.apply_fill("ES", 90.0, 3.0, "BUY")  # buys 3 → net long 1
 

@@ -87,7 +87,10 @@ show_missing = true
 fail_under = 80
 
 [tool.mypy]
-python_version = "3.11"
+# Type-check at 3.12 language level: numpy >= 2.4 ships PEP 695 (`type`)
+# stubs that only parse under python_version >= 3.12, and CI installs the
+# latest numpy. The runtime floor stays >= 3.11 (ruff target + CI matrix).
+python_version = "3.12"
 check_untyped_defs = false
 disallow_untyped_defs = false
 warn_unused_ignores = true

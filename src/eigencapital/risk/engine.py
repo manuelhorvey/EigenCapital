@@ -67,6 +67,9 @@ class EigenRiskEngine:
     """
 
     def __init__(self, policy: RiskPolicy | None = None) -> None:
+        # Default is the research/backtest profile. Live callers MUST pass an
+        # explicit policy derived from the live config (A1/P1-A):
+        #   EigenRiskEngine(policy=RiskPolicy.from_live_config(config.live_risk))
         self.policy = policy or RiskPolicy()
 
     def evaluate(

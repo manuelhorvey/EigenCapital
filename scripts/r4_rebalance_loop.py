@@ -623,22 +623,59 @@ def execute_orders(
 # ── Main Loop ──────────────────────────────────────────────────────
 
 
-def _reconnect_mt5(mt5) -> bool:
-    """Force a fresh MT5 session.
+def _reconnect_mt5(mt5):
+    """Establish a VERIFIED MT5 session, rebuilding the session object if needed.
 
-    mt5linux proxies can return stale/zero data after the terminal or
-    bridge restarts while the loop keeps its old session object.
-    shutdown() + initialize() re-establishes a healthy connection.
+    Returns the verified session object (the existing one if healed, otherwise
+    a fresh MetaTrader5 client), or None if no session can read live account
+    data. Never reports success on initialize() alone: the session is only
+    considered reconnected once account_info() returns a live account.
+
+    Root cause this fixes (R4-S 2026-09-04, also 2026-09-01): mt5linux
+    proxies can go stale while the loop holds one long-lived session object.
+    shutdown() + initialize() on the same wedged object reported success while
+    account_info() kept failing, so the loop spun in a false-success reconnect
+    cycle (17+ cycles on 09-04; 1499 on 09-01). A fresh session object — the
+    same remedy the monitor applies every cycle — reliably restores data.
     """
+    # 1. Try to heal the existing session, then VERIFY it actually reads data.
     try:
         mt5.shutdown()
     except Exception:
         pass
     time.sleep(2)
     try:
-        return bool(mt5.initialize())
+        if mt5.initialize():
+            healed_account = mt5.account_info()
+            if healed_account is not None and getattr(healed_account, "equity", 0) > 0:
+                return mt5
     except Exception:
-        return False
+        pass
+
+    # 2. Existing session is wedged (initialize may pass while reads fail) —
+    #    build a fresh session object and verify it the same way.
+    log("  ⚠️  Existing MT5 session did not verify — creating fresh session...")
+    try:
+        fresh = MetaTrader5(host="127.0.0.1", port=8001)
+        if not fresh.initialize():
+            log("  ❌ Fresh MT5 session initialize() failed")
+            try:
+                fresh.shutdown()
+            except Exception:
+                pass
+            return None
+        fresh_account = fresh.account_info()
+        if fresh_account is None or getattr(fresh_account, "equity", 0) <= 0:
+            log("  ❌ Fresh MT5 session has no live account data")
+            try:
+                fresh.shutdown()
+            except Exception:
+                pass
+            return None
+        return fresh
+    except Exception as e:
+        log(f"  ❌ Fresh MT5 session failed: {e}")
+        return None
 
 
 def _restart_bridge_if_needed() -> bool:
@@ -777,9 +814,14 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     account = mt5.account_info()
     if account is None or getattr(account, "equity", 0) <= 0:
         log("⚠️  Stale MT5 session detected (no account data) — reconnecting...")
-        if _reconnect_mt5(mt5):
+        rebuilt = _reconnect_mt5(mt5)
+        if rebuilt is not None:
+            mt5 = rebuilt
             account = mt5.account_info()
             log("🟢 Reconnected to MT5")
+        else:
+            log("  ⚠️  MT5 still unreachable — returning SKIP")
+            return {"status": "SKIP", "reason": "mt5_unreachable"}
     equity = account.equity if account else 0
 
     # Record daily start equity for Gate 4 (daily loss) if not yet set
@@ -858,7 +900,9 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     data = fetch_d1_data(mt5, R4_SYMBOLS, bars=300)
     if len(data) < 5:
         log("⚠️  Insufficient symbols — retrying once with a fresh MT5 connection...")
-        if _reconnect_mt5(mt5):
+        rebuilt = _reconnect_mt5(mt5)
+        if rebuilt is not None:
+            mt5 = rebuilt
             log("🟢 Reconnected to MT5")
             data = fetch_d1_data(mt5, R4_SYMBOLS, bars=300)
         if len(data) < 5:
@@ -1657,12 +1701,21 @@ def main() -> None:
             # Try to restart the RPyC bridge if it's down
             bridge_ok = _restart_bridge_if_needed()
             if bridge_ok:
-                # Bridge is back — reconnect MT5 through it
-                log("  Attempting MT5 reconnection through restarted bridge...")
-                if _reconnect_mt5(mt5):
-                    log("  ✅ MT5 reconnected after bridge restart")
+                # Reconnect MT5 through the (verified) bridge. _reconnect_mt5
+                # returns a session object only after account_info() confirms
+                # live data, so "reconnected" is never claimed on initialize()
+                # alone (R4-S 2026-09-04 false-success wedge fix: the loop spun
+                # 17+ cycles — and 1499 on 09-01 — logging "✅ reconnected"
+                # while its session never regained a live account view).
+                log("  Attempting MT5 session re-establishment...")
+                rebuilt = _reconnect_mt5(mt5)
+                if rebuilt is not None:
+                    mt5 = rebuilt
+                    log("  ✅ MT5 session verified — account data live")
                 else:
                     log("  ⚠️  MT5 still unreachable — waiting...")
+            else:
+                log("  ⚠️  Bridge unreachable — waiting...")
 
             log(f"   Waiting {min(interval, 60)}s for reconnection...")
             for _ in range(min(interval, 60)):

@@ -640,3 +640,61 @@ class TestEdgeCases:
         )
         gate = _gate_named(results, "equity_floor")
         assert gate.result == GateResult.CRITICAL
+
+
+class TestRestartRecovery:
+    """P1-B: durable audit replay restores baselines; corruption fails closed.
+
+    Unit-scope counterpart of the integration crash/restart suite: a restarted
+    enforcer must replay the audit trail to the same peak equity and
+    start-of-day baseline the crashed process held, and a corrupted trail must
+    refuse to authorize entries.
+    """
+
+    def test_restart_replays_peak_and_daily_baseline(self, envelope, tmp_path):
+        """Peak equity and daily baseline survive a simulated restart."""
+        path = str(tmp_path / "risk_gate_audit.jsonl")
+        process_a = RiskEnforcer(envelope, audit_log_path=path)
+        process_a.record_daily_start(5000.0)
+        passed, results = process_a.check_all([], 5200.0, 5100.0)  # peak → 5200
+        assert passed, [r.to_dict() for r in results]
+        process_a.audit(results)
+
+        # Simulated crash + restart against the same audit trail.
+        process_b = RiskEnforcer(envelope, audit_log_path=path)
+        assert process_b.recovery_state == "RESTORED"
+        assert process_b.recovery_error == ""
+        assert process_b._peak_equity == 5200.0
+        assert process_b._daily_pnl_start == 5000.0
+
+        # $300 loss vs the SURVIVED $5,000 baseline → daily-loss BLOCK. A
+        # silently re-initialized baseline would have passed this.
+        passed, results = process_b.check_all([], 4700.0, 4600.0)
+        assert not passed
+        gate = _gate_named(results, "daily_loss")
+        assert gate.result == GateResult.BLOCK
+
+    def test_corrupt_audit_fails_closed(self, envelope, tmp_path):
+        """A torn/unreadable audit trail blocks all entries (no silent reset)."""
+        path = tmp_path / "risk_gate_audit.jsonl"
+        path.write_text('{"gates": [], "runtime": {}}\n{"gates": [], "runt')
+
+        enforcer = RiskEnforcer(envelope, audit_log_path=str(path))
+        assert enforcer.recovery_state == "CORRUPTED"
+        assert enforcer.recovery_error
+
+        passed, results = enforcer.check_all([], 5000.0, 4000.0)
+        assert not passed
+        gate = _gate_named(results, "state_recovery")
+        assert gate.result == GateResult.CRITICAL
+
+    def test_missing_or_empty_audit_is_clean_start(self, envelope, tmp_path):
+        """First boot (no audit file, or an empty one) is CLEAN, not a failure."""
+        missing = RiskEnforcer(envelope, audit_log_path=str(tmp_path / "none.jsonl"))
+        assert missing.recovery_state == "CLEAN"
+        assert missing.recovery_error == ""
+
+        empty_path = tmp_path / "empty.jsonl"
+        empty_path.write_text("")
+        empty = RiskEnforcer(envelope, audit_log_path=str(empty_path))
+        assert empty.recovery_state == "CLEAN"

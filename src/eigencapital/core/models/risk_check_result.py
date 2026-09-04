@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -46,9 +46,6 @@ class RiskCheckResult:
     unit: str
     message: str
     version: str = "v1"
-
-    # Class-level registry for check definition consistency
-    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate status is one of PASS, WARN, FAIL
@@ -79,13 +76,6 @@ class RiskCheckResult:
         # Validate version is non-empty
         if not self.version:
             raise ValueError("version must be non-empty")
-
-        # Registry check for duplicate check_id definitions
-        if self.check_id in self._registry:
-            raise ValueError(
-                f"Duplicate risk check_id: {self.check_id}. Check IDs must be unique within a risk policy version."
-            )
-        self._registry[self.check_id] = True
 
     def __hash__(self) -> int:
         return hash((self.check_id, self.status, self.check_id))

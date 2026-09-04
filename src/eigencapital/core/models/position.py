@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -47,8 +47,6 @@ class Position:
     realized_pnl_today: float = 0.0
     overnight: bool = False
     version: str = "v1"
-
-    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate quantity is numeric
@@ -90,16 +88,6 @@ class Position:
         # Validate quantity is not NaN/inf
         if math.isnan(self.quantity) or math.isinf(self.quantity):
             raise ValueError("quantity must be finite (no NaN/infinity)")
-
-        # Registry check for duplicate position (same instrument+quantity)
-        key = (self.instrument_id, self.quantity)
-        if key in self.__class__._registry:
-            raise ValueError(
-                f"Duplicate Position: instrument={self.instrument_id}, "
-                f"quantity={self.quantity}. "
-                f"Positions must be unique per instrument+quantity."
-            )
-        self.__class__._registry[key] = key
 
     def __hash__(self) -> int:
         return hash((self.instrument_id, self.quantity))

@@ -32,7 +32,7 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Dict, List
+from typing import Any, Dict, List
 
 from eigencapital.features.contracts import FeatureFamily, Normalization
 from eigencapital.features.errors import (
@@ -77,9 +77,6 @@ class Feature:
     config_hash: str = ""
     provenance_hash: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
-
-    # Class-level registry
-    _registry: ClassVar[Dict[str, bool]] = {}
 
     def __post_init__(self) -> None:
         # Validate feature_id is non-empty
@@ -129,11 +126,6 @@ class Feature:
                 f"> timestamp_utc ({self.timestamp_utc}). "
                 f"This feature would constitute look-ahead bias."
             )
-
-        # Registry check for duplicate feature_id
-        if self.feature_id in self._registry:
-            raise ValueError(f"Duplicate feature_id: {self.feature_id}. Feature IDs must be unique.")
-        self._registry[self.feature_id] = True
 
     def __hash__(self) -> int:
         return hash((self.feature_id, self.feature_version, self.timestamp_utc))

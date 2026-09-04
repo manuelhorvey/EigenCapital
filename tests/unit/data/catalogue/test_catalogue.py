@@ -13,15 +13,6 @@ from eigencapital.data.catalogue.schemas import (
     build_initial_catalogue,
 )
 
-
-@pytest.fixture(autouse=True)
-def clear_instruments():
-    """Clear instrument registries between tests."""
-    Instrument._registry.clear()
-    yield
-    Instrument._registry.clear()
-
-
 _counter = 0
 
 
@@ -131,13 +122,11 @@ class TestSchemas:
 
 class TestRepository:
     def test_save_and_load(self, tmp_path):
-        from eigencapital.core.models.instrument import Instrument
         from eigencapital.data.catalogue.repository import CatalogueRepository
 
         repo = CatalogueRepository(tmp_path)
         inst = _make_instrument()
         repo.save(inst)
-        Instrument._registry.clear()  # allow re-registration from disk
         loaded = repo.load(inst.instrument_id)
         assert loaded.instrument_id == inst.instrument_id
 
@@ -162,7 +151,6 @@ class TestRepository:
         assert i2.instrument_id in ids
 
     def test_save_catalogue(self, tmp_path):
-        from eigencapital.core.models.instrument import Instrument
         from eigencapital.data.catalogue.repository import CatalogueRepository
 
         repo = CatalogueRepository(tmp_path)
@@ -172,7 +160,6 @@ class TestRepository:
         cat.register(i1)
         cat.register(i2)
         repo.save_catalogue(cat)
-        Instrument._registry.clear()  # allow re-registration from disk
         loaded = repo.load_all()
         assert len(loaded) == 2
 

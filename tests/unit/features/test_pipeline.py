@@ -20,7 +20,6 @@ from eigencapital.features.dependencies import (
     FeatureDependency,
     build_default_dag,
 )
-from eigencapital.features.feature import Feature
 from eigencapital.features.feature_set import (
     FeatureEntry,
     FeatureSet,
@@ -49,8 +48,11 @@ _bar_counter = 0
 
 
 def _reset():
-    Bar._registry.clear()
-    Feature._registry.clear()
+    """No-op isolation hook.
+
+    Bar/Feature no longer keep process-global registries (B1/P1 fix), so
+    there is nothing to clear between tests.
+    """
 
 
 def _bar(close: float, day: int = 0, inst: str = "ES") -> Bar:

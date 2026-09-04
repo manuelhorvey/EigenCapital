@@ -164,7 +164,6 @@ def test_snapshot_to_from_dict():
     original = _make_snapshot()
     d = original.to_dict()
 
-    MarketSnapshot._registry.clear()
     roundtrip = MarketSnapshot.from_dict(d)
     assert roundtrip.instrument_id == original.instrument_id
     assert roundtrip.mid_price == original.mid_price

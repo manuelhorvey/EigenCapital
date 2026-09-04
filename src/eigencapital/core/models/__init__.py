@@ -22,7 +22,7 @@ from .experiment import Experiment, ExperimentStatus
 from .fill import Fill
 from .instrument import Instrument
 from .market_snapshot import MarketSnapshot
-from .order import Order, OrderSide
+from .order import Order
 from .order_lifecycle import OrderLifecycle
 from .order_plan import OrderPlan, Urgency
 from .portfolio_target import PortfolioTarget
@@ -44,7 +44,6 @@ __all__ = [
     # Position & Orders
     "Position",
     "Order",
-    "OrderSide",
     "Fill",
     "OrderLifecycle",
     "OrderPlan",

@@ -6,8 +6,6 @@ for correctness, edge cases, and look-ahead prevention.
 
 import math
 
-import pytest
-
 from eigencapital.core.models.bar import Bar
 from eigencapital.features.base.ranges import (
     compute_atr,
@@ -37,7 +35,6 @@ from eigencapital.features.base.volume import (
     compute_volume_zscore,
     make_volume_ratio_feature,
 )
-from eigencapital.features.feature import Feature
 
 _counter = 0
 
@@ -46,16 +43,6 @@ def _next_id(prefix: str = "feat") -> str:
     global _counter
     _counter += 1
     return f"{prefix}_{_counter}"
-
-
-@pytest.fixture(autouse=True)
-def clear_registries():
-    """Clear all registries before each test."""
-    Feature._registry.clear()
-    Bar._registry.clear()
-    yield
-    Feature._registry.clear()
-    Bar._registry.clear()
 
 
 def _make_bar(

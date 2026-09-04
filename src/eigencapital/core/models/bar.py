@@ -16,7 +16,7 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -57,9 +57,6 @@ class Bar:
     source: str | None = None
     bar_interval: str = "1m"  # Default: 1-minute
     data_version: str = "v1"
-
-    # Class-level registry
-    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # INVARIANT: timestamp_utc == bar_end_utc
@@ -109,16 +106,6 @@ class Bar:
             if self.vwap < self.low or self.vwap > self.high:
                 # This is a warning, not hard invariant, but log it
                 pass
-
-        # Registry check for duplicate instrument+timestamp
-        key = (self.instrument_id, self.timestamp_utc)
-        if key in self._registry:
-            raise ValueError(
-                f"Duplicate bar: instrument={self.instrument_id}, "
-                f"timestamp={self.timestamp_utc}. Bars must be unique per "
-                f"instrument+timestamp."
-            )
-        self._registry[key] = (self.instrument_id, self.timestamp_utc)
 
     def __hash__(self) -> int:
         return hash((self.instrument_id, self.timestamp_utc, self.bar_interval))

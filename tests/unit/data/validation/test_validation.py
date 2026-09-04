@@ -112,9 +112,6 @@ class TestAnomalyChecks:
 
 class TestDataValidator:
     def test_validate_clean_dataset(self):
-        from eigencapital.core.models.bar import Bar as BarCls
-
-        BarCls._registry.clear()
         validator = DataValidator()
         bars = [
             _make_bar(
@@ -137,9 +134,6 @@ class TestDataValidator:
         assert "1 bars" in summary
 
     def test_validator_with_anomalies(self):
-        from eigencapital.core.models.bar import Bar as BarCls
-
-        BarCls._registry.clear()
         validator = DataValidator()
         bars = [
             _make_bar(),  # normal

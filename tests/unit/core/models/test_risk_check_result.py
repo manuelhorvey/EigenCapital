@@ -93,7 +93,6 @@ def test_risk_check_to_from_dict():
 
     original = _make_check(status="WARN", observed=1.5, limit=2.0)
     d = original.to_dict()
-    RCR._registry.clear()
     roundtrip = RCR.from_dict(d)
     assert roundtrip.check_id == original.check_id
     assert roundtrip.status == original.status

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 from .risk_check_result import RiskCheckResult
 
@@ -67,9 +67,6 @@ class RiskDecision:
     decision_snapshot_id: str  # back to DecisionSnapshot
     version: str = "v1"
 
-    # Class-level registry
-    _registry: ClassVar[dict] = {}
-
     def __post_init__(self) -> None:
         # Validate decision is one of APPROVED, REJECTED, REDUCED
         valid_decisions = {"APPROVED", "REJECTED", "REDUCED"}
@@ -119,11 +116,6 @@ class RiskDecision:
         for i, check in enumerate(self.risk_checks):
             if not isinstance(check, RiskCheckResult):
                 raise ValueError(f"risk_checks[{i}] is not a RiskCheckResult instance")
-
-        # Registry check for duplicate decision_ids
-        if self.decision_id in self._registry:
-            raise ValueError(f"Duplicate decision_id: {self.decision_id}. Decision IDs must be unique.")
-        self._registry[self.decision_id] = True
 
     def __hash__(self) -> int:
         return hash((self.decision_id, self.decision, self.instrument_id))

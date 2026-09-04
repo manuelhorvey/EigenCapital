@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -62,9 +62,6 @@ class ApprovedTarget:
     constraints_binding: list | None = None  # Which limits affected the decision
     version: str = "v1"
 
-    # Class-level registry
-    _registry: ClassVar[dict] = {}
-
     def __post_init__(self) -> None:
         # Validate decision is one of APPROVED, REDUCED, REJECTED
         valid_decisions = {"APPROVED", "REDUCED", "REJECTED"}
@@ -101,11 +98,6 @@ class ApprovedTarget:
         # Validate version is non-empty
         if not self.version:
             raise ValueError("version must be non-empty")
-
-        # Registry check for duplicate target_ids
-        if self.target_id in self._registry:
-            raise ValueError(f"Duplicate approved_target target_id: {self.target_id}. Target IDs must be unique.")
-        self._registry[self.target_id] = True
 
     def __hash__(self) -> int:
         return hash((self.target_id, self.decision, self.approved_quantity))

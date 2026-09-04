@@ -117,7 +117,6 @@ def test_risk_decision_convenience_properties():
 
 
 def test_risk_decision_to_from_dict():
-    from eigencapital.core.models.risk_check_result import RiskCheckResult as RCR
     from eigencapital.core.models.risk_decision import RiskDecision as RD
 
     checks = [
@@ -126,8 +125,6 @@ def test_risk_decision_to_from_dict():
     ]
     original = _make_decision(risk_checks=checks)
     d = original.to_dict()
-    RCR._registry.clear()
-    RD._registry.clear()
     roundtrip = RD.from_dict(d)
     assert roundtrip.decision_id == original.decision_id
     assert roundtrip.decision == original.decision

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -68,9 +68,6 @@ class Fill:
     experiment_id: str = ""
     version: str = "v1"
 
-    # Class-level registry
-    _registry: ClassVar[dict] = {}
-
     def __post_init__(self) -> None:
         # INVARIANT: quantity is ALWAYS positive
         if self.quantity <= 0:
@@ -121,17 +118,6 @@ class Fill:
         # Validate strategy_id is non-empty (required for accountability)
         if not self.strategy_id:
             raise ValueError("strategy_id must be non-empty (required for accountability)")
-
-        # Registry check for duplicate fill_id
-        if self.fill_id in self._registry:
-            raise ValueError(f"Duplicate fill_id: {self.fill_id}. Fill IDs must be unique.")
-        self._registry[self.fill_id] = (
-            self.fill_id,
-            self.order_id,
-            self.instrument_id,
-            self.side,
-            self.quantity,
-        )
 
     def __hash__(self) -> int:
         return hash((self.fill_id, self.order_id, self.side))

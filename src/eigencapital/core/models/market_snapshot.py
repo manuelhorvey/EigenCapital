@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 
 class DataQualityStatus:
@@ -56,9 +56,6 @@ class MarketSnapshot:
     session: str = "OPEN"  # OPEN, CLOSED, AUCTION
     data_quality: str = DataQualityStatus.VALID
     source: str | None = None
-
-    # Class-level registry
-    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate data_quality is a known status
@@ -114,14 +111,6 @@ class MarketSnapshot:
         valid_sessions = {"OPEN", "CLOSED", "AUCTION"}
         if self.session not in valid_sessions:
             raise ValueError(f"Invalid session: {self.session}. Must be one of {valid_sessions}")
-
-        # Registry check for duplicate snapshots
-        key = (self.instrument_id, self.timestamp_utc)
-        if key in self._registry:
-            raise ValueError(
-                f"Duplicate MarketSnapshot: instrument={self.instrument_id}, timestamp={self.timestamp_utc}"
-            )
-        self._registry[key] = key
 
     def __hash__(self) -> int:
         return hash((self.instrument_id, self.timestamp_utc, self.session))

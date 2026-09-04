@@ -286,7 +286,10 @@ class StructuredAlertDispatcher:
 
     def _deliver_webhook(self, alert: Alert) -> None:
         """Deliver alert via webhook (POST to URL)."""
+        import logging
         import urllib.request
+
+        logger = logging.getLogger(__name__)
 
         try:
             payload = json.dumps(
@@ -307,13 +310,16 @@ class StructuredAlertDispatcher:
                 method="POST",
             )
             urllib.request.urlopen(req, timeout=5)
-        except Exception:
-            pass  # Don't fail on webhook errors
+        except Exception as e:
+            logger.warning(f"Webhook delivery failed: {e}")
 
     def _deliver_telegram(self, alert: Alert) -> None:
         """Deliver alert via Telegram bot."""
+        import logging
         import urllib.parse
         import urllib.request
+
+        logger = logging.getLogger(__name__)
 
         try:
             text = f"🔴 *{alert.severity}* | {alert.category}\n{alert.message}"
@@ -332,8 +338,8 @@ class StructuredAlertDispatcher:
 
             req = urllib.request.Request(url, data=data, method="POST")
             urllib.request.urlopen(req, timeout=5)
-        except Exception:
-            pass  # Don't fail on Telegram errors
+        except Exception as e:
+            logger.warning(f"Telegram delivery failed: {e}")
 
     def get_history(self) -> List[Dict[str, Any]]:
         """Get alert history."""

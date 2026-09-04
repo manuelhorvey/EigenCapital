@@ -920,3 +920,66 @@ class TestDashboardSecurity:
 
         # Verify exception handler exists
         assert app.exception_handlers.get(500) is not None or len(app.exception_handlers) > 0
+
+
+class TestAPIAuthAndRateLimit:
+    """API endpoints exposing live state must require a key (S7)."""
+
+    def test_healthz_is_open(self) -> None:
+        """Load-balancer health probe stays unauthenticated."""
+        import os
+
+        os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
+        from fastapi.testclient import TestClient
+
+        from eigencapital.dashboard.api.app import app
+
+        with TestClient(app) as client:
+            response = client.get("/healthz")
+        assert response.status_code == 200
+
+    def test_risk_endpoint_requires_key(self) -> None:
+        """GET /api/v1/risk without a key → 401."""
+        import os
+
+        os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
+        from fastapi.testclient import TestClient
+
+        from eigencapital.dashboard.api.app import app
+
+        with TestClient(app) as client:
+            response = client.get("/api/v1/risk")
+        assert response.status_code == 401
+
+    def test_risk_endpoint_accepts_valid_key(self) -> None:
+        """GET /api/v1/risk with the configured key is authorized (not 401)."""
+        import os
+
+        os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
+        key = os.environ.get("DASHBOARD_API_KEY", "dev-key-change-in-production")
+        from fastapi.testclient import TestClient
+
+        from eigencapital.dashboard.api.app import app
+
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/v1/risk",
+                headers={"Authorization": f"Bearer {key}"},
+            )
+        assert response.status_code != 401
+
+    def test_auth_can_be_disabled_for_local_dev(self) -> None:
+        """DASHBOARD_DISABLE_AUTH=1 bypasses auth (local development only)."""
+        import os
+
+        os.environ["DASHBOARD_DISABLE_AUTH"] = "1"
+        try:
+            from fastapi.testclient import TestClient
+
+            from eigencapital.dashboard.api.app import app
+
+            with TestClient(app) as client:
+                response = client.get("/api/v1/risk")
+            assert response.status_code != 401
+        finally:
+            os.environ.pop("DASHBOARD_DISABLE_AUTH", None)

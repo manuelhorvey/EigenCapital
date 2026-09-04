@@ -85,6 +85,31 @@ class RiskPolicy:
         fields = {f.name for f in cls.__dataclass_fields__.values()}
         return cls(**{k: v for k, v in d.items() if k in fields})
 
+    @classmethod
+    def from_live_config(cls, live_risk: Any) -> RiskPolicy:
+        """Derive an EigenRisk policy from the live risk configuration (A1).
+
+        ``LiveRiskConfig`` (config.live_risk) is the canonical, retail-sized
+        source of truth for the live system. EigenRisk's default ``RiskPolicy``
+        is a research/backtest profile (institution-sized defaults), so any
+        live path that routes through EigenRisk must build its policy from the
+        live config instead of silently accepting the research defaults.
+
+        Percent-based fields are scaled from the fraction used by the config
+        (0.10 == 10%).
+        """
+        return cls(
+            max_drawdown_pct=live_risk.max_account_drawdown_pct * 100.0,
+            daily_loss_limit=live_risk.max_daily_loss,
+            max_gross_leverage=2.0,
+            max_net_leverage=1.5,
+            max_position_count=live_risk.max_concurrent_positions,
+            min_equity=live_risk.min_equity,
+            max_position_notional=live_risk.max_position_notional,
+            max_position_risk_pct=live_risk.max_per_position_loss_pct * 100.0,
+            kill_switch=False,
+        )
+
 
 # Pre-defined risk policies
 CONSERVATIVE = RiskPolicy(

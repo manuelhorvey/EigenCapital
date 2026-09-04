@@ -35,53 +35,20 @@ CONFIGS_DIR = Path(__file__).parent.parent.parent / "configs"
 class BrokerConfig:
     """Broker connection and validation configuration."""
 
-    account_id: str = "436921728"
+    account_id: str = ""
     account_name: str = "EigenCapital-R4-Trial"
     environment: str = "demo"  # "live" or "demo"
     broker_name: str = "exness"
     platform: str = "mt5"
-    server: str = "Exness-MT5Trial9"
+    server: str = ""
     max_spread: float = 0.0015
     max_slippage: float = 0.0008
     min_volume: float = 0.01
     max_volume: float = 1.0
-    allowed_symbols: Dict[str, str] = field(
-        default_factory=lambda: {
-            "US30": "indices",
-            "USTEC": "indices",
-            "AUDJPY": "forex_excluded",
-            "USOIL": "energy",
-            "AUDUSD": "forex",
-            "AUDCHF": "forex",
-            "AUDCAD": "forex",
-            "NZDJPY": "forex_excluded",
-            "GBPJPY": "forex_excluded",
-            "AUDNZD": "forex",
-            "NZDUSD": "forex",
-            "NZDCHF": "forex",
-            "NZDCAD": "forex",
-            "GBPUSD": "forex",
-            "GBPCHF": "forex",
-            "GBPCAD": "forex",
-            "CHFJPY": "forex_excluded",
-            "EURJPY": "forex_excluded",
-            "USDJPY": "forex_excluded",
-            "CADJPY": "forex_excluded",
-            "XAUUSD": "metals",
-            "EURUSD": "forex",
-            "EURCHF": "forex",
-            "USDCHF": "forex",
-            "EURCAD": "forex",
-            "USDCAD": "forex",
-            "CADCHF": "forex",
-            "GBPNZD": "forex",
-            "EURGBP": "forex",
-            "EURNZD": "forex",
-            "GBPAUD": "forex",
-            "EURAUD": "forex",
-            "BTCUSD": "crypto",
-        }
-    )
+    # allowed_symbols intentionally empty by default — populated from
+    # configs/{environment}/config.toml so symbol allowlists live in config,
+    # not in code defaults.
+    allowed_symbols: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> BrokerConfig:
@@ -117,7 +84,7 @@ class StrategyConfig:
 
     name: str = "risk_conditioned_continuation"
     version: str = "R4.0"
-    manifest_fingerprint: str = "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
+    manifest_fingerprint: str = ""
     data_terminal_id: str = "436921728"
     vol_target_annual: float = 0.10
     vol_lookback: int = 20
@@ -227,6 +194,13 @@ class LiveRiskConfig:
 
     These are STRICTER than the general RiskConfig and are the
     authoritative source for the live rebalance loop risk envelope.
+
+    Authority chain (A1): LiveRiskConfig is canonical. The live gate layer
+    derives RiskEnvelope from it (RiskEnvelope.from_config) and the EigenRisk
+    layer derives RiskPolicy from it (RiskPolicy.from_live_config), so the
+    three structures cannot silently disagree about live limits. RiskPolicy's
+    bare defaults remain a research/backtest profile and must not be used
+    un-configured on a live account.
     """
 
     max_concurrent_positions: int = 20
@@ -237,7 +211,7 @@ class LiveRiskConfig:
     max_daily_loss: float = 250.0
     min_equity: float = 4_000.0
     require_sl_on_positions: bool = False
-    t0_equity: float = 5_010.94
+    t0_equity: float = 0.0
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> LiveRiskConfig:

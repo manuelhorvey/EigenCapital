@@ -2,11 +2,18 @@
 
 This is a READ-ONLY observability layer over the existing production trading system.
 It cannot modify R4, risk limits, orders, positions, or qualification results.
+
+Security (S7): every /api/v1 endpoint (live risk/position/evidence state) is
+protected by a bearer API key and a per-IP rate limit. Set DASHBOARD_API_KEY
+to a strong random value in production; set DASHBOARD_DISABLE_AUTH=1 only for
+local development against localhost.
 """
 
 from __future__ import annotations
 
 import os
+import time
+from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
 
@@ -61,6 +68,53 @@ async def add_security_headers(request: Request, call_next: Any) -> Any:
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     return response
+
+
+# ── Auth + rate limiting (S7) ───────────────────────────────────────
+
+_RATE_LIMITS: dict[str, list[float]] = defaultdict(list)
+_RATE_LIMIT_WINDOW = 60  # seconds
+_RATE_LIMIT_MAX = 100  # requests per window per client IP
+
+
+def _api_key() -> str:
+    """Read the configured API key (env override each request)."""
+    return os.environ.get("DASHBOARD_API_KEY", "dev-key-change-in-production")
+
+
+@app.middleware("http")
+async def require_api_key_and_rate_limit(request: Request, call_next: Any) -> Any:
+    """Protect live-state endpoints with API key + per-IP rate limit.
+
+    Only /api/v1/* HTTP routes expose live trading state; /healthz and docs
+    stay open for load balancers and tooling. Set DASHBOARD_DISABLE_AUTH=1 to
+    disable in local development only.
+    """
+    path = request.url.path
+    if os.environ.get("DASHBOARD_DISABLE_AUTH") == "1" or not path.startswith("/api/v1"):
+        return await call_next(request)
+
+    # Rate limit (applied even before auth to blunt brute force)
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    _RATE_LIMITS[client_ip] = [t for t in _RATE_LIMITS[client_ip] if now - t < _RATE_LIMIT_WINDOW]
+    if len(_RATE_LIMITS[client_ip]) >= _RATE_LIMIT_MAX:
+        return JSONResponse(
+            status_code=429,
+            content={"error": "Rate limit exceeded"},
+            headers={"Retry-After": str(_RATE_LIMIT_WINDOW)},
+        )
+    _RATE_LIMITS[client_ip].append(now)
+
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {_api_key()}":
+        return JSONResponse(
+            status_code=401,
+            content={"error": "Unauthorized", "detail": "Missing or invalid API key"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return await call_next(request)
 
 
 # Include routers

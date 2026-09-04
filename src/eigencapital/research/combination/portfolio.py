@@ -166,7 +166,7 @@ def combine_returns(
         return (), ()
 
     # Find common timestamps
-    all_timestamps = set()
+    all_timestamps: set[str] = set()
     for s in streams:
         all_timestamps.update(s.timestamps)
     common_ts = sorted(all_timestamps)

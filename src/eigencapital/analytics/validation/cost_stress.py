@@ -77,7 +77,7 @@ def cost_stress_test(
     base_sharpe: float,
     cost_multipliers: List[float],
     sharpe_at_costs: List[float],
-    total_returns_at_costs: List[float] = None,
+    total_returns_at_costs: List[float] | None = None,
 ) -> CostStressResult:
     """Perform cost stress analysis.
 

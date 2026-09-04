@@ -812,12 +812,12 @@ class MicroCampaignExecutor:
 
     def produce_map(self, results: List[Dict[str, Any]]) -> str:
         """Produce Campaign 2 Research Map."""
-        by_verdict = {}
+        by_verdict: Dict[str, List[Dict[str, Any]]] = {}
         for r in results:
             v = r["verdict"]
             by_verdict.setdefault(v, []).append(r)
 
-        mode_counts = {}
+        mode_counts: Dict[str, int] = {}
         for r in results:
             for fm in r["failure_modes"]:
                 mode_counts[fm] = mode_counts.get(fm, 0) + 1

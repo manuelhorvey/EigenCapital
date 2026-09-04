@@ -104,12 +104,12 @@ def compute_concentration(
 
     # Top N concentration
     sorted_instruments = sorted(normalized.items(), key=lambda x: x[1], reverse=True)
-    top_n = {}
+    top_n: Dict[str, float] = {}
     cumulative = 0.0
     for n in [1, 3, 5]:
         for i in range(min(n, len(sorted_instruments))):
             cumulative += sorted_instruments[i][1]
-        top_n[n] = cumulative
+        top_n[str(n)] = cumulative
         cumulative = 0.0
 
     most_concentrated = sorted_instruments[0][0] if sorted_instruments else ""

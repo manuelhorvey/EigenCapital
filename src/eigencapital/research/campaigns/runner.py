@@ -178,7 +178,7 @@ class CampaignRunner:
         if not executions:
             return {}
 
-        comparison = {
+        comparison: Dict[str, Any] = {
             "total_executions": len(executions),
             "by_verdict": {},
             "results": [],

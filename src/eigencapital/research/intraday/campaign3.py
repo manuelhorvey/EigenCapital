@@ -363,14 +363,14 @@ def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
         print(f"  Family: {hyp.family} | Hash: {hyp.pre_registered_hash[:12]}")
 
         best_result = None
-        best_sharpe = -999
+        best_sharpe = -999.0
 
         for hp in hyp.holding_periods:
             # Aggregate across all symbols
-            all_gross_sharpes = []
-            all_net_sharpes = []
-            all_returns = []
-            all_dds = []
+            all_gross_sharpes: List[float] = []
+            all_net_sharpes: List[float] = []
+            all_returns: List[float] = []
+            all_dds: List[float] = []
             all_trades = 0
             all_costs = 0.0
 
@@ -378,12 +378,12 @@ def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
                 try:
                     signal = generate_signal(df, hyp.signal_func, hp, hyp.hypothesis_id)
                     result = run_simple_backtest(df, signal, hp)
-                    all_gross_sharpes.append(result["gross_sharpe"])
-                    all_net_sharpes.append(result["net_sharpe"])
-                    all_returns.append(result["total_return"])
-                    all_dds.append(result["max_drawdown"])
-                    all_trades += result["num_trades"]
-                    all_costs += result["cost_total"]
+                    all_gross_sharpes.append(float(result["gross_sharpe"]))
+                    all_net_sharpes.append(float(result["net_sharpe"]))
+                    all_returns.append(float(result["total_return"]))
+                    all_dds.append(float(result["max_drawdown"]))
+                    all_trades += int(result["num_trades"])
+                    all_costs += float(result["cost_total"])
                 except Exception:
                     continue
 
@@ -405,17 +405,17 @@ def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
                 description=hyp.description,
                 pre_registered_hash=hyp.pre_registered_hash,
                 holding_period=hp,
-                gross_sharpe=avg_gross,
-                net_sharpe=avg_net,
-                oos_sharpe=wf["wf_oos_sharpe"],
-                total_return=avg_return,
-                max_drawdown=worst_dd,
-                turnover=all_trades / len(all_data),
+                gross_sharpe=float(avg_gross),
+                net_sharpe=float(avg_net),
+                oos_sharpe=float(wf["wf_oos_sharpe"]),
+                total_return=float(avg_return),
+                max_drawdown=float(worst_dd),
+                turnover=float(all_trades) / len(all_data),
                 num_trades=all_trades,
                 cost_total=all_costs,
-                gross_to_net_degradation=1 - (avg_net / avg_gross) if abs(avg_gross) > 0.001 else 1.0,
-                wf_consistency=wf["wf_consistency"],
-                wf_oos_sharpe=wf["wf_oos_sharpe"],
+                gross_to_net_degradation=(1 - (float(avg_net) / float(avg_gross)) if abs(avg_gross) > 0.001 else 1.0),
+                wf_consistency=float(wf["wf_consistency"]),
+                wf_oos_sharpe=float(wf["wf_oos_sharpe"]),
             )
 
             # Classify verdict
@@ -427,7 +427,7 @@ def run_campaign3(data_dir: str = "data/intraday_m1") -> List[Campaign3Result]:
             )
 
             if avg_net > best_sharpe:
-                best_sharpe = avg_net
+                best_sharpe = float(avg_net)
                 best_result = cr
 
         if best_result is not None:

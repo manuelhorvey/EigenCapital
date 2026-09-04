@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eigencapital"
-version = "0.1.0"
+version = "0.5.0"
 description = "Asset-agnostic quantitative research and execution platform"
 readme = "README.md"
 license = {text = "MIT"}
@@ -23,25 +23,44 @@ classifiers = [
 ]
 
 dependencies = [
-    "pydantic>=2.0",
-    "fastapi>=0.100.0",
-    "uvicorn>=0.20.0",
+    "pandas>=2.0",
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
-    "ruff>=0.15",
+    "ruff>=0.15.0,<0.16",
     "mypy>=2.0",
+    # Dashboard stack is also required to run the test suite (tests import
+    # eigencapital.dashboard). See the `dashboard` extra for the canonical list.
+    "pydantic>=2.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+]
+dashboard = [
+    "pydantic>=2.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
 ]
 research = [
-    "numpy>=1.24",
-    "pandas>=2.0",
+    "yfinance>=0.2.0",
+]
+mt5 = [
+    "mt5linux>=1.0",
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+exclude = [
+    # Research campaigns/executors are research-only tooling (A4): they ship
+    # with the repo for reproducibility but must not install into production
+    # deployments. Shared primitives they need (CostModel, provenance hashing)
+    # live in eigencapital.core and are re-exported for compatibility.
+    "eigencapital.research*",
+    "eigencapital.dashboard.tests*",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -56,15 +75,34 @@ markers = [
 source = ["eigencapital"]
 omit = [
     "tests/*",
+    # Research no longer ships in the installed package (A4, see
+    # [tool.setuptools] exclude) and is exercised by its own dedicated suite
+    # under tests/unit/research. Fidelity/micro_live/paper are part of the
+    # promotion path and ARE measured (T5).
     "**/research/**",
-    "**/fidelity/**",
-    "**/micro_live/**",
-    "**/paper/**",
 ]
 
 [tool.coverage.report]
 show_missing = true
 fail_under = 80
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = false
+disallow_untyped_defs = false
+warn_unused_ignores = true
+files = ["src/eigencapital"]
+
+# Third-party deps without published type stubs. Importing them is fine; mypy
+# treats them as Any rather than erroring on every import site.
+[[tool.mypy.overrides]]
+module = [
+    "pandas.*",
+    "mt5linux.*",
+    "yfinance.*",
+    "MetaTrader5",
+]
+ignore_missing_imports = true
 
 [tool.ruff]
 target-version = "py311"

@@ -1,4 +1,9 @@
-"""Comprehensive tests to boost coverage across low-tested modules."""
+"""Behavioral tests for core-model errors and edge components.
+
+Covers: core model error contracts, strategy registry, production evidence
+maturity, structured logging, mean-reversion features, structured alerts, and
+live risk observation.
+"""
 
 from __future__ import annotations
 
@@ -713,7 +718,7 @@ class TestRiskObservation:
             positions=[],
             daily_pnl=0.0,
         )
-        assert state.overall_level in ("HEALTHY", "NORMAL", "healthy", "normal")
+        assert state.overall_level == "NORMAL"
 
     def test_observe_drawdown(self):
         from eigencapital.live.risk_observation import RiskObserver

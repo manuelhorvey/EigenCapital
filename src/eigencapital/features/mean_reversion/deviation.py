@@ -89,8 +89,8 @@ def compute_vwap_deviation(bars: List[Bar], lookback: int) -> float | None:
         return None
 
     recent = bars[-lookback:]
-    total_volume = 0
-    total_pv = 0  # price * volume
+    total_volume = 0.0
+    total_pv = 0.0  # price * volume
 
     for bar in recent:
         typical_price = (bar.high + bar.low + bar.close) / 3

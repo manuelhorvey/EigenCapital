@@ -150,7 +150,7 @@ class FeatureSet:
     @property
     def computed_features(self) -> Dict[str, float]:
         """Get all successfully computed feature values."""
-        return {fid: entry.value for fid, entry in self.entries.items() if entry.is_usable}
+        return {fid: entry.value for fid, entry in self.entries.items() if entry.is_usable and entry.value is not None}
 
     @property
     def unavailable_features(self) -> List[str]:

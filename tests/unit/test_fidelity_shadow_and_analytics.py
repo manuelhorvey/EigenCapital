@@ -1,4 +1,9 @@
-"""Additional coverage tests for shadow, forward_campaign, and low-coverage modules."""
+"""Behavioral tests for fidelity shadow/forward campaigns and shared modules.
+
+Covers: fidelity shadow divergence/result contracts, forward campaign enums,
+shadow safety contracts, momentum features, extended core models, and analytics
+reporting.
+"""
 
 from __future__ import annotations
 

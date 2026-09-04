@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 # R3 Pre-Registered Configuration (FROZEN BEFORE EXECUTION)
 # ============================================================
 
-R3_FREEZE = {
+R3_FREEZE: Dict[str, Any] = {
     "campaign_id": "R3-pre-registered-risk-transformation",
     "version": "1.0",
     "frozen_before_execution": True,
@@ -208,7 +208,11 @@ class WalkForwardValidator:
 class StressTester:
     """Stress testing — the 1H equivalent."""
 
-    def __init__(self, cost_multipliers: List[float] = None, vol_shocks: List[float] = None):
+    def __init__(
+        self,
+        cost_multipliers: List[float] | None = None,
+        vol_shocks: List[float] | None = None,
+    ):
         self._cost_multipliers = cost_multipliers or [1, 2, 3]
         self._vol_shocks = vol_shocks or [1.5, 2.0]
 

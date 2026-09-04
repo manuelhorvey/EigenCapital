@@ -509,17 +509,17 @@ class FullCampaignExecutor:
         all_modes = []
         for modes in self._failure_modes.values():
             all_modes.extend(modes)
-        mode_counts = {}
+        mode_counts: Dict[str, int] = {}
         for m in all_modes:
             mode_counts[m] = mode_counts.get(m, 0) + 1
 
         # Verdict distribution
-        verdict_counts = {}
+        verdict_counts: Dict[str, int] = {}
         for v in self._verdicts:
             verdict_counts[v.status] = verdict_counts.get(v.status, 0) + 1
 
         # Family analysis
-        family_results = {}
+        family_results: Dict[str, List[Dict[str, Any]]] = {}
         for v in self._verdicts:
             family_results.setdefault(v.family, []).append(
                 {

@@ -110,7 +110,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
     for h in HYPOTHESES:
         func = SIGNALS[h.signal]
         is_ll = h.family == "lead_lag"
-        best, best_score = None, -999
+        best, best_score = None, -999.0
 
         for hp in HORIZONS:
             gross_vals, net_vals, adv_vals, dd_vals = [], [], [], []

@@ -84,7 +84,7 @@ class SensitivityResult:
 def parameter_sensitivity(
     base_sharpe: float,
     parameter_results: Dict[str, List[float]],
-    values_per_param: Dict[str, List[float]] = None,
+    values_per_param: Dict[str, List[float]] | None = None,
     degradation_threshold: float = 0.3,
 ) -> SensitivityResult:
     """Analyze parameter sensitivity.
@@ -110,11 +110,8 @@ def parameter_sensitivity(
         if not sharpes:
             continue
 
-        values = (
-            values_per_param.get(param_name, list(range(len(sharpes))))
-            if values_per_param
-            else list(range(len(sharpes)))
-        )
+        fallback_values = [float(i) for i in range(len(sharpes))]
+        values = values_per_param.get(param_name, fallback_values) if values_per_param else fallback_values
 
         min_s = min(sharpes)
         max_s = max(sharpes)

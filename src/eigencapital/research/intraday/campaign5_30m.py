@@ -294,7 +294,7 @@ def sig_ny_close_local(df: pd.DataFrame, **kw) -> pd.Series:
     return -mom * mask.astype(float)
 
 
-SIGNALS: Dict[str, Callable] = {
+SIGNALS: Dict[str, Callable | None] = {
     "sig_ny_close": sig_ny_close_local,
     "sig_late_ny_fade": sig_late_ny_fade,
     "sig_ny_close_x_volreg": sig_ny_close_x_volreg,
@@ -465,7 +465,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
         print(f"{h.hid}: {h.description} [{h.family}]")
 
         is_cross_asset = h.family == "cross_asset"
-        best, best_score = None, -999
+        best, best_score = None, -999.0
 
         for hp in HORIZONS:
             gross_vals, net_vals, adv_vals, dd_vals = [], [], [], []

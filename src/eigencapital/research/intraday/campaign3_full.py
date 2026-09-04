@@ -758,12 +758,12 @@ def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisRes
             continue
 
         best_result = None
-        best_score = -999
+        best_score = -999.0
 
         for hp in HOLDING_HORIZONS:
-            sym_gross = {}
-            sym_net_base = {}
-            sym_dd = {}
+            sym_gross: Dict[str, float] = {}
+            sym_net_base: Dict[str, float] = {}
+            sym_dd: Dict[str, float] = {}
             total_trades = 0
 
             for sym, df in all_data.items():
@@ -775,13 +775,11 @@ def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisRes
 
                     gross = backtest(df, sig, hp, 0)
                     net_b = backtest(df, sig, hp, HostileCostModel.base())
-                    backtest(df, sig, hp, HostileCostModel.adverse())
-                    backtest(df, sig, hp, HostileCostModel.hostile())
 
-                    sym_gross[sym] = gross["sharpe"]
-                    sym_net_base[sym] = net_b["sharpe"]
-                    sym_dd[sym] = gross["dd"]
-                    total_trades += gross["trades"]
+                    sym_gross[sym] = float(gross["sharpe"])
+                    sym_net_base[sym] = float(net_b["sharpe"])
+                    sym_dd[sym] = float(gross["dd"])
+                    total_trades += int(gross["trades"])
                 except Exception:
                     continue
 
@@ -796,8 +794,8 @@ def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisRes
             wf = walk_forward(all_data["EURUSDm"], signal_func, hp)
 
             # Cost sensitivity
-            net_a_vals = []
-            net_h_vals = []
+            net_a_vals: List[float] = []
+            net_h_vals: List[float] = []
             for sym, df in all_data.items():
                 try:
                     sig = signal_func(df)
@@ -806,8 +804,8 @@ def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisRes
                     sig = sig.where(sig.abs() > thresh, 0)
                     na = backtest(df, sig, hp, HostileCostModel.adverse())
                     nh = backtest(df, sig, hp, HostileCostModel.hostile())
-                    net_a_vals.append(na["sharpe"])
-                    net_h_vals.append(nh["sharpe"])
+                    net_a_vals.append(float(na["sharpe"]))
+                    net_h_vals.append(float(nh["sharpe"]))
                 except Exception:
                     continue
 
@@ -823,20 +821,20 @@ def run_campaign3_full(data_dir: str = "data/intraday_m1") -> List[HypothesisRes
                 symbol_sharpes_gross=sym_gross,
                 symbol_sharpes_net=sym_net_base,
                 symbol_drawdowns=sym_dd,
-                gross_sharpe=avg_gross,
-                net_sharpe_base=avg_net_b,
-                net_sharpe_adverse=avg_net_a,
-                net_sharpe_hostile=avg_net_h,
-                max_drawdown=avg_dd,
+                gross_sharpe=float(avg_gross),
+                net_sharpe_base=float(avg_net_b),
+                net_sharpe_adverse=float(avg_net_a),
+                net_sharpe_hostile=float(avg_net_h),
+                max_drawdown=float(avg_dd),
                 turnover=total_trades / len(all_data),
                 num_trades=total_trades,
-                degradation=1 - (avg_net_b / avg_gross) if abs(avg_gross) > 0.001 else 1,
-                wf_consistency=wf["wf_consistency"],
-                wf_oos_sharpe=wf["wf_oos_sharpe"],
+                degradation=(1 - (float(avg_net_b) / float(avg_gross)) if abs(avg_gross) > 0.001 else 1),
+                wf_consistency=float(wf["wf_consistency"]),
+                wf_oos_sharpe=float(wf["wf_oos_sharpe"]),
             )
             cr.verdict, cr.failure_reasons = classify(cr)
 
-            score = avg_net_b + wf["wf_consistency"] * 0.5
+            score = float(avg_net_b) + float(wf["wf_consistency"]) * 0.5
             print(
                 f"  HP={hp:2d}: gross={avg_gross:+.3f} net_b={avg_net_b:+.3f} "
                 f"net_h={avg_net_h:+.3f} DD={avg_dd:.3f} WF={wf['wf_consistency']:.0%} → {cr.verdict.value}"

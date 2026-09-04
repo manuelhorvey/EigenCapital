@@ -1,4 +1,4 @@
-.PHONY: install dev test test-unit test-property lint typecheck clean help
+.PHONY: install dev test test-unit test-property lint format format-check typecheck clean help
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -20,6 +20,12 @@ test-property:  ## Run property-based tests
 
 lint:  ## Run linting
 	python -m ruff check src/ tests/
+
+format:  ## Auto-format code with ruff
+	python -m ruff format src/ tests/
+
+format-check:  ## Check formatting without modifying files
+	python -m ruff format --check src/ tests/
 
 typecheck:  ## Run type checking
 	python -m mypy src/eigencapital/

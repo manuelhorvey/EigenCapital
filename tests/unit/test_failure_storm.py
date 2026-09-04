@@ -306,8 +306,8 @@ class TestSecurityAtScale:
             results = [
                 RiskGateResult(
                     gate_name="test",
-                    result=GateResult.PASS,
-                    reason=BlockReason.NO_SL_PROTECTION,
+                    result=GateResult.BLOCK,
+                    block_reason=BlockReason.NO_SL_PROTECTION,
                     message="ok",
                     details={},
                     broker_state_hash="abc",

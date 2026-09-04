@@ -8,9 +8,6 @@ Strategy CANNOT bypass Portfolio or EigenRisk.
 
 import pytest
 
-from eigencapital.core.models.approved_target import ApprovedTarget
-from eigencapital.core.models.order_plan import OrderPlan
-from eigencapital.core.models.portfolio_target import PortfolioTarget
 from eigencapital.core.models.position import Position
 from eigencapital.core.models.strategy_intent import Horizon, StrategyIntent
 from eigencapital.portfolio.portfolio import (
@@ -27,28 +24,6 @@ def _next_id(prefix: str = "T") -> str:
     global _counter
     _counter += 1
     return f"{prefix}{_counter}"
-
-
-@pytest.fixture(autouse=True)
-def clear_registries():
-    """Clear all registries before each test."""
-    PortfolioTarget._registry.clear()
-    ApprovedTarget._registry.clear()
-    OrderPlan._registry.clear()
-    Position._registry.clear()
-    from eigencapital.core.models.strategy_intent import StrategyIntent as SI
-
-    SI._registry.clear()
-    from eigencapital.core.models.risk_check_result import RiskCheckResult
-
-    RiskCheckResult._registry.clear()
-    yield
-    PortfolioTarget._registry.clear()
-    ApprovedTarget._registry.clear()
-    OrderPlan._registry.clear()
-    Position._registry.clear()
-    SI._registry.clear()
-    RiskCheckResult._registry.clear()
 
 
 class TestPortfolioState:
@@ -132,8 +107,6 @@ class TestPortfolio:
 
     def test_process_multiple_instruments(self):
         """Test processing intents for multiple instruments."""
-        from eigencapital.core.models.risk_check_result import RiskCheckResult
-
         portfolio = Portfolio()
         intents = [
             StrategyIntent(
@@ -159,8 +132,6 @@ class TestPortfolio:
                 strategy_artifact_hash="artifact_hash_456",
             ),
         ]
-        # Clear RiskCheckResult registry since evaluate() is called twice
-        RiskCheckResult._registry.clear()
 
         decision = portfolio.process_intents(
             intents,
@@ -269,6 +240,41 @@ class TestPortfolio:
         pos = portfolio.state.positions["ES"]
         assert pos.quantity == 2.0
         assert pos.average_entry_price == 4550.0  # (4500 + 4600) / 2
+
+    def test_apply_fill_full_close_resets_average(self):
+        """Closing a position fully must clear the average entry price."""
+        portfolio = Portfolio()
+        portfolio.apply_fill("ES", 100.0, 2.0, "BUY")
+        portfolio.apply_fill("ES", 110.0, 2.0, "SELL")
+
+        pos = portfolio.state.positions["ES"]
+        assert pos.quantity == 0.0
+        assert pos.average_entry_price is None  # flat ⇒ no stale entry price
+        assert pos.realized_pnl_today == pytest.approx(20.0)  # 2 * (110 - 100)
+
+    def test_apply_fill_reversal_realized_pnl(self):
+        """Crossing from long to short books realized P&L on the closed leg."""
+        portfolio = Portfolio()
+        portfolio.apply_fill("ES", 100.0, 2.0, "BUY")  # long 2 @ 100
+        portfolio.apply_fill("ES", 110.0, 3.0, "SELL")  # sells 3 → net short 1
+
+        pos = portfolio.state.positions["ES"]
+        assert pos.quantity == -1.0
+        assert pos.is_short
+        # 2 contracts closed at 110 against avg 100 → +20 realized
+        assert pos.realized_pnl_today == pytest.approx(20.0)
+
+    def test_apply_fill_reversal_short_to_long(self):
+        """Crossing from short to long books positive realized P&L on a buy-back."""
+        portfolio = Portfolio()
+        portfolio.apply_fill("ES", 100.0, 2.0, "SELL")  # short 2 @ 100
+        portfolio.apply_fill("ES", 90.0, 3.0, "BUY")  # buys 3 → net long 1
+
+        pos = portfolio.state.positions["ES"]
+        assert pos.quantity == 1.0
+        assert pos.is_long
+        # Short closed at 90 against avg 100 → realized 2 * (100 - 90) = 20
+        assert pos.realized_pnl_today == pytest.approx(20.0)
 
     def test_strategy_cannot_bypass_portfolio(self):
         """ARCHITECTURE TEST: Strategy cannot directly create Order.

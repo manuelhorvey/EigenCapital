@@ -81,10 +81,15 @@ class TestExperimentCreation:
         with pytest.raises(ValueError, match="status"):
             _make_experiment(status="FINISHED")
 
-    def test_duplicate_experiment_id_rejected(self):
+    def test_duplicate_experiment_id_allowed(self):
+        """Experiment no longer keeps a process-global ID registry (B1 fix).
+
+        Uniqueness is enforced upstream (ledger/registry), not by a class-level
+        dict that contaminated the whole process.
+        """
         exp = _make_experiment()
-        with pytest.raises(ValueError, match=r"[Dd]uplicate"):
-            Experiment(**{**exp.__dict__, "parameters": dict(exp.parameters)})
+        exp2 = Experiment(**{**exp.__dict__, "parameters": dict(exp.parameters)})
+        assert exp2.experiment_id == exp.experiment_id
 
 
 class TestExperimentSplits:
@@ -147,7 +152,6 @@ class TestExperimentSerialization:
             test_split=(date(2023, 7, 1), date(2023, 12, 31)),
         )
         d = exp.to_dict()
-        Experiment._registry.pop(exp.experiment_id, None)  # allow same-process reload
         restored = Experiment.from_dict(d)
         assert restored == exp
         assert restored.trial_metadata == exp.trial_metadata
@@ -157,7 +161,6 @@ class TestExperimentSerialization:
         exp = _make_experiment()
         d = exp.to_dict()
         assert d["trial_metadata"] is None
-        Experiment._registry.pop(exp.experiment_id, None)  # allow same-process reload
         restored = Experiment.from_dict(d)
         assert restored == exp
         assert restored.trial_metadata is None

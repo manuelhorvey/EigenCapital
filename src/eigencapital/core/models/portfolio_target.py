@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -50,9 +50,6 @@ class PortfolioTarget:
     strategy_artifact_hash: str  # Linked strategy implementation hash
     version: str = "v1"
 
-    # Class-level registry
-    _registry: ClassVar[dict] = {}
-
     def __post_init__(self) -> None:
         # Validate target_quantity is finite
         if math.isnan(self.target_quantity) or math.isinf(self.target_quantity):
@@ -85,11 +82,6 @@ class PortfolioTarget:
         # Validate strategy_artifact_hash is non-empty
         if not self.strategy_artifact_hash:
             raise ValueError("strategy_artifact_hash must be non-empty")
-
-        # Registry check for duplicate target_ids
-        if self.target_id in self._registry:
-            raise ValueError(f"Duplicate target_id: {self.target_id}. Target IDs must be unique.")
-        self._registry[self.target_id] = True
 
     def __hash__(self) -> int:
         return hash((self.target_id, self.target_quantity))

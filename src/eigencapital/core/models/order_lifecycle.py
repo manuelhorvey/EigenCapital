@@ -25,7 +25,7 @@ Responsibilities:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ClassVar, Dict
+from typing import Dict
 
 
 @dataclass
@@ -57,10 +57,6 @@ class OrderLifecycle:
     # Internal tracking: all fills associated with this order
     _fills: Dict[str, float] = field(default_factory=dict)  # fill_id -> filled_quantity
 
-    # Class-level tracking across all lifecycles
-
-    _registry: ClassVar[dict] = {}
-
     def __post_init__(self) -> None:
         # Validate order_quantity is positive
         if self.order_quantity <= 0:
@@ -87,13 +83,6 @@ class OrderLifecycle:
 
         # INVARIANT: Initialize with zero fills (order starts unfilled)
         # The _fills dict starts empty; fills are added via add_fill()
-
-        # Registry check for duplicate order_id lifecycles
-        if self.order_id in self._registry:
-            raise ValueError(
-                f"Duplicate order_id in lifecycle: {self.order_id}. Each order can have only one lifecycle."
-            )
-        self._registry[self.order_id] = True
 
     def add_fill(self, fill: object) -> None:
         """Add a fill to the lifecycle and validate aggregate invariant.

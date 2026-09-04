@@ -29,7 +29,7 @@ Flow: StrategyIntent + MarketState → DecisionSnapshot → PortfolioTarget → 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 
 @dataclass(frozen=True)
@@ -98,8 +98,6 @@ class DecisionSnapshot:
     parent_snapshot_ids: list | None = None  # → parent snapshots, for provenance
 
     # Internal tracking
-
-    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate snapshot_id is non-empty
@@ -178,13 +176,6 @@ class DecisionSnapshot:
         # INVARIANT: signal must not be None
         if self.signal is None:
             raise ValueError("signal must not be None (StrategyIntent required)")
-
-        # Registry check for duplicate snapshot_ids
-        if self.snapshot_id in self._registry:
-            raise ValueError(
-                f"Duplicate snapshot_id: {self.snapshot_id}. Snapshot IDs must be unique (audit trail requirement)."
-            )
-        self._registry[self.snapshot_id] = True
 
         # INVARIANT: signal.instrument_id matches this snapshot's instrument_id
         if self.signal.instrument_id != self.instrument_id:

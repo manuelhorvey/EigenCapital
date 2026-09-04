@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 
 class Urgency(str):
@@ -72,9 +72,6 @@ class OrderPlan:
     max_slippage: float = 0.0  # Maximum acceptable slippage (price units)
     expiry: str | None = None  # ISO-8601 UTC when plan expires if unfilled
     version: str = "v1"
-
-    # Class-level registry
-    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate plan_id is non-empty
@@ -120,11 +117,6 @@ class OrderPlan:
         if self.expiry is not None:
             if "T" not in self.expiry:
                 raise ValueError(f"expiry should be ISO-8601 format, got: {self.expiry}")
-
-        # Registry check for duplicate plan_ids
-        if self.plan_id in self._registry:
-            raise ValueError(f"Duplicate plan_id: {self.plan_id}. Plan IDs must be unique.")
-        self._registry[self.plan_id] = True
 
     def __hash__(self) -> int:
         return hash((self.plan_id, self.instrument_id, self.target_quantity))

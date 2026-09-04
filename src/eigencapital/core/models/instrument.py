@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 INFINITY = float("inf")
 
@@ -56,9 +56,6 @@ class Instrument:
     currency_conversion_rate: float = 1.0
     metadata_version: str = "v1"
 
-    # Class-level registry for cross-model references
-    _registry: ClassVar[dict] = {}
-
     def __post_init__(self) -> None:
         # Validate invariants
         if not self.instrument_id:
@@ -73,11 +70,6 @@ class Instrument:
             raise ValueError(f"price_precision must be >= 0, got {self.price_precision}")
         if self.currency_conversion_rate <= 0:
             raise ValueError(f"currency_conversion_rate must be > 0, got {self.currency_conversion_rate}")
-        if self.instrument_id in self._registry:
-            raise ValueError(
-                f"Duplicate instrument_id: {self.instrument_id}. instrument_id must be unique across the system."
-            )
-        self._registry[self.instrument_id] = self
 
     def __hash__(self) -> int:
         return hash(self.instrument_id)

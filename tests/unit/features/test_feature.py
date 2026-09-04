@@ -21,14 +21,6 @@ def _next_id(prefix: str = "feat") -> str:
     return f"{prefix}_{_counter}"
 
 
-@pytest.fixture(autouse=True)
-def clear_feature_registry():
-    """Clear feature registry before each test."""
-    Feature._registry.clear()
-    yield
-    Feature._registry.clear()
-
-
 def _make_feature(**overrides):
     """Create a test feature with unique defaults."""
     defaults = {
@@ -143,15 +135,18 @@ class TestFeatureAvailability:
 
 
 class TestFeatureDuplicatePrevention:
-    """Feature IDs must be unique within the registry."""
+    """Feature duplicate protection is delegated to FeatureRegistry (upstream).
 
-    def test_duplicate_id_rejected(self):
-        """Duplicate feature_id must be rejected."""
-        _make_feature()
-        # Get the ID that was just created
-        last_id = list(Feature._registry.keys())[-1]
-        with pytest.raises(ValueError, match="Duplicate feature_id"):
-            _make_feature(feature_id=last_id)
+    The Feature model itself no longer keeps a process-global registry — that
+    design caused cross-test/process contamination and unbounded memory growth.
+    Duplicate detection now lives in eigencapital.features.registry.FeatureRegistry.
+    """
+
+    def test_duplicate_ids_allowed_at_model_level(self):
+        """Model allows two Features to share an id (no global registry)."""
+        f1 = _make_feature(feature_id="shared-id")
+        f2 = _make_feature(feature_id="shared-id")
+        assert f1.feature_id == f2.feature_id
 
     def test_different_ids_allowed(self):
         """Different feature_ids must be allowed."""
@@ -174,8 +169,6 @@ class TestFeatureSerialization:
         """from_dict must produce equivalent feature."""
         f = _make_feature()
         d = f.to_dict()
-        # Clear registry so from_dict can re-register
-        Feature._registry.clear()
         f2 = Feature.from_dict(d)
         assert f.feature_id == f2.feature_id
         assert f.value == f2.value
@@ -189,7 +182,6 @@ class TestFeatureSerialization:
     def test_equality(self):
         """Equal features must be equal."""
         f1 = _make_feature()
-        Feature._registry.clear()
         f2 = Feature.from_dict(f1.to_dict())
         assert f1 == f2
 

@@ -25,9 +25,6 @@ def _make_raw_record(**overrides):
 
 class TestBarNormalizer:
     def test_normalize_single(self):
-        from eigencapital.core.models.bar import Bar as BarCls
-
-        BarCls._registry.clear()
         normalizer = BarNormalizer(instrument_id="ES", bar_interval="1d")
         record = _make_raw_record()
         bars = normalizer.normalize([record])
@@ -42,9 +39,6 @@ class TestBarNormalizer:
         assert bar.bar_interval == "1d"
 
     def test_normalize_multiple(self):
-        from eigencapital.core.models.bar import Bar as BarCls
-
-        BarCls._registry.clear()
         normalizer = BarNormalizer(instrument_id="ES")
         records = [
             _make_raw_record(
@@ -89,9 +83,6 @@ class TestBarNormalizer:
             normalizer.normalize([record])
 
     def test_vwap_optional(self):
-        from eigencapital.core.models.bar import Bar as BarCls
-
-        BarCls._registry.clear()
         normalizer = BarNormalizer(instrument_id="ES")
         record = _make_raw_record(
             data={
@@ -107,18 +98,12 @@ class TestBarNormalizer:
         assert bars[0].vwap == 4503.5
 
     def test_source_attribution(self):
-        from eigencapital.core.models.bar import Bar as BarCls
-
-        BarCls._registry.clear()
         normalizer = BarNormalizer(instrument_id="ES", source="provider_x")
         record = _make_raw_record(source="")  # empty source → falls back to normalizer
         bars = normalizer.normalize([record])
         assert bars[0].source == "provider_x"
 
     def test_timestamp_normalization(self):
-        from eigencapital.core.models.bar import Bar as BarCls
-
-        BarCls._registry.clear()
         normalizer = BarNormalizer(instrument_id="ES")
         # Space separator → T
         record = _make_raw_record(timestamp="2024-03-15 09:35:00Z")

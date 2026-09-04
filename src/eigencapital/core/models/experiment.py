@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Any, ClassVar, Dict
+from typing import Any, Dict
 
 from eigencapital.core.models.trial_metadata import TrialMetadata
 
@@ -94,9 +94,6 @@ class Experiment:
     parent_experiment_id: str | None = None  # lineage: experiment this one extends
     trial_metadata: TrialMetadata | None = None  # multiple-testing accounting
     meta: Dict[str, Any] = field(default_factory=dict)  # free-form notes, tags
-
-    # Class-level registry
-    _registry: ClassVar[dict] = {}
 
     def __post_init__(self) -> None:
         # Validate experiment_id is non-empty
@@ -220,13 +217,6 @@ class Experiment:
         # Validate trial_metadata type
         if self.trial_metadata is not None and not isinstance(self.trial_metadata, TrialMetadata):
             raise ValueError("trial_metadata must be a TrialMetadata instance or None")
-
-        # Registry check for duplicate experiment_ids
-        if self.experiment_id in self._registry:
-            raise ValueError(
-                f"Duplicate experiment_id: {self.experiment_id}. Experiment IDs must be unique (ledger requirement)."
-            )
-        self._registry[self.experiment_id] = True
 
     def __hash__(self) -> int:
         return hash((self.experiment_id, self.git_commit, self.dataset_version))

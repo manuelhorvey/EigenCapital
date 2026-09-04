@@ -226,7 +226,6 @@ class TestMissingInvalidData:
         """High < Low must be rejected by Bar model."""
         from eigencapital.core.models.bar import Bar
 
-        Bar._registry.clear()
         with pytest.raises(ValueError):
             Bar(
                 instrument_id="ES",
@@ -239,13 +238,11 @@ class TestMissingInvalidData:
                 close=100,  # high < low
                 volume=1000,
             )
-        Bar._registry.clear()
 
     def test_negative_price_rejected(self):
         """Negative price must be rejected."""
         from eigencapital.core.models.bar import Bar
 
-        Bar._registry.clear()
         with pytest.raises(ValueError):
             Bar(
                 instrument_id="ES",
@@ -258,13 +255,11 @@ class TestMissingInvalidData:
                 close=100,
                 volume=1000,
             )
-        Bar._registry.clear()
 
     def test_zero_volume_allowed(self):
         """Zero volume is allowed (market halt)."""
         from eigencapital.core.models.bar import Bar
 
-        Bar._registry.clear()
         bar = Bar(
             instrument_id="ES",
             timestamp_utc="2025-01-01T10:00:00Z",
@@ -277,14 +272,17 @@ class TestMissingInvalidData:
             volume=0,
         )
         assert bar.volume == 0
-        Bar._registry.clear()
 
-    def test_duplicate_bar_rejected(self):
-        """Duplicate instrument+timestamp must be rejected."""
+    def test_duplicate_bar_allowed_at_model_level(self):
+        """Duplicate instrument+timestamp is allowed at the model level.
+
+        Bar no longer keeps a process-global registry (B1/P1 fix); duplicate
+        detection for ingested data lives in the caller (e.g. DataValidator,
+        normalizer pipelines).
+        """
         from eigencapital.core.models.bar import Bar
 
-        Bar._registry.clear()
-        Bar(
+        kwargs = dict(
             instrument_id="ES",
             timestamp_utc="2025-01-01T10:00:00Z",
             bar_start_utc="2025-01-01T09:59:00Z",
@@ -295,19 +293,9 @@ class TestMissingInvalidData:
             close=100,
             volume=1000,
         )
-        with pytest.raises(ValueError, match="Duplicate"):
-            Bar(
-                instrument_id="ES",
-                timestamp_utc="2025-01-01T10:00:00Z",
-                bar_start_utc="2025-01-01T09:59:00Z",
-                bar_end_utc="2025-01-01T10:00:00Z",
-                open=100,
-                high=101,
-                low=99,
-                close=100,
-                volume=1000,
-            )
-        Bar._registry.clear()
+        bar1 = Bar(**kwargs)
+        bar2 = Bar(**kwargs)
+        assert bar1 == bar2
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -431,10 +419,13 @@ class TestOrderRejection:
 class TestDuplicateEvents:
     """Duplicate events must not create duplicate exposure."""
 
-    def test_duplicate_fill_rejected(self):
-        """Duplicate fill ID must be rejected."""
-        Fill._registry.clear()
-        Fill(
+    def test_duplicate_fill_allowed_at_model_level(self):
+        """Duplicate fill IDs are allowed at the model level.
+
+        Fill no longer keeps a process-global registry (B1/P1 fix);
+        uniqueness of persisted fills is enforced by the caller/ledger.
+        """
+        kwargs = dict(
             fill_id="F-DUP-1",
             order_id="ORD-1",
             instrument_id="ES",
@@ -444,36 +435,25 @@ class TestDuplicateEvents:
             fill_price=100.0,
             strategy_id="test",
         )
-        with pytest.raises(ValueError, match="Duplicate"):
-            Fill(
-                fill_id="F-DUP-1",  # Same ID
-                order_id="ORD-1",
-                instrument_id="ES",
-                timestamp_utc="2025-01-01T10:00:00Z",
-                side="BUY",
-                quantity=10,
-                fill_price=100.0,
-                strategy_id="test",
-            )
-        Fill._registry.clear()
+        fill1 = Fill(**kwargs)
+        fill2 = Fill(**kwargs)
+        assert fill1.fill_id == fill2.fill_id
 
-    def test_duplicate_position_rejected(self):
-        """Duplicate position (same instrument+quantity) must be rejected."""
-        Position._registry.clear()
-        Position(
+    def test_duplicate_position_allowed_at_model_level(self):
+        """Duplicate positions are allowed at the model level.
+
+        Position no longer keeps a process-global registry (B1/P1 fix); the
+        PositionManager aggregates per-instrument state instead.
+        """
+        kwargs = dict(
             instrument_id="ES",
             quantity=5.0,
             average_entry_price=100.0,
             market_value=500.0,
         )
-        with pytest.raises(ValueError, match="Duplicate"):
-            Position(
-                instrument_id="ES",
-                quantity=5.0,  # Same instrument+quantity
-                average_entry_price=100.0,
-                market_value=500.0,
-            )
-        Position._registry.clear()
+        p1 = Position(**kwargs)
+        p2 = Position(**kwargs)
+        assert p1.instrument_id == p2.instrument_id
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -513,7 +493,6 @@ class TestFailClosed:
 
     def test_rejected_risk_no_order(self):
         """REJECTED risk decision must produce zero approved quantity."""
-        ApprovedTarget._registry.clear()
         target = ApprovedTarget(
             target_id="AT-FAIL-1",
             intended_quantity=10.0,
@@ -523,11 +502,9 @@ class TestFailClosed:
         )
         assert target.approved_quantity == 0
         assert target.is_rejected
-        ApprovedTarget._registry.clear()
 
     def test_rejected_target_invariant(self):
         """REJECTED must always have approved_quantity = 0."""
-        ApprovedTarget._registry.clear()
         with pytest.raises(ValueError, match="REJECTED"):
             ApprovedTarget(
                 target_id="AT-FAIL-2",
@@ -536,7 +513,6 @@ class TestFailClosed:
                 decision="REJECTED",
                 approval_reason="test",
             )
-        ApprovedTarget._registry.clear()
 
     def test_kill_switch_blocks_orders(self):
         """Kill switch must block all new orders."""
@@ -653,7 +629,6 @@ class TestPropertyBased:
 
     def test_rejected_target_always_zero(self):
         """REJECTED target must always have approved_quantity = 0."""
-        ApprovedTarget._registry.clear()
         target = ApprovedTarget(
             target_id="AT-PROP-1",
             intended_quantity=10.0,
@@ -662,7 +637,6 @@ class TestPropertyBased:
             approval_reason="test",
         )
         assert target.approved_quantity == 0
-        ApprovedTarget._registry.clear()
 
     def test_position_sign_encodes_direction(self):
         """Position quantity sign must encode direction."""
@@ -673,11 +647,9 @@ class TestPropertyBased:
         assert long_pos.is_long
         assert short_pos.is_short
         assert flat_pos.is_flat
-        Position._registry.clear()
 
     def test_order_plan_delta_correctness(self):
         """OrderPlan delta must equal target - current."""
-        OrderPlan._registry.clear()
         plan = OrderPlan(
             plan_id="OP-PROP-1",
             instrument_id="ES",
@@ -688,7 +660,6 @@ class TestPropertyBased:
             urgency=Urgency.SESSION,
         )
         assert plan.quantity_delta == plan.target_quantity - plan.current_quantity
-        OrderPlan._registry.clear()
 
     def test_cost_stress_monotonicity(self):
         """Increasing cost multipliers must not improve Sharpe."""

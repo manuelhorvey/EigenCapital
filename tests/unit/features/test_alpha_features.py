@@ -50,11 +50,6 @@ from eigencapital.features.momentum.time_series import (
 _bar_counter = 0
 
 
-def _reset_bar_registry():
-    """Clear the Bar registry to allow fresh bar creation."""
-    Bar._registry.clear()
-
-
 def _make_bar(
     close: float,
     day_offset: int = 0,
@@ -101,7 +96,6 @@ def _make_bars(
     seed: int = 42,
 ) -> list[Bar]:
     """Generate a sequence of n valid Bar objects with deterministic prices."""
-    _reset_bar_registry()
     rng = random.Random(seed)
     prices = [start_price]
     for _ in range(n - 1):
@@ -115,13 +109,11 @@ def _make_bars(
 
 def _constant_bars(n: int, price: float = 100.0, instrument_id: str = "ES") -> list[Bar]:
     """Generate n bars at constant price."""
-    _reset_bar_registry()
     return [_make_bar(close=price, day_offset=i, instrument_id=instrument_id) for i in range(n)]
 
 
 def _extreme_bars(n: int, instrument_id: str = "ES") -> list[Bar]:
     """Generate bars with extreme price jumps."""
-    _reset_bar_registry()
     bars = [_make_bar(close=100.0, day_offset=0, instrument_id=instrument_id)]
     for i in range(1, n):
         prev = bars[-1].close
@@ -134,13 +126,11 @@ def _extreme_bars(n: int, instrument_id: str = "ES") -> list[Bar]:
 
 def _rising_bars(n: int, start: float = 100.0, instrument_id: str = "ES") -> list[Bar]:
     """Generate monotonically rising bars."""
-    _reset_bar_registry()
     return [_make_bar(close=start + i, day_offset=i, instrument_id=instrument_id) for i in range(n)]
 
 
 def _falling_bars(n: int, start: float = 100.0, instrument_id: str = "ES") -> list[Bar]:
     """Generate monotonically falling bars."""
-    _reset_bar_registry()
     return [_make_bar(close=start - i * 0.5, day_offset=i, instrument_id=instrument_id) for i in range(n)]
 
 
@@ -624,7 +614,6 @@ class TestExtremeValues:
         assert math.isfinite(z)
 
     def test_very_large_prices(self):
-        _reset_bar_registry()
         bars = [_make_bar(close=1e15 + i, day_offset=i) for i in range(30)]
         roc = compute_roc(bars, lookback=5)
         assert roc is not None

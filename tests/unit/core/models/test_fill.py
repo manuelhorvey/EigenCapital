@@ -189,7 +189,6 @@ def test_fill_to_from_dict():
     assert d["quantity"] == 10
     assert d["side"] == "BUY"
 
-    FillClass._registry.clear()
     roundtrip = FillClass.from_dict(d)
     assert roundtrip.fill_id == original.fill_id
     assert roundtrip.quantity == original.quantity

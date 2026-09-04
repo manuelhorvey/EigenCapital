@@ -39,7 +39,12 @@ def test_instrument_creation():
 
 
 def test_instrument_duplicate_id():
-    """Test that duplicate instrument_id raises error."""
+    """Duplicate instrument_ids are allowed at the model level.
+
+    Instrument no longer keeps a process-global registry (B1 fix) — duplicate
+    detection lives upstream (e.g., InstrumentCatalogue raises
+    DuplicateInstrumentError on re-registration).
+    """
     clear_registry()
     Instrument(
         instrument_id="ES1",
@@ -52,21 +57,18 @@ def test_instrument_duplicate_id():
         lot_size=1,
         price_precision=2,
     )
-    try:
-        Instrument(
-            instrument_id="ES1",  # duplicate
-            symbol="Different",
-            asset_class="EQUITY_FUTURE",
-            venue="CME",
-            quote_currency="USD",
-            tick_size=0.25,
-            tick_value=50.0,
-            lot_size=1,
-            price_precision=2,
-        )
-        raise AssertionError("Should have raised ValueError for duplicate instrument_id")
-    except ValueError as e:
-        assert "Duplicate instrument_id" in str(e)
+    second = Instrument(
+        instrument_id="ES1",  # same id — no class-level registry to collide with
+        symbol="Different",
+        asset_class="EQUITY_FUTURE",
+        venue="CME",
+        quote_currency="USD",
+        tick_size=0.25,
+        tick_value=50.0,
+        lot_size=1,
+        price_precision=2,
+    )
+    assert second.instrument_id == "ES1"
     print("  PASS: test_instrument_duplicate_id")
 
 
@@ -162,8 +164,6 @@ def test_instrument_to_from_dict():
     assert "instrument_id" in d
     assert "symbol" in d
     assert "tick_size" in d
-    # Clear registry before round-trip to avoid duplicate ID conflict
-    clear_registry()
     # Round-trip: from_dict -> new instance
     roundtrip = Instrument.from_dict(d)
     assert roundtrip.instrument_id == original.instrument_id

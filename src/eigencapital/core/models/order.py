@@ -67,8 +67,6 @@ class Order:
     average_fill_price: float = 0.0  # Alias for filled_price
     order_metadata: Dict[str, Any] = field(default_factory=dict)
     strategy_id: str = ""
-
-    # _registry will be set as class variable below
     experiment_id: str = ""
     decision_snapshot_id: str = ""
     version: str = "v1"
@@ -233,22 +231,3 @@ class Order:
     def is_sell(self) -> bool:
         """Check if this is a SELL order."""
         return self.side == "SELL"
-
-
-@dataclass(frozen=True)
-class OrderSide:
-    """Legacy alias — use Order.side instead.
-
-    Deprecated: Order.side is BUY/SELL, not signed quantity.
-    Keeping for backward compatibility only.
-    """
-
-    value: str
-
-    @property
-    def is_buy(self) -> bool:
-        return self.value == "BUY"
-
-    @property
-    def is_sell(self) -> bool:
-        return self.value == "SELL"

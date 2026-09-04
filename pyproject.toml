@@ -38,6 +38,13 @@ dev = [
     "pydantic>=2.0",
     "fastapi>=0.100.0",
     "uvicorn>=0.20.0",
+    # starlette's TestClient needs an HTTP client: starlette >= 1 uses
+    # httpx2 (preferred), older starlette imports httpx. Declaring both keeps
+    # the dashboard API tests green across starlette generations in fresh
+    # installs (test-only dependency — the `dashboard` runtime extra needs
+    # neither).
+    "httpx>=0.27",
+    "httpx2>=2.0",
 ]
 dashboard = [
     "pydantic>=2.0",

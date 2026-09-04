@@ -67,7 +67,6 @@ DEFAULT_UNIVERSE = [
     "CAT",
     "BA",
     "GE",
-    "CAT",
     "SPGI",
     "BLK",
     "AXP",
@@ -137,6 +136,7 @@ class DataManifest:
             "end_date": self.end_date,
             "bar_count": self.bar_count,
             "snapshot_hash": self.snapshot_hash,
+            "timestamp": self.timestamp,
         }
 
 
@@ -150,9 +150,11 @@ class MT5DataProvider:
         self._universe = universe or DEFAULT_UNIVERSE
         self._data_cache: Dict[str, pd.DataFrame] = {}
         self._mt5_connected = False
+        self._mt5_port: int = 8001  # default port; set explicitly by connect_mt5()
 
     def connect_mt5(self, port: int = 8001) -> bool:
         """Attempt to connect to MT5 via Wine bridge."""
+        self._mt5_port = port
         try:
             from mt5linux import MetaTrader5
 
@@ -160,7 +162,6 @@ class MT5DataProvider:
             connected = mt5.initialize()
             if connected:
                 self._mt5_connected = True
-                self._mt5_port = port
                 logger.info(f"MT5 connected on port {port}")
                 return True
         except Exception as e:
@@ -232,28 +233,47 @@ class MT5DataProvider:
         start_date: str,
         end_date: str,
     ) -> Dict[str, pd.DataFrame]:
-        """Fetch data from Yahoo Finance."""
+        """Fetch data from Yahoo Finance.
+
+        Symbols are fetched concurrently — sequential HTTP round-trips for a
+        90-symbol universe were a major latency bottleneck (P4).
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         import yfinance as yf
+
+        def _fetch_one(sym: str) -> tuple[str, pd.DataFrame | None]:
+            ticker = yf.Ticker(sym)
+            df = ticker.history(start=start_date, end=end_date, auto_adjust=True)
+            if df is not None and len(df) > 0:
+                df.index = df.index.tz_localize(None) if df.index.tz else df.index
+                out = df[["Open", "High", "Low", "Close", "Volume"]].copy()
+                out.columns = ["open", "high", "low", "close", "volume"]
+                return sym, out
+            return sym, None
 
         data: Dict[str, pd.DataFrame] = {}
         failed: List[str] = []
 
-        for sym in symbols:
-            try:
-                ticker = yf.Ticker(sym)
-                df = ticker.history(start=start_date, end=end_date, auto_adjust=True)
-                if df is not None and len(df) > 0:
-                    df.index = df.index.tz_localize(None) if df.index.tz else df.index
-                    data[sym] = df[["Open", "High", "Low", "Close", "Volume"]].copy()
-                    data[sym].columns = ["open", "high", "low", "close", "volume"]
-                else:
+        max_workers = min(8, len(symbols) or 1)
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {pool.submit(_fetch_one, sym): sym for sym in symbols}
+            for fut in as_completed(futures):
+                sym = futures[fut]
+                try:
+                    fetched_sym, df = fut.result()
+                    if df is None:
+                        failed.append(fetched_sym)
+                    else:
+                        data[fetched_sym] = df
+                except Exception as e:
                     failed.append(sym)
-            except Exception as e:
-                failed.append(sym)
-                logger.warning(f"Failed to fetch {sym}: {e}")
+                    logger.warning(f"Failed to fetch {sym}: {e}")
 
         if failed:
-            logger.warning(f"Failed to fetch {len(failed)} symbols: {failed[:10]}...")
+            shown = ", ".join(failed[:10])
+            suffix = f" (showing first 10 of {len(failed)})" if len(failed) > 10 else ""
+            logger.warning(f"Failed to fetch {len(failed)} symbols: [{shown}]{suffix}")
 
         return data
 
@@ -267,8 +287,7 @@ class MT5DataProvider:
         try:
             from mt5linux import MetaTrader5
 
-            port = getattr(self, "_mt5_port", 8001)
-            mt5 = MetaTrader5(port=port)
+            mt5 = MetaTrader5(port=self._mt5_port)
             if not mt5.initialize():
                 return {}
 

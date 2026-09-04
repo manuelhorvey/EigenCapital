@@ -30,7 +30,8 @@ class MT5Connection:
     def __init__(self, host: str = "127.0.0.1", port: int = 8001) -> None:
         self._host = host
         self._port = port
-        self._mt5 = None
+        # mt5linux has no type stubs; the RPyC client is untyped (Any).
+        self._mt5: Any = None
         self._connected = False
 
     def connect(self) -> bool:
@@ -257,17 +258,17 @@ class MicroLiveRunner:
 
         # 2. Create authorization
         print("\n[2/6] Creating authorization...")
-        if not self._authorization:
-            self.authorize()
-        print(f"  Authorization: {self._authorization.authorization_id}")
-        print(f"  Expires: {self._authorization.expiry_timestamp}")
+        authorization = self._authorization or self.authorize()
+        self._authorization = authorization
+        print(f"  Authorization: {authorization.authorization_id}")
+        print(f"  Expires: {authorization.expiry_timestamp}")
 
         # 3. Create campaign
         print("\n[3/6] Creating campaign...")
         self._campaign = MicroLiveCampaign(
             campaign_id=self._campaign_id,
             envelope=self._envelope,
-            authorization=self._authorization,
+            authorization=authorization,
         )
 
         # 4. Preflight

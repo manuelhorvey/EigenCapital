@@ -334,10 +334,12 @@ def run(data_dir: str = DATA_DIR) -> ConfirmationReport:
 
     # ── Per-instrument (base costs) ────────────────────────────────────
     print("\n=== Per-instrument ===")
+    sym_net_results: Dict[str, NetResult] = {}
     for s, df in sorted(data.items()):
         try:
             sig = _threshold(func(df))
             r = bt_corrected(df, sig, PRIMARY_HP, COST_ONE_WAY_BASE)
+            sym_net_results[s] = r
             rep.per_instrument[s] = r.__dict__
             print(f"  {s}: net={r.net_sharpe:+.2f} DD={r.max_dd:.1%} flips={r.n_flips:,}")
         except Exception as e:
@@ -359,7 +361,7 @@ def run(data_dir: str = DATA_DIR) -> ConfirmationReport:
             session_sharpes[name] = float(r_.mean() / r_.std() * ann)
 
     # ── Gate evaluation ────────────────────────────────────────────────
-    failed, passed = _gate_check(full_base, wf_cons, perm_p, rep.per_instrument, session_sharpes)
+    failed, passed = _gate_check(full_base, wf_cons, perm_p, sym_net_results, session_sharpes)
     rep.failed_gates.extend(failed)
     rep.passed_gates.extend(passed)
     rep.verdict = "CONFIRMED" if not rep.failed_gates else "NOT_CONFIRMED"

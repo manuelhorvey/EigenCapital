@@ -172,7 +172,7 @@ def regime_analysis(
     df: pd.DataFrame,
     sig: pd.Series,
     hp: int,
-) -> Tuple[Dict[str, float], Dict[str, float]]:
+) -> Tuple[Dict[str, float], Dict[str, float], Dict[str, float]]:
     """Year and session decomposition of strategy returns."""
     pos = np.sign(sig).shift(1).fillna(0)
     fwd = df["close"].pct_change(hp).shift(-hp)

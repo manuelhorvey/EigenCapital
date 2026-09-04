@@ -488,7 +488,7 @@ def regime_analysis(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def run(data_dir: str = DATA_DIR) -> List[HypResult]:
+def run(data_dir: str = DATA_DIR) -> List[MicroHypResult]:
     data: Dict[str, pd.DataFrame] = {}
     for s in UNIVERSE:
         p = os.path.join(data_dir, f"{s}_M5micro.csv")
@@ -503,9 +503,12 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
     n_evaluations = 0
     for h in HYPOTHESES:
         func = SIGNALS.get(h.signal)
+        if func is None:
+            print(f"SKIP {h.hid}: no signal function")
+            continue
         print(f"\n{'=' * 60}\n{h.hid}: {h.description} [{h.family}]")
 
-        best, best_score = None, -999
+        best, best_score = None, -999.0
         for hp in HORIZONS:
             gross_vals, net_vals, adv_vals, dd_vals = [], [], [], []
             total_trades = 0
@@ -538,8 +541,8 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
 
             anchor_name = next((s for s in ["EURUSDm", "XAUUSDm"] if s in data), list(data)[0])
             anchor = data[anchor_name]
-            ll_kw = {"all_data": data} if h.family == "lead_lag" else {}
-            wf_cons, wf_oos = wf_validate(anchor, func, hp, **ll_kw)
+            all_data_arg: Dict[str, pd.DataFrame] | None = data if h.family == "lead_lag" else None
+            wf_cons, wf_oos = wf_validate(anchor, func, hp, all_data=all_data_arg)
             deg = 1 - anb / ag if abs(ag) > 1e-3 else 1.0
 
             r = MicroHypResult(
@@ -568,7 +571,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
                 pass
 
             try:
-                r.permutation_p = permutation_test(anchor, func, hp, 100, **ll_kw)
+                r.permutation_p = permutation_test(anchor, func, hp, 100, all_data=all_data_arg)
             except Exception:
                 r.permutation_p = 1.0
 
@@ -624,7 +627,7 @@ def run(data_dir: str = DATA_DIR) -> List[HypResult]:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def write_reports(results: List[HypResult]) -> None:
+def write_reports(results: List[MicroHypResult]) -> None:
     now = time.strftime("%Y-%m-%d %H:%M UTC")
     os.makedirs("reports", exist_ok=True)
     groups: Dict[str, List[HypResult]] = defaultdict(list)

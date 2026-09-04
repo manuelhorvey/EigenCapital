@@ -1069,7 +1069,7 @@ def run(data_dir: str = "data/intraday_m15") -> List[HypResult]:
 
         is_cross_asset = h.family == "cross_asset"
 
-        best, best_score = None, -999
+        best, best_score = None, -999.0
 
         for hp in HORIZONS:
             sym_sharpes_gross: Dict[str, float] = {}

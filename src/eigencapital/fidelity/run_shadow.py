@@ -167,7 +167,7 @@ def run_shadow() -> Dict[str, Any]:
     print()
 
     # Classify divergences
-    by_category = {}
+    by_category: dict[str, list[Any]] = {}
     for div in result.divergences:
         by_category.setdefault(div.category, []).append(div)
 

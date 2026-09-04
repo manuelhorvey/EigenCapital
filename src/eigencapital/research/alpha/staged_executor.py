@@ -328,8 +328,9 @@ class HypothesisComputer:
         # Correlation with US500
         spy_key = "US500m"
         corr = 0.0
-        if spy_key in self._returns:
-            spy_ret = self._returns[spy_key]
+        returns = self._get_returns()
+        if spy_key in returns:
+            spy_ret = returns[spy_key]
             common = port_returns.index.intersection(spy_ret.index)
             if len(common) > 50:
                 corr = port_returns.reindex(common).corr(spy_ret.reindex(common))
@@ -485,7 +486,7 @@ class StagedCampaignExecutor:
 
     def run(self, timestamp: str = "2026-08-24") -> Dict[str, Any]:
         """Execute the full staged campaign."""
-        results = {"stages": {}}
+        results: Dict[str, Any] = {"stages": {}}
 
         # ================================================================
         # STAGE 0: Data Integrity

@@ -189,8 +189,8 @@ class FailureInstrumentation:
 
         # Update stats
         self._stats["total_failures"] += 1
-        by_type: dict[str, int] = self._stats["by_type"]  # type: ignore[assignment]
-        by_sev: dict[str, int] = self._stats["by_severity"]  # type: ignore[assignment]
+        by_type: dict[str, int] = self._stats["by_type"]
+        by_sev: dict[str, int] = self._stats["by_severity"]
         by_type[failure_type.value] = by_type.get(failure_type.value, 0) + 1
         by_sev[severity.value] = by_sev.get(severity.value, 0) + 1
 

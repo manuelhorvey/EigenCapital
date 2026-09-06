@@ -58,6 +58,7 @@ reports/r4_qualification/qualification_status.json
 reports/alerts.jsonl
 reports/r4_safety/safety_audit.jsonl
 reports/r4_safety/safety_audit.mirror.jsonl
+reports/r4_economics_audit/
 reports/t0_snapshot.json
 reports/t0_snapshot.md
 reports/instrument_eligibility.json

@@ -300,6 +300,69 @@ def check_equity(mt5) -> None:
         json.dump({"equity": equity, "timestamp": datetime.now(UTC).isoformat()}, f)
 
 
+def _connect_verified_mt5(max_attempts: int = 2):
+    """Return a fresh MT5 session verified by a live account read, or None.
+
+    Mirrors the rebalance loop's R4-S contract: success is never claimed on
+    initialize() alone; the session must read a live account (equity > 0).
+    Used at startup and by the reconnect path when the held session goes
+    stale (R4-S 2026-09-06).
+    """
+    for attempt in range(1, max_attempts + 1):
+        session = None
+        try:
+            session = MetaTrader5(host="127.0.0.1", port=8001)
+        except Exception:
+            session = None
+        if session is not None:
+            try:
+                if session.initialize():
+                    account = session.account_info()
+                    if account is not None and getattr(account, "equity", 0) > 0:
+                        return session
+            except Exception:
+                pass
+            try:
+                session.shutdown()
+            except Exception:
+                pass
+        if attempt >= max_attempts:
+            break
+        time.sleep(2)
+    return None
+
+
+def _monitor_reconnect(mt5):
+    """Heal the held MT5 session, else build a fresh verified one.
+
+    Returns a session ONLY after account_info() confirms a live account, or
+    None when no session can read live data.
+
+    Root cause this fixes (R4-S 2026-09-06): the monitor held one long-lived
+    mt5linux proxy and called shutdown()+initialize() on the same stale
+    object every cycle. Once that proxy wedged, re-init failed indefinitely
+    and the monitor spammed CRITICAL "MT5 DISCONNECTED" alerts every cycle
+    while the bridge itself was healthy (observed 21:45–21:50 on 09-06).
+    Same wedge the rebalance loop fixed on 2026-09-04: the remedy is a FRESH
+    session object, verified by a live account read.
+    """
+    try:
+        mt5.shutdown()
+    except Exception:
+        pass
+    time.sleep(2)
+    try:
+        if mt5.initialize():
+            account = mt5.account_info()
+            if account is not None and getattr(account, "equity", 0) > 0:
+                return mt5
+    except Exception:
+        pass
+
+    log("  ⚠️  MT5 session did not verify — creating fresh session...")
+    return _connect_verified_mt5()
+
+
 def check_regime() -> None:
     """Check if regime changed since last check."""
     import numpy as np
@@ -512,9 +575,9 @@ def main() -> None:
             return
         log("Telegram alerts enabled")
 
-    mt5 = MetaTrader5(host="127.0.0.1", port=8001)
-    if not mt5.initialize():
-        print(f"❌ Cannot connect: {mt5.last_error()}")
+    mt5 = _connect_verified_mt5()
+    if mt5 is None:
+        print("❌ Cannot connect: no verified MT5 session (is the bridge on 127.0.0.1:8001 up?)")
         return
 
     if show_status_mode:
@@ -543,12 +606,17 @@ def main() -> None:
         if _shutdown:
             break
         try:
-            # Reconnect each cycle (MT5 connection may stale)
-            mt5.shutdown()
-            if not mt5.initialize():
+            # Reconnect each cycle (MT5 connection may stale).
+            # R4-S 2026-09-06: heal-then-verify, then fall back to a FRESH
+            # session object. initialize() on the same stale mt5linux proxy
+            # can fail indefinitely — never claim success on initialize()
+            # alone; a live account read is required.
+            healed = _monitor_reconnect(mt5)
+            if healed is None:
                 alert("MT5 DISCONNECTED", "Cannot reconnect to MT5", "CRITICAL")
                 time.sleep(30)
                 continue
+            mt5 = healed
             run_check(mt5)
         except Exception as e:
             alert("MONITOR ERROR", str(e), "CRITICAL")

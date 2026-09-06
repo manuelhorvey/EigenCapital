@@ -678,6 +678,47 @@ def _reconnect_mt5(mt5):
         return None
 
 
+def _connect_verified_mt5(max_attempts: int = 2):
+    """Return a fresh MT5 session verified by a live account read, or None.
+
+    One-shot runs used to crash with ConnectionRefusedError when the RPyC
+    bridge (127.0.0.1:8001) was down — e.g. after a reboot cleared /tmp —
+    because bridge recovery only ran inside loop mode (R4-S 2026-09-06).
+    This mirrors the _reconnect_mt5() contract: success is never claimed on
+    initialize() alone; the session must read a live account. If the session
+    cannot be established or verified, _restart_bridge_if_needed() repairs
+    the bridge and one more attempt is made before giving up.
+    """
+    last_error = "unknown error"
+    for attempt in range(1, max_attempts + 1):
+        session = None
+        try:
+            session = MetaTrader5(host="127.0.0.1", port=8001)
+        except Exception as e:
+            last_error = f"connect failed: {e}"
+        if session is not None:
+            try:
+                if session.initialize():
+                    account = session.account_info()
+                    if account is not None and getattr(account, "equity", 0) > 0:
+                        return session
+                    last_error = "no live account data"
+                else:
+                    last_error = f"initialize failed: {session.last_error()}"
+            except Exception as e:
+                last_error = f"verify failed: {e}"
+            try:
+                session.shutdown()
+            except Exception:
+                pass
+        if attempt >= max_attempts:
+            break
+        log(f"  ⚠️  MT5 unavailable ({last_error}) — repairing bridge and retrying...")
+        if not _restart_bridge_if_needed():
+            break
+    return None
+
+
 def _restart_bridge_if_needed() -> bool:
     """Check if the RPyC bridge is alive; restart it if not.
 
@@ -731,9 +772,25 @@ def _restart_bridge_if_needed() -> bool:
         wine_python = r"C:\users\manuelhorveydaniel\AppData\Local\Programs\Python\Python312\python.exe"
         bridge_log = "/tmp/mt5bridge.log"
 
+        # /tmp does not survive reboots. If server.py is gone, the wine launch
+        # below fails silently and every restart attempt spins to the 30s
+        # timeout (R4-S 2026-09-06: bridge died with /tmp, one-shot crashed on
+        # connect). Regenerate the stub before launching.
+        try:
+            os.makedirs(server_dir, exist_ok=True)
+            server_py = os.path.join(server_dir, "server.py")
+            if not os.path.exists(server_py):
+                from mt5linux.__main__ import __generate_server_classic
+
+                __generate_server_classic(server_py)
+                log("  ♻️  Regenerated missing bridge server stub (server.py)")
+        except Exception as e:
+            log(f"  ❌ Could not regenerate bridge server stub: {e}")
+            return False
+
         env = os.environ.copy()
         env["WINEPREFIX"] = wine_prefix
-        env["DISPLAY"] = os.environ.get("DISPLAY", ":0")
+        env["DISPLAY"] = os.environ.get("DISPLAY", ":1")  # match the Xvfb started above
 
         # Ensure Xvfb for headless display (Linux only)
         if system == "linux":
@@ -1380,9 +1437,14 @@ def main() -> None:
     )
     print("=" * 60, flush=True)
 
-    mt5 = MetaTrader5(host="127.0.0.1", port=8001)
-    if not mt5.initialize():
-        print(f"  ❌ Cannot connect: {mt5.last_error()}")
+    # R4-S 2026-09-06: ONE-SHOT mode used to crash with ConnectionRefusedError
+    # when the RPyC bridge was down (reboot cleared /tmp), because bridge
+    # recovery only ran inside loop mode. Establish a verified session,
+    # repairing the bridge first if needed.
+    mt5 = _connect_verified_mt5()
+    if mt5 is None:
+        print("  ❌ Cannot connect: no verified MT5 session after bridge recovery")
+        print("     Manual start: scripts/start_trading.sh --bridge-only")
         return
 
     account = mt5.account_info()

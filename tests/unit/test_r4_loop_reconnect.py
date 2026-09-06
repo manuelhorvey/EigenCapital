@@ -162,3 +162,68 @@ def test_fresh_session_is_verified_not_merely_initialized(loop_mod, no_sleep):
     with patch.object(loop_mod, "MetaTrader5", _FakeMt5Factory(fresh)):
         result = loop_mod._reconnect_mt5(held)
     assert result is None
+
+
+# ── One-shot startup path (R4-S 2026-09-06) ────────────────────────
+
+
+def test_connect_verified_returns_live_session_without_repair(loop_mod, no_sleep):
+    """A live session on the first attempt must not trigger bridge repair."""
+    live = _FakeSession(account=_live_account())
+    with (
+        patch.object(loop_mod, "MetaTrader5", _FakeMt5Factory(live)) as factory,
+        patch.object(loop_mod, "_restart_bridge_if_needed") as repair,
+    ):
+        result = loop_mod._connect_verified_mt5()
+    assert result is live
+    assert factory.calls == 1
+    repair.assert_not_called()
+
+
+def test_connect_verified_repairs_bridge_then_retries(loop_mod, no_sleep):
+    """Bridge down on first attempt (ConnectionRefused) → repair → retry must
+    happen and the verified session from the retry must be returned."""
+    dead = _FakeSession(account=None)
+    live = _FakeSession(account=_live_account())
+    sessions = iter([dead, live])
+    calls = []
+
+    def factory(host="127.0.0.1", port=8001):
+        calls.append(1)
+        return next(sessions)
+
+    with (
+        patch.object(loop_mod, "MetaTrader5", factory),
+        patch.object(loop_mod, "_restart_bridge_if_needed", return_value=True) as repair,
+    ):
+        result = loop_mod._connect_verified_mt5()
+    assert result is live
+    assert len(calls) == 2
+    repair.assert_called_once()
+
+
+def test_connect_verified_gives_up_when_bridge_repair_fails(loop_mod, no_sleep):
+    """If the bridge cannot be repaired there is no second attempt and the
+    result is None — callers must exit gracefully, never crash."""
+    dead = _FakeSession(account=None)
+    with (
+        patch.object(loop_mod, "MetaTrader5", _FakeMt5Factory(dead)) as factory,
+        patch.object(loop_mod, "_restart_bridge_if_needed", return_value=False) as repair,
+    ):
+        result = loop_mod._connect_verified_mt5()
+    assert result is None
+    assert factory.calls == 1
+    repair.assert_called_once()
+
+
+def test_connect_verified_never_claims_success_without_account(loop_mod, no_sleep):
+    """Both attempts pass initialize() but read no account → None (no
+    false success), even though the bridge 'repaired' fine."""
+    factory = _FakeMt5Factory(_FakeSession(account=None))
+    with (
+        patch.object(loop_mod, "MetaTrader5", factory),
+        patch.object(loop_mod, "_restart_bridge_if_needed", return_value=True),
+    ):
+        result = loop_mod._connect_verified_mt5()
+    assert result is None
+    assert factory.calls == 2

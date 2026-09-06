@@ -16,6 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Repo hygiene — no tracked files may be gitignored
+        run: |
+          offenders="$(git ls-files -i -c --exclude-standard)"
+          if [ -n "$offenders" ]; then
+            echo "::error::Tracked files match .gitignore — untrack them (git rm --cached) or fix the rule:"
+            echo "$offenders"
+            exit 1
+          fi
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:

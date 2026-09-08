@@ -66,6 +66,17 @@ reports/instrument_eligibility.md
 reports/production_qualification_*.json
 reports/production_qualification_*.md
 
+# Generated campaign research maps and one-shot audit snapshots
+reports/campaign*.json
+reports/campaign*.md
+reports/codebase_audit/
+reports/configuration_audit/
+reports/documentation_sync/
+reports/phase2_baseline.json
+reports/prefunding_gate_*
+reports/r5_swing_breadth.json
+reports/r5_swing_breadth.md
+
 # MT5 runtime
 nohup.out
 *.log

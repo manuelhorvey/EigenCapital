@@ -6,9 +6,13 @@ computes the four diagnostic analyses (research phase, NOT optimization):
 
   D1. Edge retained by selection size (top-1/2/4/6/8) — where edge collapses.
   D2. Lost-edge attribution — every R4 name excluded by the shadow portfolio
-      is charged to one dominant measurable reason.
+      is charged to one dominant measurable reason (final-state recomputed).
   D3. Risk/edge frontier — R4 vs shadow chain P_1..P_8, gross AND net of the
       project's 10 bps/side cost convention, plus realized outcomes.
+  D3b. Comparative evidence table — R4-20 vs Shadow-4..8 across the full
+      metric set (signal retained, vol/variance, currency/factor
+      concentration, effective bets, gross/net exposure, risk-contribution
+      concentration, realized R, drawdown, turnover).
   D4. Regime interaction — decision days bucketed by vol_now/vol_median.
 
 Outputs:
@@ -253,6 +257,172 @@ def pretty_print_decision(decision: Dict[str, Any]) -> None:
     )
 
 
+def _to_pct(v: float | None) -> float | None:
+    """Fraction → percentage units; None stays None."""
+    return v * 100.0 if v is not None else None
+
+
+def _metric_at(metrics: Dict[str, Any], path: str) -> float | None:
+    """Navigate a dotted path into a metrics dict, e.g.
+    'exposure.max_cluster_exposure.pct'. Returns None when missing."""
+    cur: Any = metrics
+    for part in path.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return None
+        cur = cur[part]
+    return cur if isinstance(cur, (int, float)) else None
+
+
+def _avg_over(decisions: List[Dict[str, Any]], fn) -> float | None:
+    """Mean of fn(d) across decisions; None when no decision yields a value."""
+    vals = []
+    for d in decisions:
+        v = fn(d)
+        if v is not None and v == v:  # skip NaN
+            vals.append(v)
+    return float(np.mean(vals)) if vals else None
+
+
+# (key, label, format) — the evidence table rows. Format is one of
+# pct / float2 / float4 / float6 / dash. Realized R is populated from the
+# size-breakdown ledger when present; drawdown and turnover need
+# account-level tracking across cycles and stay "—" until that exists.
+COMPARATIVE_ROWS = [
+    ("signal_retained_pct", "Signal retained", "pct"),
+    ("portfolio_vol_annual", "Portfolio volatility (annual)", "float4"),
+    ("portfolio_variance", "Portfolio variance", "float6"),
+    ("max_ccy", "Max currency concentration", "pct"),
+    ("max_factor", "Factor concentration", "pct"),
+    ("effective_bets", "Effective bet count", "float2"),
+    ("gross", "Gross exposure", "float4"),
+    ("net", "Net exposure", "float4"),
+    ("risk_contrib_hhi", "Risk contribution concentration (HHI)", "float4"),
+    ("risk_contrib_max", "Max risk contribution share", "pct"),
+    ("realized_r", "Realized R", "float4"),
+    ("drawdown", "Drawdown", "dash"),
+    ("turnover", "Turnover", "dash"),
+]
+
+COMPARATIVE_SIZES = [4, 5, 6, 7, 8]
+
+
+def comparative_evidence(
+    decisions: List[Dict[str, Any]],
+    size_rows: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """R4-20 vs Shadow-4..8 comparative table (the verdict evidence table).
+
+    Rows are metrics; columns are portfolio sizes. Decision-time metrics are
+    averaged across cycles from chain_by_n — the SAME calculator measures the
+    R4 baseline and every shadow prefix, so the comparison is apples-to-apples.
+    Realized R comes from the size-breakdown ledger when present. Drawdown and
+    turnover are reported as pending ('—').
+    """
+
+    def edge_retained(d: Dict[str, Any], n: int) -> float | None:
+        base = d["baseline"]["metrics"].get("gross_edge", 0.0)
+        node = d["chain_by_n"].get(str(n))
+        if base and node:
+            return 100.0 * node["metrics"]["gross_edge"] / base
+        return None
+
+    def chain_metric(d: Dict[str, Any], n: int, path: str) -> float | None:
+        node = d["chain_by_n"].get(str(n))
+        return _metric_at(node["metrics"], path) if node else None
+
+    def base_metric(d: Dict[str, Any], path: str) -> float | None:
+        return _metric_at(d["baseline"]["metrics"], path)
+
+    def var_of(vol: float | None) -> float | None:
+        return vol**2 if vol is not None else None
+
+    realized_by_n: Dict[int, List[float]] = {}
+    for row in size_rows:
+        n = row.get("size")
+        if n is not None and row.get("avg_r") is not None:
+            realized_by_n.setdefault(n, []).append(row["avg_r"])
+
+    table: Dict[str, Any] = {}
+    for key, _label, _fmt in COMPARATIVE_ROWS:
+        table[key] = {"r4_20": None, **{f"s{n}": None for n in COMPARATIVE_SIZES}}
+
+    def fill(n: int, path: str) -> None:
+        table["portfolio_vol_annual"][f"s{n}"] = _avg_over(
+            decisions, lambda d, n=n: chain_metric(d, n, path)
+        )
+        table["portfolio_variance"][f"s{n}"] = _avg_over(
+            decisions, lambda d, n=n: var_of(chain_metric(d, n, path))
+        )
+        # exposure pct values are stored as fractions (0.1262) — normalize to
+        # percentage units so every "pct" row in the table is consistent.
+        table["max_ccy"][f"s{n}"] = _avg_over(
+            decisions, lambda d, n=n: _to_pct(chain_metric(d, n, "exposure.max_currency_exposure.pct"))
+        )
+        table["max_factor"][f"s{n}"] = _avg_over(
+            decisions, lambda d, n=n: _to_pct(chain_metric(d, n, "exposure.max_cluster_exposure.pct"))
+        )
+        table["effective_bets"][f"s{n}"] = _avg_over(
+            decisions, lambda d, n=n: chain_metric(d, n, "effective_positions")
+        )
+        table["gross"][f"s{n}"] = _avg_over(decisions, lambda d, n=n: chain_metric(d, n, "gross_edge"))
+        table["net"][f"s{n}"] = _avg_over(decisions, lambda d, n=n: chain_metric(d, n, "net_edge"))
+        table["risk_contrib_hhi"][f"s{n}"] = _avg_over(
+            decisions, lambda d, n=n: chain_metric(d, n, "risk_contribution_hhi")
+        )
+        table["risk_contrib_max"][f"s{n}"] = _avg_over(
+            decisions, lambda d, n=n: _to_pct(chain_metric(d, n, "max_risk_contribution_share"))
+        )
+        r = realized_by_n.get(n)
+        table["realized_r"][f"s{n}"] = float(np.mean(r)) if r else None
+
+    for n in COMPARATIVE_SIZES:
+        table["signal_retained_pct"][f"s{n}"] = _avg_over(decisions, lambda d, n=n: edge_retained(d, n))
+        fill(n, "portfolio_vol_annual")
+
+    table["signal_retained_pct"]["r4_20"] = 100.0
+    table["portfolio_vol_annual"]["r4_20"] = _avg_over(decisions, lambda d: base_metric(d, "portfolio_vol_annual"))
+    table["portfolio_variance"]["r4_20"] = _avg_over(decisions, lambda d: var_of(base_metric(d, "portfolio_vol_annual")))
+    table["max_ccy"]["r4_20"] = _avg_over(
+        decisions, lambda d: _to_pct(base_metric(d, "exposure.max_currency_exposure.pct"))
+    )
+    table["max_factor"]["r4_20"] = _avg_over(
+        decisions, lambda d: _to_pct(base_metric(d, "exposure.max_cluster_exposure.pct"))
+    )
+    table["effective_bets"]["r4_20"] = _avg_over(decisions, lambda d: base_metric(d, "effective_positions"))
+    table["gross"]["r4_20"] = _avg_over(decisions, lambda d: base_metric(d, "gross_edge"))
+    table["net"]["r4_20"] = _avg_over(decisions, lambda d: base_metric(d, "net_edge"))
+    table["risk_contrib_hhi"]["r4_20"] = _avg_over(decisions, lambda d: base_metric(d, "risk_contribution_hhi"))
+    table["risk_contrib_max"]["r4_20"] = _avg_over(
+        decisions, lambda d: _to_pct(base_metric(d, "max_risk_contribution_share"))
+    )
+    return table
+
+
+def print_comparative(table: Dict[str, Any]) -> None:
+    """Render the R4-20 vs Shadow-4..8 comparative evidence table."""
+    print("\n[D3b] COMPARATIVE EVIDENCE — R4-20 vs SHADOW-4..8 (avg per cycle, decision-time)")
+    header = f"  {'metric':<34}{'R4-20':>10}" + "".join(f"{f'S-{n}':>10}" for n in COMPARATIVE_SIZES)
+    print(header)
+    print("  " + "─" * (len(header) - 2))
+
+    def fmt_val(v: float | None, kind: str) -> str:
+        if v is None:
+            return f"{'—':>10}"
+        if kind == "pct":
+            return f"{v:>9.1f}%"
+        if kind == "float2":
+            return f"{v:>10.2f}"
+        if kind == "float4":
+            return f"{v:>10.4f}"
+        if kind == "float6":
+            return f"{v:>10.6f}"
+        return f"{'—':>10}"
+
+    for key, label, kind in COMPARATIVE_ROWS:
+        cells = [table[key]["r4_20"]] + [table[key][f"s{n}"] for n in COMPARATIVE_SIZES]
+        print(f"  {label:<34}" + "".join(fmt_val(v, kind) for v in cells))
+
+
 def regime_interaction(decisions: List[Dict[str, Any]], outcomes: List[Dict[str, Any]]) -> Dict[str, Any]:
     """D4: bucket decision days by vol_ratio = vol_now / vol_median (terciles)."""
     ratios = sorted(d["regime"]["vol_ratio"] for d in decisions if d.get("regime", {}).get("vol_ratio") is not None)
@@ -323,6 +493,7 @@ def main() -> int:
     d1 = edge_by_size(decisions)
     d2 = lost_edge_attribution(decisions)
     d3 = frontier(decisions, size_rows)
+    d3b = comparative_evidence(decisions, size_rows)
     d4 = regime_interaction(decisions, outcomes)
 
     print("═" * 74)
@@ -354,6 +525,8 @@ def main() -> int:
             f"{r['realized_total_pnl_gross']:<16}{r['realized_total_pnl_net']:<14}{r['realized_avg_r']!s:<8}{r['realized_exits']}"
         )
 
+    print_comparative(d3b)
+
     print("\n[D4] REGIME INTERACTION (vol_now/vol_median terciles)")
     print(
         f"  {'bucket':<10}{'ratio':<14}{'days':<6}{'size':<6}{'edge ret %':<12}{'port vol':<10}{'real PnL':<12}{'avg R':<8}{'hit'}"
@@ -365,7 +538,7 @@ def main() -> int:
             f"{b['avg_portfolio_vol']:<10}{b['realized_pnl']:<12}{b['realized_avg_r']!s:<8}{b['realized_hit_rate']}"
         )
 
-    summary = {"edge_by_size": d1, "lost_edge": d2, "frontier": d3, "regime": d4}
+    summary = {"edge_by_size": d1, "lost_edge": d2, "frontier": d3, "comparative": d3b, "regime": d4}
     out = out_dir / "shadow_diagnostics_summary.json"
     with open(out, "w") as f:
         json.dump(summary, f, indent=2, default=str)

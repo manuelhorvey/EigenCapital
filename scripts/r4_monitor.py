@@ -363,8 +363,16 @@ def _monitor_reconnect(mt5):
     return _connect_verified_mt5()
 
 
-def check_regime() -> None:
-    """Check if regime changed since last check."""
+def check_regime(mt5=None) -> None:
+    """Check if regime changed since last check.
+
+    R4-S 2026-09-07: accepts the monitor's held session. This used to build
+    a SECOND mt5linux client every check and shutdown() it in finally — and
+    mt5linux proxies share one wine-side MT5 module, so that teardown also
+    killed the rebalance loop's held session, wedging its recovery state
+    machine. The passed session is never shutdown() here; a locally-created
+    one still is.
+    """
     import numpy as np
     import pandas as pd
 
@@ -377,10 +385,16 @@ def check_regime() -> None:
             data = json.load(f)
             last_regime = data.get("regime_on")
 
-    # Quick regime check
-    mt5 = MetaTrader5(host="127.0.0.1", port=8001)
-    if not mt5.initialize():
-        return
+    # Quick regime check (reuse the held session when given one)
+    owned = mt5 is None
+    if mt5 is None:
+        mt5 = MetaTrader5(host="127.0.0.1", port=8001)
+        if not mt5.initialize():
+            try:
+                mt5.shutdown()
+            except Exception:
+                pass
+            return
 
     try:
         SYMBOLS = ["EURUSD", "GBPUSD", "AUDUSD", "USDCAD", "USDCHF", "BTCUSD"]
@@ -426,7 +440,11 @@ def check_regime() -> None:
             )
 
     finally:
-        mt5.shutdown()
+        if owned:
+            try:
+                mt5.shutdown()
+            except Exception:
+                pass
 
 
 def check_loop_health() -> None:
@@ -550,7 +568,7 @@ def run_check(mt5) -> None:
     check_positions(mt5)
     check_risk_gates()
     check_equity(mt5)
-    check_regime()
+    check_regime(mt5)
     check_loop_health()
 
 

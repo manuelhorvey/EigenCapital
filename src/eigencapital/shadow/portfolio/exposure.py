@@ -223,3 +223,23 @@ class ExposureModel:
         if summary["max_asset_class_exposure"]["pct"] > self.config.max_asset_class_pct:
             reasons.append("asset_class_concentration")
         return reasons
+
+    def final_state_rejection(
+        self,
+        final_weights: Dict[str, float],
+        symbol: str,
+        weight: float,
+    ) -> str | None:
+        """Hard-cap violation code for adding (symbol, weight) to a FINAL
+        portfolio, or None when the final state does not violate.
+
+        Used to label non-selected candidates with the TRUE final-state
+        reason (R4-S 2026-09-08): a candidate that tripped a hard cap in an
+        early greedy trial may not violate against the final selection, so
+        the recorded rejection reason must be recomputed here, never carried
+        over from an intermediate step.
+        """
+        trial = dict(final_weights)
+        trial[symbol] = weight
+        violations = self.violates(trial)
+        return violations[0] if violations else None

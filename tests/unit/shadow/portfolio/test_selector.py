@@ -7,6 +7,7 @@ import json
 import pytest
 
 from eigencapital.shadow.portfolio.selector import (
+    HARD_CAP_REASONS,
     ShadowSelector,
     ShadowSelectorConfig,
 )
@@ -389,6 +390,41 @@ class TestDiagnosticEvidence:
                 assert c["dominant_rejection"] is None
             else:
                 assert c["dominant_rejection"] in allowed, c
+
+    def test_rejection_reason_reflects_final_state_not_early_trial(self):
+        """Regression (R4-S 2026-09-08): a candidate that tripped a hard cap
+        in an EARLY greedy trial (e.g. {XAUUSD, AUDUSD} → 84% safe_haven) must
+        not carry that label if the FINAL portfolio no longer violates. The
+        recorded reason must match a recomputation against the final selected
+        weights — otherwise lost-edge attribution mischarges the name."""
+        returns = make_returns(
+            ["XAUUSD", "USTEC", "AUDUSD", "EURUSD"],
+            factor_map={"XAUUSD": 1.0, "USTEC": 1.0, "AUDUSD": 1.0, "EURUSD": 0.0},
+            seed=401,
+        )
+        candidates = [
+            make_candidate("XAUUSD", 0.25, rank=1),  # safe_haven — dominates early trials
+            make_candidate("USTEC", 0.24, rank=2),  # equity_beta
+            make_candidate("AUDUSD", 0.05, rank=3),  # commodity — stale-label risk
+            make_candidate("EURUSD", -0.10, rank=4),  # diversifier
+        ]
+        decision = run_select(candidates, returns)
+        exposure = ShadowSelectorConfig().exposure_config()
+        final_weights = decision.selected["weights"]
+        selected_set = set(decision.selected["symbols"])
+        clean_rejected = 0
+        for c in decision.candidates:
+            if c["symbol"] in selected_set:
+                continue
+            hard = exposure.final_state_rejection(final_weights, c["symbol"], c["weight"])
+            recorded = c["rejection_reason"]
+            if hard is not None:
+                assert recorded == hard, (c["symbol"], recorded, hard)
+            else:
+                # Final state is clean — a hard-cap label would be stale.
+                assert recorded not in HARD_CAP_REASONS, (c["symbol"], recorded)
+                clean_rejected += 1
+        assert clean_rejected >= 1  # at least one clean-final-state rejection exercised
 
     def test_lost_edge_attributable_to_dominant_reason(self):
         """Sum of |w| over R4-only names grouped by dominant reason must equal

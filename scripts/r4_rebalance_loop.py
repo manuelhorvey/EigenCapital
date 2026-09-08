@@ -1575,7 +1575,7 @@ def _run_shadow_constructor(
         ShadowCandidate,
     )
     from eigencapital.shadow.portfolio.correlation import CorrelationModel
-    from eigencapital.shadow.portfolio.exposure import ExposureModel
+    from eigencapital.shadow.portfolio.exposure import ExposureModel, get_factor_group
     from eigencapital.shadow.portfolio.tracker import ShadowDecisionRecorder
     from eigencapital.live.portfolio_analytics import (
         ASSET_CLASS_MAP,
@@ -1640,7 +1640,7 @@ def _run_shadow_constructor(
                 weight=w,
                 direction="LONG" if w > 0 else "SHORT",
                 asset_class=asset_class_map.get(sym, "other"),
-                factor_group=None,
+                factor_group=get_factor_group(sym),
                 feasible=True,
                 r4_rank=rank_map[sym],
                 annualized_vol=vol_map.get(sym),

@@ -16,6 +16,7 @@ Outputs:
 
 Usage:
     python scripts/r4_shadow_diagnostics.py [--out-dir reports/r4_loop]
+    python scripts/r4_shadow_diagnostics.py --last   # view the most recent decision
 """
 
 from __future__ import annotations
@@ -155,6 +156,73 @@ def frontier(decisions: List[Dict[str, Any]], size_rows: List[Dict[str, Any]]) -
     return {"r4": avg_r4, "by_size": rows}
 
 
+def pretty_print_decision(decision: Dict[str, Any]) -> None:
+    """Pretty-print a single shadow decision record (the --last viewer)."""
+    selected_syms = decision["selected"]["symbols"]
+    weights = decision["selected"].get("weights", {})
+    by_sym = {c["symbol"]: c for c in decision["candidates"]}
+    sel_set = set(selected_syms)
+
+    print("═" * 74)
+    print(f"R4-S DECISION  {decision.get('cycle_id', '?')}")
+    print("═" * 74)
+    print(
+        f"  status: {decision.get('status')}  |  signal: {decision.get('signal_date')}  |  "
+        f"recorded: {str(decision.get('record_timestamp', ''))[:19]}"
+    )
+    print(
+        f"  selector: {decision.get('selector_version')}  |  "
+        f"config_hash: {str(decision.get('config_hash', ''))[:12]}"
+    )
+
+    print(f"\n  SELECTED ({len(selected_syms)})")
+    print(f"  {'rank':<5}{'symbol':<10}{'dir':<6}{'weight':<9}{'vol':<8}{'class':<10}{'factor'}")
+    print("  " + "─" * 60)
+    for s in selected_syms:
+        c = by_sym.get(s, {})
+        vol = c.get("annualized_vol")
+        print(
+            f"  {str(c.get('r4_rank', '?')):<5}{s:<10}{str(c.get('direction', '?')):<6}"
+            f"{weights.get(s, 0):+.4f}  {vol if vol is not None else 0.0:.1%}   "
+            f"{str(c.get('asset_class', '?')):<10}{c.get('factor_group', '?')}"
+        )
+
+    rejected = [c for c in decision["candidates"] if c["symbol"] not in sel_set]
+    print(f"\n  REJECTED ({len(rejected)})")
+    for c in rejected:
+        reason = c.get("dominant_rejection") or c.get("rejection_reason") or "-"
+        print(f"  #{str(c.get('r4_rank', '?')):<3} {c['symbol']:<10} {reason}")
+
+    e = decision.get("edge_metrics", {})
+    sel_m = decision["selected"]["metrics"]
+    base_m = decision["baseline"]["metrics"]
+    print("\n  EDGE & RISK vs R4 BASELINE")
+    print(
+        f"  edge retained: {e.get('edge_retained_pct')}%  |  "
+        f"top-signal: {e.get('top_signal_retention')}"
+    )
+    print(
+        f"  avg pairwise corr: R4={base_m.get('avg_pairwise_corr'):.4f} "
+        f"shadow={sel_m.get('avg_pairwise_corr'):.4f}"
+    )
+    print(
+        f"  portfolio vol:     R4={base_m.get('portfolio_vol_annual'):.4f} "
+        f"shadow={sel_m.get('portfolio_vol_annual'):.4f}"
+    )
+    print(
+        f"  effective pos:     R4={base_m.get('effective_positions'):.1f} "
+        f"shadow={sel_m.get('effective_positions'):.1f}"
+    )
+    print(
+        f"  max cluster:       R4={base_m.get('exposure', {}).get('max_cluster_exposure', {}).get('pct', 0):.1%} "
+        f"shadow={sel_m.get('exposure', {}).get('max_cluster_exposure', {}).get('pct', 0):.1%}"
+    )
+    print(
+        f"  max ccy:           R4={base_m.get('exposure', {}).get('max_currency_exposure', {}).get('pct', 0):.1%} "
+        f"shadow={sel_m.get('exposure', {}).get('max_currency_exposure', {}).get('pct', 0):.1%}"
+    )
+
+
 def regime_interaction(decisions: List[Dict[str, Any]], outcomes: List[Dict[str, Any]]) -> Dict[str, Any]:
     """D4: bucket decision days by vol_ratio = vol_now / vol_median (terciles)."""
     ratios = sorted(d["regime"]["vol_ratio"] for d in decisions if d.get("regime", {}).get("vol_ratio") is not None)
@@ -202,15 +270,25 @@ def regime_interaction(decisions: List[Dict[str, Any]], outcomes: List[Dict[str,
 def main() -> int:
     parser = argparse.ArgumentParser(description="R4-S shadow diagnostics (research, not optimization)")
     parser.add_argument("--out-dir", default="reports/r4_loop")
+    parser.add_argument(
+        "--last",
+        action="store_true",
+        help="pretty-print the most recent shadow decision and exit",
+    )
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
     decisions = load_jsonl(out_dir / "shadow_portfolio_decisions.jsonl")
-    outcomes = load_jsonl(out_dir / "shadow_portfolio_outcomes.jsonl")
-    size_rows = load_jsonl(out_dir / "shadow_portfolio_size_breakdown.jsonl")
     if not decisions:
         print(f"no shadow decisions found in {out_dir}")
         return 2
+
+    if args.last:
+        pretty_print_decision(decisions[-1])
+        return 0
+
+    outcomes = load_jsonl(out_dir / "shadow_portfolio_outcomes.jsonl")
+    size_rows = load_jsonl(out_dir / "shadow_portfolio_size_breakdown.jsonl")
 
     d1 = edge_by_size(decisions)
     d2 = lost_edge_attribution(decisions)

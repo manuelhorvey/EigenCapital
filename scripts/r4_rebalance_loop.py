@@ -719,6 +719,103 @@ def _connect_verified_mt5(max_attempts: int = 2):
     return None
 
 
+def _run_reconciliation_sequence(mt5) -> bool:
+    """Advance the recovery state machine on a freshly verified session.
+
+    R4-S 2026-09-07 wedge: recovery previously advanced only via the
+    "reconnection handling" branch at the top of the NEXT cycle, which
+    re-probed the session after a full wait. Any teardown of the shared
+    bridge session in between (e.g. r4_monitor check_regime() building and
+    shutting down its own client every 60s) failed that probe, so
+    on_reconnect() never ran and the state machine sat at DISCONNECTED for
+    300+ cycles while every recovery attempt logged "✅ session verified".
+
+    This helper performs the full sanctioned sequence — on_reconnect() →
+    submit_reconciliation() → request_resume() — immediately after
+    _reconnect_mt5() returns a session verified by a live account read.
+    ID-008 invariants are unchanged: trading is still never granted by a
+    successful connect alone, only by reconciliation + resume checks.
+
+    Returns True when the state machine permits trading (CONNECTED/RESUMED),
+    False when it remains halted/blocked (caller must not trade).
+    """
+    if _disconnect_recovery.state in (RecoveryState.CONNECTED, RecoveryState.RESUMED):
+        return True
+
+    recovery_msg = _disconnect_recovery.on_reconnect()
+    log(f"🟢 MT5 RECONNECTED — {recovery_msg}")
+    audit({"event": "reconnect", "recovery_state": _disconnect_recovery.state.value})
+    try:
+        record_operational_event(
+            event_type="reconnect",
+            detection_time_ms=0.0,
+            recovery_time_ms=0.0,
+            success=True,
+        )
+    except Exception:
+        pass
+
+    # Reconcile: verify positions, orders, equity, fingerprint
+    try:
+        account = mt5.account_info()
+        positions = mt5.positions_get()
+        pos_list = list(positions) if positions else []
+
+        fp_ok = _fingerprint_verifier.verify_all().all_verified
+
+        pos_ok = len(pos_list) <= RISK_ENVELOPE.max_concurrent_positions
+        eq_ok = account.equity > 0 if account else False
+
+        # Order check: R4 uses market orders only; any pending orders after
+        # reconnect are unexpected and indicate possible orphans.
+        try:
+            pending = mt5.orders_get()
+            orders_ok = len(list(pending) if pending else []) == 0
+        except Exception:
+            orders_ok = False  # fail-closed on unknown
+
+        risk_ok = True  # full risk re-check runs in run_cycle anyway
+
+        reconcile_msg = _disconnect_recovery.submit_reconciliation(
+            positions_match=pos_ok,
+            orders_match=orders_ok,
+            equity_match=eq_ok,
+            fingerprint_match=fp_ok,
+            details=f"pos={len(pos_list)}, eq={account.equity if account else 0:.2f}",
+        )
+        log(f"   Reconciliation: {reconcile_msg}")
+        audit({"event": "reconciliation", "result": reconcile_msg})
+
+        if _disconnect_recovery.state == RecoveryState.HALTED:
+            log("🔴 RECONCILIATION FAILED — HALTED")
+            _persist_state()
+            return False
+
+        resume_msg = _disconnect_recovery.request_resume(
+            data_fresh=True,
+            positions_reconciled=pos_ok,
+            no_unexpected_orders=True,
+            risk_limits_passing=risk_ok,
+            config_fingerprint_unchanged=fp_ok,
+            health_state="healthy",
+        )
+        log(f"   Resume: {resume_msg}")
+        audit({"event": "resume", "result": resume_msg})
+
+        if _disconnect_recovery.state != RecoveryState.RESUMED:
+            log("🔴 RESUME FAILED — trading remains halted")
+            _persist_state()
+            return False
+
+        return True
+
+    except Exception as e:
+        log(f"🔴 Reconciliation error: {e}")
+        audit({"event": "reconciliation_error", "error": str(e)})
+        _persist_state()
+        return False
+
+
 def _restart_bridge_if_needed() -> bool:
     """Check if the RPyC bridge is alive; restart it if not.
 
@@ -1155,6 +1252,59 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             "gates": [r.to_dict() for r in gate_results],
         }
 
+    # ── Shadow portfolio constructor (shadow-only, evidence-generating) ────────
+    # Runs after risk gates pass, using the same candidate universe R4 produced.
+    # Never modifies R4 behavior, order generation, or risk gates.
+    _shadow_decision = _run_shadow_constructor(
+        target_weights=target_weights,
+        returns_df=returns_df,
+        equity=equity,
+        diag=diag,
+        config=_config,
+        mt5=mt5,
+        cycle_id=f"R4S-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}",
+        signal_date=diag.get("signal_date", "unknown"),
+    )
+    if _shadow_decision is not None:
+        # Persist shadow decision to isolated namespace
+        from eigencapital.shadow.portfolio.tracker import ShadowDecisionRecorder
+
+        recorder = ShadowDecisionRecorder(audit_dir=AUDIT_DIR)
+        recorder.record_decision(_shadow_decision)
+
+        # Log comparison metrics between R4 baseline and shadow selection
+        b = _shadow_decision.baseline["metrics"]
+        s = _shadow_decision.selected["metrics"]
+        e = _shadow_decision.edge_metrics
+        log(
+            f"  📊 Shadow: {len(_shadow_decision.selected['symbols'])} selected "
+            f"(R4 baseline: {len(_shadow_decision.baseline['symbols'])})"
+        )
+        log(
+            f"  edge retained: {e['edge_retained_pct']}%  "
+            f"top-signal: {e['top_signal_retention']}"
+        )
+        log(
+            f"  avg pairwise corr: R4={b['avg_pairwise_corr']:.4f} "
+            f"shadow={s['avg_pairwise_corr']:.4f}"
+        )
+        log(
+            f"  portfolio vol (annual): R4={b['portfolio_vol_annual']:.4f} "
+            f"shadow={s['portfolio_vol_annual']:.4f}"
+        )
+        log(
+            f"  effective positions: R4={b['effective_positions']:.1f} "
+            f"shadow={s['effective_positions']:.1f}"
+        )
+        log(
+            f"  max cluster exposure: R4={b['exposure']['max_cluster_exposure']['pct']:.1%} "
+            f"shadow={s['exposure']['max_cluster_exposure']['pct']:.1%}"
+        )
+        log(
+            f"  max ccy exposure: R4={b['exposure']['max_currency_exposure']['pct']:.1%} "
+            f"shadow={s['exposure']['max_currency_exposure']['pct']:.1%}"
+        )
+
     # 6. Get prices and specs
     prices: Dict[str, float] = {}
     contract_sizes: Dict[str, float] = {}
@@ -1395,6 +1545,204 @@ def emergency_flatten(mt5) -> Dict[str, Any]:
     log(f"Flatten complete: {closed} closed, {failed} failed")
     audit({"event": "emergency_flatten", "closed": closed, "failed": failed})
     return {"closed": closed, "failed": failed}
+
+
+# ── Shadow portfolio constructor (shadow-only) ──────────────────────────────
+def _run_shadow_constructor(
+    target_weights: pd.Series,
+    returns_df: pd.DataFrame,
+    equity: float,
+    diag: Dict[str, Any],
+    config: Any,
+    mt5: Any,
+    cycle_id: str,
+    signal_date: str,
+) -> Any | None:
+    """Construct a shadow portfolio using the same R4 candidates.
+
+    This is purely observational — it:
+    * builds the candidate universe from the frozen R4 signal weights,
+    * builds a correlation snapshot from available returns history,
+    * runs the shadow selector (risk-aware, correlation/exposure-aware),
+    * persists the decision to the shadow namespace only,
+    * logs comparison metrics against the R4 baseline.
+
+    It never modifies R4 behavior, order intents, risk gates, or broker state.
+    """
+    from eigencapital.shadow.portfolio.selector import (
+        ShadowSelector,
+        ShadowSelectorConfig,
+        ShadowCandidate,
+    )
+    from eigencapital.shadow.portfolio.correlation import CorrelationModel
+    from eigencapital.shadow.portfolio.exposure import ExposureModel
+    from eigencapital.shadow.portfolio.tracker import ShadowDecisionRecorder
+    from eigencapital.live.portfolio_analytics import (
+        ASSET_CLASS_MAP,
+        CURRENCIES,
+        SYMBOL_CURRENCY_MAP,
+    )
+
+    # ——— Configuration ———
+    max_concurrent = int(config.capital.max_concurrent_positions)
+    min_weight = float(config.signal.min_weight) if hasattr(config, "signal") else 0.005
+    exposure = ExposureModel()
+
+    # ——— Build vol_at_t and history_ok from returns history ———
+    vol_map: Dict[str, float] = {}
+    history_map: Dict[str, bool] = {}
+    for sym in target_weights.index:
+        if sym in returns_df.columns:
+            series = returns_df[sym].dropna()
+            history_map[sym] = len(series) >= 30
+            if len(series) >= 60:
+                v = float(series.tail(60).std() * 252 ** 0.5)  # annualized
+                vol_map[sym] = v if v > 0 else 0.0
+
+    # ——— Build asset-class map for candidates ———
+    asset_class_map: Dict[str, str] = {}
+    for sym in target_weights.index:
+        if sym in SYMBOL_CURRENCY_MAP:
+            asset_class_map[sym] = (
+                "metals"
+                if sym in ("XAUUSD", "XAGUSD")
+                else ("crypto" if sym in ("BTCUSD", "ETHUSD") else "forex")
+            )
+        elif sym in ASSET_CLASS_MAP:
+            asset_class_map[sym] = ASSET_CLASS_MAP[sym]
+        else:
+            # Derive from prefix
+            prefix = sym.split("_")[0] if "_" in sym else sym[:3]
+            if prefix in ("US30", "USTEC", "US500"):
+                asset_class_map[sym] = "indices"
+            elif prefix in ("XAU", "XAG"):
+                asset_class_map[sym] = "metals"
+            elif prefix == "BTC" or prefix == "ETH":
+                asset_class_map[sym] = "crypto"
+            elif prefix == "USO":
+                asset_class_map[sym] = "energy"
+            else:
+                asset_class_map[sym] = "forex"
+
+    # ——— Build candidate universe (same as R4 sees) ———
+    ranked = sorted(
+        [s for s in target_weights.index if abs(target_weights[s]) >= min_weight],
+        key=lambda s: -abs(target_weights[s]),
+    )
+    rank_map = {s: i + 1 for i, s in enumerate(ranked)}
+
+    candidates: List[ShadowCandidate] = []
+    for sym in ranked:
+        w = float(target_weights[sym])
+        candidates.append(
+            ShadowCandidate(
+                symbol=sym,
+                weight=w,
+                direction="LONG" if w > 0 else "SHORT",
+                asset_class=asset_class_map.get(sym, "other"),
+                factor_group=None,
+                feasible=True,
+                r4_rank=rank_map[sym],
+                annualized_vol=vol_map.get(sym),
+                history_sufficient=history_map.get(sym, True),
+            )
+        )
+
+    if not candidates:
+        log("  ⚠️  No shadow candidates — skipping shadow construction")
+        return None
+
+    # ——— Build correlation snapshot (no-lookahead, from data available at cycle time) ———
+    now = datetime.now(UTC).replace(tzinfo=None)  # strip tz for no-lookahead truncation
+    snapshot = CorrelationModel().build(returns_df, as_of=pd.Timestamp(now).replace(tzinfo=None))
+
+    if snapshot is None:
+        log("  ⚠️  Insufficient history for correlation snapshot — shadow construction skipped")
+        return None
+
+    # ——— Run shadow selector ———
+    selector = ShadowSelector(ShadowSelectorConfig())
+    baseline_symbols = [c.symbol for c in candidates][:max_concurrent]
+
+    decision = selector.select(
+        candidates=candidates,
+        snapshot=snapshot,
+        baseline_symbols=baseline_symbols,
+        cycle_id=cycle_id,
+        decision_timestamp=now.isoformat(),
+        signal_date=signal_date,
+        regime={
+            "regime_on": bool(diag.get("regime_on", False)),
+            "vol_now": float(diag.get("vol_now", 0)),
+            "vol_median": float(diag.get("vol_median", 0)),
+            "vol_ratio": float(diag.get("vol_now", 0))
+            / float(diag.get("vol_median", 1)),
+        },
+    )
+
+    # ——— Persist shadow decision ———
+    recorder = ShadowDecisionRecorder(audit_dir=AUDIT_DIR)
+    recorder.record_decision(decision)
+
+    # ——— Log comparison metrics ———
+    b = decision.baseline["metrics"]
+    s = decision.selected["metrics"]
+    e = decision.edge_metrics
+
+    log(f"  📊 Shadow: {len(decision.selected['symbols'])} selected (R4 baseline: {len(decision.baseline['symbols'])})")
+    log(
+        f"  edge retained: {e['edge_retained_pct']}%  top-signal: {e['top_signal_retention']}"
+    )
+    log(
+        f"  avg pairwise corr: R4={b['avg_pairwise_corr']:.4f} shadow={s['avg_pairwise_corr']:.4f}"
+    )
+    log(
+        f"  portfolio vol (annual): R4={b['portfolio_vol_annual']:.4f} shadow={s['portfolio_vol_annual']:.4f}"
+    )
+    log(
+        f"  effective positions: R4={b['effective_positions']:.1f} shadow={s['effective_positions']:.1f}"
+    )
+    log(
+        f"  max cluster exposure: R4={b['exposure']['max_cluster_exposure']['pct']:.1%} "
+        f"shadow={s['exposure']['max_cluster_exposure']['pct']:.1%}"
+    )
+    log(
+        f"  max ccy exposure: R4={b['exposure']['max_currency_exposure']['pct']:.1%} "
+        f"shadow={s['exposure']['max_currency_exposure']['pct']:.1%}"
+    )
+
+    # Log rejection reasons for diagnostics
+    rejected_reasons = set()
+    for c in decision.candidates:
+        r = c.get("rejection_reason") or c.get("dominant_rejection")
+        if r:
+            rejected_reasons.add(r)
+    if rejected_reasons:
+        log(f"  rejection reasons: {sorted(rejected_reasons)}")
+
+    return decision
+    log(
+        f"  effective positions: R4={b['effective_positions']:.1f} shadow={s['effective_positions']:.1f}"
+    )
+    log(
+        f"  max cluster exposure: R4={b['exposure']['max_cluster_exposure']['pct']:.1%} "
+        f"shadow={s['exposure']['max_cluster_exposure']['pct']:.1%}"
+    )
+    log(
+        f"  max ccy exposure: R4={b['exposure']['max_currency_exposure']['pct']:.1%} "
+        f"shadow={s['exposure']['max_currency_exposure']['pct']:.1%}"
+    )
+
+    # Log rejection reasons for diagnostics
+    rejected_reasons = set()
+    for c in decision.candidates:
+        r = c.get("rejection_reason") or c.get("dominant_rejection")
+        if r:
+            rejected_reasons.add(r)
+    if rejected_reasons:
+        log(f"  rejection reasons: {sorted(rejected_reasons)}")
+
+    return decision
 
 
 def main() -> None:
@@ -1774,6 +2122,11 @@ def main() -> None:
                 if rebuilt is not None:
                     mt5 = rebuilt
                     log("  ✅ MT5 session verified — account data live")
+                    # Advance the recovery state machine NOW, while the
+                    # verified session is in hand (R4-S 2026-09-07 wedge fix:
+                    # deferring to the next cycle's probe let bridge-session
+                    # teardowns re-wedge the state machine at DISCONNECTED).
+                    _run_reconciliation_sequence(mt5)
                 else:
                     log("  ⚠️  MT5 still unreachable — waiting...")
             else:
@@ -1784,114 +2137,13 @@ def main() -> None:
                 if _shutdown:
                     break
                 time.sleep(1)
-            continue
-
-        # ── Reconnection handling ─────────────────────────────────────
-        if _disconnect_recovery.state == RecoveryState.DISCONNECTED:
-            recovery_msg = _disconnect_recovery.on_reconnect()
-            reconnect_time_ms = (time.time() - disconnect_start) * 1000 if "disconnect_start" in dir() else 0.0
-            log(f"🟢 MT5 RECONNECTED — {recovery_msg}")
-            audit(
-                {
-                    "event": "reconnect",
-                    "recovery_state": _disconnect_recovery.state.value,
-                }
-            )
-            # Record evidence: reconnect event
-            try:
-                record_operational_event(
-                    event_type="reconnect",
-                    detection_time_ms=reconnect_time_ms,
-                    recovery_time_ms=reconnect_time_ms,
-                    success=True,
-                )
-            except Exception:
-                pass
-
-            # Reconcile: verify positions, equity, fingerprint
-            try:
-                account = mt5.account_info()
-                positions = mt5.positions_get()
-                pos_list = list(positions) if positions else []
-
-                # Fingerprint check
-                fp_ok = _fingerprint_verifier.verify_all().all_verified
-
-                # Position count check
-                pos_ok = len(pos_list) <= RISK_ENVELOPE.max_concurrent_positions
-
-                # Equity check
-                eq_ok = account.equity > 0 if account else False
-
-                # Order check: R4 uses market orders only; any pending orders
-                # after reconnect are unexpected and indicate possible orphans.
-                try:
-                    pending = mt5.orders_get()
-                    pending_list = list(pending) if pending else []
-                    orders_ok = len(pending_list) == 0
-                except Exception:
-                    # If orders_get fails, treat as unknown — fail-closed
-                    pending_list = []
-                    orders_ok = False
-
-                # Risk check
-                risk_ok = True  # Would need full risk check here
-
-                reconcile_msg = _disconnect_recovery.submit_reconciliation(
-                    positions_match=pos_ok,
-                    orders_match=orders_ok,
-                    equity_match=eq_ok,
-                    fingerprint_match=fp_ok,
-                    details=f"pos={len(pos_list)}, eq={account.equity if account else 0:.2f}",
-                )
-                log(f"   Reconciliation: {reconcile_msg}")
-                audit({"event": "reconciliation", "result": reconcile_msg})
-
-                if _disconnect_recovery.state == RecoveryState.HALTED:
-                    log("🔴 RECONCILIATION FAILED — HALTED")
-                    _persist_state()
-                    if not loop_mode:
-                        break
-                    for _ in range(min(interval, 300)):
-                        if _shutdown:
-                            break
-                        time.sleep(1)
-                    continue
-
-                # Request resume
-                resume_msg = _disconnect_recovery.request_resume(
-                    data_fresh=True,
-                    positions_reconciled=pos_ok,
-                    no_unexpected_orders=True,
-                    risk_limits_passing=risk_ok,
-                    config_fingerprint_unchanged=fp_ok,
-                    health_state="healthy",
-                )
-                log(f"   Resume: {resume_msg}")
-                audit({"event": "resume", "result": resume_msg})
-
-                if _disconnect_recovery.state != RecoveryState.RESUMED:
-                    log("🔴 RESUME FAILED — trading remains halted")
-                    _persist_state()
-                    if not loop_mode:
-                        break
-                    for _ in range(min(interval, 300)):
-                        if _shutdown:
-                            break
-                        time.sleep(1)
-                    continue
-
-            except Exception as e:
-                log(f"🔴 Reconciliation error: {e}")
-                audit({"event": "reconciliation_error", "error": str(e)})
-                _persist_state()
-                if not loop_mode:
-                    break
-                for _ in range(min(interval, 60)):
-                    if _shutdown:
-                        break
-                    time.sleep(1)
-                continue
+            continue        # ── Reconnection handling ─────────────────────────────────────
+        # R4-S 2026-09-07: reconciliation and resume now run inside the
+        # recovery path the moment a verified session exists
+        # (_run_reconciliation_sequence). Reaching here with state
+        # DISCONNECTED therefore means no verified session was established;
+        # the permission check below blocks trading fail-closed, exactly as
+        # the ID-008 invariants require.
 
         # ── Trading permission check ──────────────────────────────────
         if _disconnect_recovery.state not in (

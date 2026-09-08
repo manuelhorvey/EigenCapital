@@ -59,10 +59,15 @@ from eigencapital.shadow.portfolio.correlation import CorrelationSnapshot
 from eigencapital.shadow.portfolio.exposure import ExposureModel
 from eigencapital.shadow.portfolio.metrics import PortfolioMetrics, compute_portfolio_metrics
 
-SHADOW_SELECTOR_VERSION = "r4s-shadow-selector-0.2.0"
+SHADOW_SELECTOR_VERSION = "r4s-shadow-selector-0.2.1"
 
 MIN_SIGNAL_WEIGHT = 0.005  # matches the frozen R4 activation threshold |w| > 0.005
 UNKNOWN_VOL_ANNUAL = 0.15  # conservative default when a candidate lacks vol history
+
+# Hard-cap violation codes. Rejection labels are only trusted when they come
+# from a FINAL-state evaluation (R4-S 2026-09-08: a cap tripped in an early
+# greedy trial must not stick once the final portfolio no longer violates).
+HARD_CAP_REASONS = {"currency_concentration", "factor_concentration", "asset_class_concentration"}
 
 
 def _corr_redundancy(
@@ -113,7 +118,7 @@ def _classify_dominant_rejection(cand: ShadowCandidate) -> str | None:
     r = cand.rejection_reason
     if r is None:
         return None
-    if r in {"currency_concentration", "factor_concentration", "asset_class_concentration"}:
+    if r in HARD_CAP_REASONS:
         return r
     if r in {"max_positions_reached", "candidate_universe_empty_or_infeasible"}:
         return "portfolio_capacity"
@@ -487,8 +492,20 @@ class ShadowSelector:
             }
 
         # Candidates left over because the loop ended early or max hit.
+        # R4-S 2026-09-08: rejection labels must reflect the FINAL portfolio,
+        # not an early greedy trial. A candidate that tripped a hard cap in a
+        # 2-name trial (e.g. {XAUUSD, AUDUSD} → 84% safe_haven) may not violate
+        # at all against the final selection — carrying that label forward
+        # misattributes the exclusion (AUDUSD was recorded factor_concentration
+        # while no final-state trial violated). Recompute every leftover
+        # candidate's hard-cap status against the FINAL selected weights;
+        # hard-cap labels survive only when the final state actually violates,
+        # otherwise the honest reason is the greedy stop condition.
         for sym, cand in remaining.items():
-            if cand.rejection_reason is None:
+            hard = self._exposure.final_state_rejection(selected_weights, sym, cand.weight)
+            if hard is not None:
+                cand.rejection_reason = hard
+            elif cand.rejection_reason is None or cand.rejection_reason in HARD_CAP_REASONS:
                 cand.rejection_reason = stop_reason
 
         # Finalize dominant rejection classification.

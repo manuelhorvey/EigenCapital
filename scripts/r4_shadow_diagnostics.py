@@ -23,11 +23,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List
 
-import numpy as np
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "src"))
+
+import numpy as np  # noqa: E402
+
+from eigencapital.shadow.portfolio.selector import (  # noqa: E402
+    HARD_CAP_REASONS,
+    ShadowSelectorConfig,
+)
 
 SIZE_NS = (1, 2, 4, 6, 8)
 
@@ -72,7 +81,18 @@ def edge_by_size(decisions: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def lost_edge_attribution(decisions: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """D2: charge every R4-only name's |w| to its dominant rejection reason."""
+    """D2: charge every R4-only name's |w| to the TRUE final-state reason.
+
+    The recorded dominant_rejection can be stale (R4-S 2026-09-08): a
+    candidate that tripped a hard cap in an early greedy trial — e.g.
+    {XAUUSD, AUDUSD} → 84% safe_haven — was labeled factor_concentration
+    even though no final-state trial violated. Attribution therefore
+    RECOMPUTES the hard-cap status against the decision's FINAL selected
+    weights. A name that genuinely violates the final portfolio is charged
+    to that cap; a name whose final state is clean is charged to capacity
+    (or its recorded non-cap reason), never to a stale concentration label.
+    """
+    exposure = ShadowSelectorConfig().exposure_config()
     attribution: Dict[str, float] = defaultdict(float)
     substituted: float = 0.0  # shadow picks outside R4's top-20
     total_lost: float = 0.0
@@ -80,13 +100,23 @@ def lost_edge_attribution(decisions: List[Dict[str, Any]]) -> Dict[str, Any]:
     for d in decisions:
         baseline_set = set(d["baseline"]["symbols"])
         selected_set = set(d["selected"]["symbols"])
+        final_weights = d["selected"].get("weights", {})
         r4_gross = d["baseline"]["metrics"]["gross_edge"]
         total_r4 += r4_gross
         for c in d["candidates"]:
             if c["symbol"] in baseline_set and c["symbol"] not in selected_set:
                 lost = abs(c["weight"])
                 total_lost += lost
-                reason = c.get("dominant_rejection") or c.get("rejection_reason") or "unclassified"
+                hard = exposure.final_state_rejection(final_weights, c["symbol"], c["weight"])
+                if hard is not None:
+                    reason = hard
+                else:
+                    recorded = c.get("dominant_rejection") or c.get("rejection_reason")
+                    if recorded in HARD_CAP_REASONS:
+                        # Stale label from an early trial — final state is clean.
+                        reason = "portfolio_capacity"
+                    else:
+                        reason = recorded or "portfolio_capacity"
                 attribution[reason] += lost
             if c["symbol"] not in baseline_set and c["symbol"] in selected_set:
                 substituted += abs(c["weight"])
@@ -182,16 +212,16 @@ def pretty_print_decision(decision: Dict[str, Any]) -> None:
         c = by_sym.get(s, {})
         vol = c.get("annualized_vol")
         print(
-            f"  {str(c.get('r4_rank', '?')):<5}{s:<10}{str(c.get('direction', '?')):<6}"
+            f"  {c.get('r4_rank', '?'):!s:<5}{s:<10}{c.get('direction', '?'):!s:<6}"
             f"{weights.get(s, 0):+.4f}  {vol if vol is not None else 0.0:.1%}   "
-            f"{str(c.get('asset_class', '?')):<10}{c.get('factor_group', '?')}"
+            f"{c.get('asset_class', '?'):!s:<10}{c.get('factor_group', '?')}"
         )
 
     rejected = [c for c in decision["candidates"] if c["symbol"] not in sel_set]
     print(f"\n  REJECTED ({len(rejected)})")
     for c in rejected:
         reason = c.get("dominant_rejection") or c.get("rejection_reason") or "-"
-        print(f"  #{str(c.get('r4_rank', '?')):<3} {c['symbol']:<10} {reason}")
+        print(f"  #{c.get('r4_rank', '?'):!s:<3} {c['symbol']:<10} {reason}")
 
     e = decision.get("edge_metrics", {})
     sel_m = decision["selected"]["metrics"]
@@ -306,7 +336,7 @@ def main() -> int:
             f"  {r['size']:<6}{r['days_reaching_n']:<7}{r['avg_edge_retained_pct']:<12}{r['avg_portfolio_vol']:<10}{r['avg_max_abs_corr']:<12}{r['avg_quality']}"
         )
 
-    print("\n[D2] LOST-EDGE ATTRIBUTION (R4 names excluded by shadow)")
+    print("\n[D2] LOST-EDGE ATTRIBUTION (R4 names excluded by shadow — final-state reason)")
     print(f"  total R4 edge: {d2['total_r4_edge']} | lost: {d2['total_lost_edge']} ({d2['edge_lost_pct']}%)")
     for reason, pct in d2["by_reason"].items():
         print(f"  {reason:<28}{pct:>8.2f}%")

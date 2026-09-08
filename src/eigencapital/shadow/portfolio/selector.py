@@ -59,7 +59,7 @@ from eigencapital.shadow.portfolio.correlation import CorrelationSnapshot
 from eigencapital.shadow.portfolio.exposure import ExposureModel
 from eigencapital.shadow.portfolio.metrics import PortfolioMetrics, compute_portfolio_metrics
 
-SHADOW_SELECTOR_VERSION = "r4s-shadow-selector-0.2.1"
+SHADOW_SELECTOR_VERSION = "r4s-shadow-selector-0.2.2"
 
 MIN_SIGNAL_WEIGHT = 0.005  # matches the frozen R4 activation threshold |w| > 0.005
 UNKNOWN_VOL_ANNUAL = 0.15  # conservative default when a candidate lacks vol history

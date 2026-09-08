@@ -42,6 +42,11 @@ class PortfolioMetrics:
     expected_drawdown_proxy: float  # 2σ portfolio vol (documented proxy)
     max_corr_cluster_share: float  # largest high-corr cluster share of gross
 
+    # Risk concentration (marginal contribution to portfolio variance)
+    risk_contribution_hhi: float = 0.0  # HHI over per-asset variance shares
+    max_risk_contribution_share: float = 0.0  # largest single-asset variance share
+    effective_risk_contributors: float = 0.0  # 1/HHI over variance shares
+
     # Exposure (from ExposureModel)
     exposure: Dict[str, Any] = field(default_factory=dict)
 
@@ -59,6 +64,9 @@ class PortfolioMetrics:
             "diversification_ratio": round(self.diversification_ratio, 4),
             "expected_drawdown_proxy": round(self.expected_drawdown_proxy, 6),
             "max_corr_cluster_share": round(self.max_corr_cluster_share, 6),
+            "risk_contribution_hhi": round(self.risk_contribution_hhi, 6),
+            "max_risk_contribution_share": round(self.max_risk_contribution_share, 6),
+            "effective_risk_contributors": round(self.effective_risk_contributors, 4),
             "exposure": self.exposure,
         }
 
@@ -154,6 +162,23 @@ def compute_portfolio_metrics(
     weighted_vol = sum(abs(weights[s]) * vol.get(s, 0.0) for s in symbols)
     div_ratio = weighted_vol / portfolio_vol if portfolio_vol > 0 else (1.0 if len(symbols) == 1 else 0.0)
 
+    # Marginal risk contribution: share of portfolio variance attributable to
+    # each asset. c_i = w_i · (Σw)_i and Σ_i c_i = w'Σw = variance, so the
+    # normalized shares sum to 1. Concentration (HHI / max share) answers
+    # "how many independent risk bets is this portfolio really making?" — the
+    # weight-space HHI above counts positions, but correlated positions share
+    # risk, so risk-contribution concentration is the tighter diagnostic.
+    rc_hhi, rc_max, rc_eff = 0.0, 0.0, 0.0
+    if present and portfolio_vol > 1e-12:
+        contrib = w_vec * (sigma @ w_vec)
+        total = float(contrib.sum())
+        if total > 1e-12:
+            shares = contrib / total
+            shares = np.clip(shares, 0.0, None)  # PSD Σ keeps these non-negative
+            rc_hhi = float(shares @ shares)
+            rc_max = float(shares.max())
+            rc_eff = 1.0 / rc_hhi if rc_hhi > 0 else 0.0
+
     return PortfolioMetrics(
         gross_edge=gross,
         net_edge=net,
@@ -167,5 +192,8 @@ def compute_portfolio_metrics(
         diversification_ratio=div_ratio,
         expected_drawdown_proxy=EXPECTED_DRAWDOWN_SIGMA * portfolio_vol,
         max_corr_cluster_share=_max_corr_cluster_share(weights, corr),
+        risk_contribution_hhi=rc_hhi,
+        max_risk_contribution_share=rc_max,
+        effective_risk_contributors=rc_eff,
         exposure=exposure_summary,
     )

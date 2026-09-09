@@ -1,9 +1,11 @@
 """PortfolioMetrics risk-contribution tests (R4-S comparative evidence table).
 
-Risk-contribution concentration answers "how many independent risk bets is
-this portfolio really making?" — weight-space HHI counts positions, but
-correlated positions share risk, so the variance-share concentration is the
-tighter diagnostic the comparative evidence table reports.
+Risk-contribution concentration gives the Effective Risk Contributors
+(ERC = 1/HHI over per-asset variance shares) — weight-space HHI counts
+positions, but correlated positions share risk, so the variance-share
+concentration is the tighter diagnostic the comparative evidence table
+reports. ERC is an effective-count diagnostic, NOT a count of statistically
+independent bets.
 """
 
 from __future__ import annotations

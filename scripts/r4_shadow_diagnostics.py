@@ -2,7 +2,7 @@
 risk/edge frontier?
 
 Reads the shadow evidence produced by scripts/r4_shadow_portfolio.py and
-computes the four diagnostic analyses (research phase, NOT optimization):
+computes the diagnostic analyses (research phase, NOT optimization):
 
   D1. Edge retained by selection size (top-1/2/4/6/8) — where edge collapses.
   D2. Lost-edge attribution — every R4 name excluded by the shadow portfolio
@@ -13,7 +13,13 @@ computes the four diagnostic analyses (research phase, NOT optimization):
       metric set (signal retained, vol/variance, currency/factor
       concentration, effective bets, gross/net exposure, risk-contribution
       concentration, realized R, drawdown, turnover).
-  D4. Regime interaction — decision days bucketed by vol_now/vol_median.
+  D3c. Signal/risk efficiency — per-transition Δsignal / Δvariance, showing
+      where additional R4 signal becomes inefficient relative to incremental
+      modeled risk (decision-time only; not a promotion criterion).
+  D4. Realized-outcome evaluation — R4-20 vs Shadow-4..8 on the per-cycle
+      size ledger: realized P&L/R, Sharpe, max DD, realized vol, downside
+      deviation, worst cycle, tail loss, turnover, costs, ERC.
+  D5. Regime interaction — decision days bucketed by vol_now/vol_median.
 
 Outputs:
     printed tables + reports/r4_loop/shadow_diagnostics_summary.json
@@ -21,16 +27,18 @@ Outputs:
 Usage:
     python scripts/r4_shadow_diagnostics.py [--out-dir reports/r4_loop]
     python scripts/r4_shadow_diagnostics.py --last   # view the most recent decision
+    python scripts/r4_shadow_diagnostics.py --min-selector-version 0.2.2  # clean post-upgrade sample
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
@@ -423,8 +431,316 @@ def print_comparative(table: Dict[str, Any]) -> None:
         print(f"  {label:<34}" + "".join(fmt_val(v, kind) for v in cells))
 
 
+def marginal_efficiency(table: Dict[str, Any]) -> Dict[str, Any]:
+    """D3c: signal efficiency across the chain — where do diminishing returns begin?
+
+    For each additional position (transition S(n) → S(n+1)):
+        Δsignal retained (pp) / Δportfolio variance
+    plus the level ratio signal/variance per size. Only transitions where both
+    terms are available are reported; None values (e.g. pre-0.2.2 records
+    missing a metric) are skipped rather than treated as zero.
+
+    Decision-time only: signal retained is NOT realized return and modeled
+    variance is NOT realized risk, so this table informs the question "where
+    does additional R4 signal become inefficient relative to incremental
+    modeled risk?" — it is not a promotion criterion by itself.
+    """
+    sizes = ["r4_20"] + [f"s{n}" for n in COMPARATIVE_SIZES]
+    labels = {f"s{n}": f"S-{n}" for n in COMPARATIVE_SIZES}
+    labels["r4_20"] = "R4-20"
+
+    levels = []
+    for key in sizes:
+        sig = table["signal_retained_pct"].get(key)
+        var = table["portfolio_variance"].get(key)
+        if sig is None or var is None or var <= 0:
+            continue
+        levels.append(
+            {
+                "size": labels[key],
+                "signal_retained_pct": round(sig, 2),
+                "portfolio_variance": round(var, 6),
+                "signal_per_variance": round(sig / var, 1),
+            }
+        )
+
+    transitions = []
+    for i in range(1, len(sizes)):
+        prev, cur = sizes[i - 1], sizes[i]
+        sig_prev = table["signal_retained_pct"].get(prev)
+        sig_cur = table["signal_retained_pct"].get(cur)
+        var_prev = table["portfolio_variance"].get(prev)
+        var_cur = table["portfolio_variance"].get(cur)
+        if None in (sig_prev, sig_cur, var_prev, var_cur) or var_cur is None or var_prev is None:
+            continue
+        d_var = var_cur - var_prev
+        d_sig = sig_cur - sig_prev
+        if d_var <= 0:
+            # Variance did not rise (or data is flat): efficiency is unbounded,
+            # report the signal gain with a marker rather than a bogus ratio.
+            efficiency = None if d_var == 0 else float("inf")
+        else:
+            efficiency = round(d_sig / (d_var * 10000.0), 2)  # pp per 1e-4 variance
+        transitions.append(
+            {
+                "transition": f"{labels[prev]} → {labels[cur]}",
+                "d_signal_pp": round(d_sig, 2),
+                "d_variance": round(d_var, 6),
+                "efficiency_pp_per_1e4_var": efficiency,
+            }
+        )
+    return {"levels": levels, "transitions": transitions}
+
+
+def print_efficiency(eff: Dict[str, Any]) -> None:
+    """Render the D3c signal-efficiency table."""
+    print("\n[D3c] SIGNAL / RISK EFFICIENCY (decision-time; signal ≠ return)")
+    print(f"  {'size':<8}{'signal':>10}{'variance':>12}{'signal/var':>12}")
+    for r in eff["levels"]:
+        print(
+            f"  {r['size']:<8}{r['signal_retained_pct']:>9.1f}%{r['portfolio_variance']:>12.6f}"
+            f"{r['signal_per_variance']:>12.1f}"
+        )
+    print(f"  {'transition':<16}{'Δsignal':>10}{'Δvariance':>12}{'efficiency':>12}")
+    for t in eff["transitions"]:
+        e = t["efficiency_pp_per_1e4_var"]
+        e_str = f"{e:>12.2f}" if e is not None and e != float("inf") else f"{'∞':>12}"
+        print(
+            f"  {t['transition']:<16}{t['d_signal_pp']:>+9.2f}pp{t['d_variance']:>+12.6f}{e_str}"
+        )
+
+
+_SELVER_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)$")
+
+
+def _version_tuple(version: str) -> Tuple[int, int, int] | None:
+    """Parse a selector version into a comparable tuple.
+
+    Accepts either the full record value ("r4s-shadow-selector-0.2.2") or a
+    bare semver ("0.2.2"). Returns None when unparseable.
+    """
+    m = _SELVER_RE.search(version)
+    if not m:
+        return None
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+
+
+def filter_by_selector_version(
+    decisions: List[Dict[str, Any]],
+    min_version: str | None,
+) -> Tuple[List[Dict[str, Any]], int]:
+    """Keep only decisions whose selector_version >= min_version.
+
+    Records from before the v0.2.2 upgrade lack risk-contribution metrics;
+    mixing them with post-upgrade records as if identical measurements would
+    corrupt the comparative evidence (R4-S verdict: clean evaluation boundary
+    PRE-v0.2.2 / v0.2.2 qualification set). Decisions with an unparseable
+    version are kept only when no minimum is requested.
+
+    Returns (filtered, dropped_count).
+    """
+    if not min_version:
+        return decisions, 0
+    target = _version_tuple(min_version)
+    if target is None:
+        raise ValueError(f"cannot parse selector version: {min_version!r}")
+    kept, dropped = [], 0
+    for d in decisions:
+        v = _version_tuple(d.get("selector_version", ""))
+        if v is not None and v >= target:
+            kept.append(d)
+        else:
+            dropped += 1
+    return kept, dropped
+
+
+# R4-20 control column size in the size-breakdown ledger (mirrors
+# BASELINE_SIZE in scripts/r4_shadow_portfolio.py).
+R4_BASELINE_SIZE = 20
+
+# D4 realized-outcome rows: (key, label, kind). kind is one of
+# pct / float2 / float4 / dash (see print_comparative).
+REALIZED_ROWS = [
+    ("signal_retained_pct", "Signal retained", "pct"),
+    ("realized_pnl", "Realized P&L (net)", "float2"),
+    ("realized_r", "Realized R (avg)", "float4"),
+    ("sharpe", "Sharpe (per-cycle)", "float2"),
+    ("max_dd", "Max DD", "float2"),
+    ("realized_vol", "Realized volatility", "float4"),
+    ("downside_dev", "Downside deviation", "float4"),
+    ("worst_cycle", "Worst cycle", "float2"),
+    ("tail_loss", "Tail loss (p5)", "float2"),
+    ("turnover", "Turnover (avg/cycle)", "float4"),
+    ("cost", "Estimated costs", "float2"),
+    ("net_r_after_costs", "Net R after costs", "dash"),
+    ("erc", "Effective risk contributors", "float2"),
+    ("max_risk_contribution", "Max risk contribution", "pct"),
+]
+
+
+def _max_drawdown(series: List[float]) -> float | None:
+    if not series:
+        return None
+    cum = np.cumsum(series)
+    peak = np.maximum.accumulate(cum)
+    dd = cum - peak
+    return float(dd.min())
+
+
+def _per_cycle_stats(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Distributional realized stats from one size's per-cycle ledger rows."""
+    net = [r["net_pnl"] for r in rows if r.get("net_pnl") is not None]
+    gross = [r["gross_pnl"] for r in rows if r.get("gross_pnl") is not None]
+    cost = [r["cost"] for r in rows if r.get("cost") is not None]
+    rs = [r["avg_r"] for r in rows if r.get("n_exits") and r.get("avg_r") is not None]
+    turn = [r["turnover"] for r in rows if r.get("turnover") is not None]
+    out: Dict[str, Any] = {"cycles": len(rows)}
+    out["realized_pnl"] = round(sum(net), 2) if net else None
+    out["realized_r"] = round(float(np.mean(rs)), 4) if rs else None
+    out["sharpe"] = None
+    out["max_dd"] = _max_drawdown(net) if net else None
+    out["realized_vol"] = None
+    out["downside_dev"] = None
+    out["worst_cycle"] = round(min(net), 2) if net else None
+    out["tail_loss"] = round(float(np.percentile(net, 5)), 2) if len(net) >= 2 else None
+    out["turnover"] = round(float(np.mean(turn)), 4) if turn else None
+    out["cost"] = round(sum(cost), 2) if cost else None
+    out["net_r_after_costs"] = None  # needs per-exit cost attribution; see note
+    out["_gross"] = sum(gross) if gross else None
+    if len(net) >= 2 and float(np.std(net)) > 0:
+        sd = float(np.std(net, ddof=1)) if len(net) > 1 else 0.0
+        if sd > 0:
+            out["sharpe"] = round(float(np.mean(net)) / sd * np.sqrt(252.0), 2)
+            out["realized_vol"] = round(sd * np.sqrt(252.0), 4)
+            neg = np.minimum(np.array(net), 0.0)
+            out["downside_dev"] = round(float(np.sqrt(np.mean(neg**2))) * np.sqrt(252.0), 4)
+    return out
+
+
+def realized_outcomes(
+    decisions: List[Dict[str, Any]],
+    size_rows: List[Dict[str, Any]],
+    comparative: Dict[str, Any],
+) -> Dict[str, Any]:
+    """D4: realized-outcome evaluation — R4-20 vs Shadow-4..8.
+
+    Uses the per-cycle size ledger (shadow_portfolio_size_breakdown.jsonl) so
+    every size is measured under identical conventions: same decision-bar
+    entry/exit, weight-space notional |w|·equity, and the project's 10 bps
+    per-side cost. R4-20 is the frozen R4 baseline tracked under the same
+    rules. Total P&L / cost span ALL ledger rows (including the terminal END
+    liquidation, matching D3's frontier totals); Sharpe / vol / downside /
+    tail are per-cycle distributional statistics on net P&L over decision
+    rows only (annualized with √252 over decision days — a proxy, documented,
+    not realized daily returns).
+
+    Net R after costs is intentionally '—': avg_r is in ATR multiples while
+    costs are dollar notional charges, so a defensible per-exit net-R needs
+    per-exit cost attribution not present in the ledger.
+    """
+    # Cycle rows exclude the terminal "END" liquidation (a lump-sum close-out,
+    # not a decision cycle) so per-cycle distributional stats stay honest.
+    by_size: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+    for row in size_rows:
+        n = row.get("size")
+        if n is not None and str(row.get("signal_date", "")).upper() != "END":
+            by_size[n].append(row)
+    # All rows (incl. END) for total P&L / cost — matches D3's frontier totals.
+    by_size_all: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+    for row in size_rows:
+        n = row.get("size")
+        if n is not None:
+            by_size_all[n].append(row)
+
+    cols = ["r4_20"] + [f"s{n}" for n in COMPARATIVE_SIZES]
+    table: Dict[str, Any] = {}
+    for key, _label, _kind in REALIZED_ROWS:
+        table[key] = {c: None for c in cols}
+
+    # Signal retained and ERC come from decision-time chain metrics (ERC only
+    # exists post-0.2.2).
+    def chain_mean(n: int, path: str) -> float | None:
+        vals = []
+        for d in decisions:
+            node = d["chain_by_n"].get(str(n))
+            v = _metric_at(node["metrics"], path) if node else None
+            if v is not None:
+                vals.append(v)
+        return float(np.mean(vals)) if vals else None
+
+    def chain_mean_pct(n: int, path: str) -> float | None:
+        v = chain_mean(n, path)
+        return round(v * 100.0, 2) if v is not None else None
+
+    for n in COMPARATIVE_SIZES:
+        table["signal_retained_pct"][f"s{n}"] = comparative["signal_retained_pct"].get(f"s{n}")
+        table["erc"][f"s{n}"] = chain_mean(n, "effective_risk_contributors")
+        table["max_risk_contribution"][f"s{n}"] = chain_mean_pct(n, "max_risk_contribution_share")
+        stats = _per_cycle_stats(by_size.get(n, []))
+        for key in ("realized_r", "sharpe", "max_dd", "realized_vol", "downside_dev",
+                    "worst_cycle", "tail_loss", "turnover", "net_r_after_costs"):
+            table[key][f"s{n}"] = stats.get(key)
+        # Total P&L / cost span ALL rows incl. END (matches D3 frontier totals).
+        all_rows = by_size_all.get(n, [])
+        table["realized_pnl"][f"s{n}"] = _round_sum(all_rows, "net_pnl")
+        table["cost"][f"s{n}"] = _round_sum(all_rows, "cost")
+
+    table["signal_retained_pct"]["r4_20"] = comparative["signal_retained_pct"].get("r4_20")
+    # R4-20 ERC / max-risk-contribution come from baseline metrics (chain_by_n
+    # only holds shadow sizes); only present in v0.2.2+ records.
+    erc_vals = [
+        v
+        for d in decisions
+        if (v := _metric_at(d["baseline"]["metrics"], "effective_risk_contributors")) is not None
+    ]
+    table["erc"]["r4_20"] = round(float(np.mean(erc_vals)), 2) if erc_vals else None
+    mrc_vals = [
+        v
+        for d in decisions
+        if (v := _metric_at(d["baseline"]["metrics"], "max_risk_contribution_share")) is not None
+    ]
+    table["max_risk_contribution"]["r4_20"] = round(float(np.mean(mrc_vals)) * 100.0, 2) if mrc_vals else None
+    base_stats = _per_cycle_stats(by_size.get(R4_BASELINE_SIZE, []))
+    for key in ("realized_r", "sharpe", "max_dd", "realized_vol", "downside_dev",
+                "worst_cycle", "tail_loss", "turnover", "net_r_after_costs"):
+        table[key]["r4_20"] = base_stats.get(key)
+    base_all = by_size_all.get(R4_BASELINE_SIZE, [])
+    table["realized_pnl"]["r4_20"] = _round_sum(base_all, "net_pnl")
+    table["cost"]["r4_20"] = _round_sum(base_all, "cost")
+    return table
+
+
+def _round_sum(rows: List[Dict[str, Any]], key: str) -> float | None:
+    """Sum a field across rows; None only when no row carries the field."""
+    vals = [r[key] for r in rows if r.get(key) is not None]
+    return round(float(sum(vals)), 2) if vals else None
+
+
+def print_realized(table: Dict[str, Any]) -> None:
+    """Render the D4 realized-outcome table."""
+    print("\n[D4] REALIZED-OUTCOME EVALUATION — R4-20 vs SHADOW-4..8 (per-cycle ledger)")
+    header = f"  {'metric':<34}{'R4-20':>10}" + "".join(f"{f'S-{n}':>10}" for n in COMPARATIVE_SIZES)
+    print(header)
+    print("  " + "─" * (len(header) - 2))
+
+    def fmt_val(v: Any, kind: str) -> str:
+        if v is None:
+            return f"{'—':>10}"
+        if kind == "pct":
+            return f"{v:>9.1f}%"
+        if kind == "float2":
+            return f"{v:>10.2f}"
+        if kind == "float4":
+            return f"{v:>10.4f}"
+        return f"{'—':>10}"
+
+    for key, label, kind in REALIZED_ROWS:
+        cells = [table[key]["r4_20"]] + [table[key][f"s{n}"] for n in COMPARATIVE_SIZES]
+        print(f"  {label:<34}" + "".join(fmt_val(v, kind) for v in cells))
+
+
 def regime_interaction(decisions: List[Dict[str, Any]], outcomes: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """D4: bucket decision days by vol_ratio = vol_now / vol_median (terciles)."""
+    """D5: bucket decision days by vol_ratio = vol_now / vol_median (terciles)."""
     ratios = sorted(d["regime"]["vol_ratio"] for d in decisions if d.get("regime", {}).get("vol_ratio") is not None)
     if len(ratios) < 3:
         return {"note": "insufficient regime data", "buckets": []}
@@ -475,12 +791,28 @@ def main() -> int:
         action="store_true",
         help="pretty-print the most recent shadow decision and exit",
     )
+    parser.add_argument(
+        "--min-selector-version",
+        default=None,
+        help="only analyze decisions whose selector_version >= this (e.g. 0.2.2); "
+        "creates a clean evaluation boundary so pre/post-upgrade metrics are "
+        "never mixed (risk-contribution fields only exist from v0.2.2)",
+    )
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
     decisions = load_jsonl(out_dir / "shadow_portfolio_decisions.jsonl")
     if not decisions:
         print(f"no shadow decisions found in {out_dir}")
+        return 2
+
+    try:
+        decisions, dropped = filter_by_selector_version(decisions, args.min_selector_version)
+    except ValueError as e:
+        print(f"invalid --min-selector-version: {e}")
+        return 2
+    if args.min_selector_version and not decisions:
+        print(f"no decisions at selector_version >= {args.min_selector_version} in {out_dir}")
         return 2
 
     if args.last:
@@ -494,11 +826,16 @@ def main() -> int:
     d2 = lost_edge_attribution(decisions)
     d3 = frontier(decisions, size_rows)
     d3b = comparative_evidence(decisions, size_rows)
-    d4 = regime_interaction(decisions, outcomes)
+    d3c = marginal_efficiency(d3b)
+    d4 = realized_outcomes(decisions, size_rows, d3b)
+    d5 = regime_interaction(decisions, outcomes)
 
     print("═" * 74)
     print("R4-S DIAGNOSTICS — where does the lost edge go?")
     print("═" * 74)
+    if args.min_selector_version:
+        print(f"  evaluation boundary: selector_version >= {args.min_selector_version} "
+              f"({len(decisions)} decisions, {dropped} pre-boundary dropped)")
 
     print("\n[D1] EDGE RETAINED BY SELECTION SIZE")
     print(f"  {'size':<6}{'days':<7}{'edge ret %':<12}{'port vol':<10}{'max |corr|':<12}{'quality'}")
@@ -526,19 +863,31 @@ def main() -> int:
         )
 
     print_comparative(d3b)
+    print_efficiency(d3c)
+    print_realized(d4)
 
-    print("\n[D4] REGIME INTERACTION (vol_now/vol_median terciles)")
+    print("\n[D5] REGIME INTERACTION (vol_now/vol_median terciles)")
     print(
         f"  {'bucket':<10}{'ratio':<14}{'days':<6}{'size':<6}{'edge ret %':<12}{'port vol':<10}{'real PnL':<12}{'avg R':<8}{'hit'}"
     )
-    for b in d4["buckets"]:
+    for b in d5["buckets"]:
         rng = f"{b['vol_ratio_range'][0]}–{b['vol_ratio_range'][1]}"
         print(
             f"  {b['bucket']:<10}{rng:<14}{b['days']:<6}{b['avg_size']:<6}{b['avg_edge_retained_pct']:<12}"
             f"{b['avg_portfolio_vol']:<10}{b['realized_pnl']:<12}{b['realized_avg_r']!s:<8}{b['realized_hit_rate']}"
         )
 
-    summary = {"edge_by_size": d1, "lost_edge": d2, "frontier": d3, "comparative": d3b, "regime": d4}
+    summary = {
+        "edge_by_size": d1,
+        "lost_edge": d2,
+        "frontier": d3,
+        "comparative": d3b,
+        "efficiency": d3c,
+        "realized": d4,
+        "regime": d5,
+        "evaluation_boundary": args.min_selector_version,
+        "decisions_in_sample": len(decisions),
+    }
     out = out_dir / "shadow_diagnostics_summary.json"
     with open(out, "w") as f:
         json.dump(summary, f, indent=2, default=str)

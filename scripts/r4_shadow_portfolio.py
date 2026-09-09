@@ -82,8 +82,10 @@ NATIVE = {
 EQUITY_FOR_SHADOW = 5100.0  # weight-space proxy equity (documented; config max_equity)
 
 # Selection sizes for the edge-by-size / frontier diagnostic (brief "next
-# phase": top-1/2/4/6/8 — purely diagnostic, never a tuning target).
-SIZE_BREAKDOWN_NS = (1, 2, 4, 6, 8)
+# phase": top-1/2/4/6/8 plus the D3b/D4 evidence sizes — purely diagnostic,
+# never a tuning target). Size 20 (the R4 baseline) is tracked separately.
+SIZE_BREAKDOWN_NS = (1, 2, 4, 5, 6, 7, 8)
+BASELINE_SIZE = 20  # R4-20 control column in the D4 realized-outcome table
 
 # Project cost convention (scripts/audit/reconstruct.py C7): 10 bps per side.
 COST_PER_SIDE_BPS = 10.0
@@ -116,10 +118,16 @@ class _SizeTracker:
         weights: Dict[str, float],
         prices: Dict[str, float],
         atr_pct: Dict[str, float] | None = None,
-    ) -> Tuple[float, float, List[float]]:
-        """Rotate: realize exits at bar t, open new names. Returns (pnl, cost, r_list)."""
+    ) -> Tuple[float, float, List[float], float]:
+        """Rotate: realize exits at bar t, open new names.
+
+        Returns (pnl, cost, r_list, turnover) where turnover is one-way
+        rotation turnover in weight units (Σ|w| of closed names + Σ|w| of
+        newly opened names; held names are never resized, so their Δw = 0).
+        """
         atr_pct = atr_pct or {}
         pnl, cost, rs = 0.0, 0.0, []
+        turnover = 0.0
         for sym, (ep, w, atr) in list(self._open.items()):
             if sym in selected:
                 continue
@@ -131,6 +139,7 @@ class _SizeTracker:
             if r is not None:
                 rs.append(r)
             cost += COST_PER_SIDE_BPS / 1e4 * abs(w) * self._equity
+            turnover += abs(w)
             self._open.pop(sym)
         for sym in selected:
             if sym in self._open:
@@ -141,10 +150,12 @@ class _SizeTracker:
                 continue
             self._open[sym] = (float(px), float(w), float(atr_pct.get(sym, 0.0) or 0.0))
             cost += COST_PER_SIDE_BPS / 1e4 * abs(w) * self._equity
-        return pnl, cost, rs
+            turnover += abs(w)
+        return pnl, cost, rs, turnover
 
-    def close_all(self, prices: Dict[str, float]) -> Tuple[float, float, List[float]]:
+    def close_all(self, prices: Dict[str, float]) -> Tuple[float, float, List[float], float]:
         pnl, cost, rs = 0.0, 0.0, []
+        turnover = 0.0
         for sym, (ep, w, atr) in list(self._open.items()):
             px = prices.get(sym)
             if px is None or not np.isfinite(px):
@@ -153,8 +164,9 @@ class _SizeTracker:
             pnl += p
             rs.append(r) if r is not None else None
             cost += COST_PER_SIDE_BPS / 1e4 * abs(w) * self._equity
+            turnover += abs(w)
             self._open.pop(sym)
-        return pnl, cost, rs
+        return pnl, cost, rs, turnover
 
     def _realize(self, entry: float, w: float, atr_pct: float, exit_px: float) -> Tuple[float, float | None]:
         d = 1.0 if w > 0 else -1.0
@@ -390,8 +402,10 @@ def run_replay(args: argparse.Namespace) -> int:
 
     size_trackers: Dict[int, _SizeTracker] = {}
     size_rows: List[Dict[str, Any]] = []
+    baseline_tracker: _SizeTracker | None = None
     if args.size_breakdown:
         size_trackers = {n: _SizeTracker(equity=EQUITY_FOR_SHADOW) for n in SIZE_BREAKDOWN_NS}
+        baseline_tracker = _SizeTracker(equity=EQUITY_FOR_SHADOW)
 
     decisions: List[ShadowDecision] = []
     n_regime_on = 0
@@ -448,7 +462,7 @@ def run_replay(args: argparse.Namespace) -> int:
                     continue
                 syms = chain_metrics[n]["symbols"]
                 wts = {s: decision.selected["weights"][s] for s in syms if s in decision.selected["weights"]}
-                pnl, cost, rs = size_trackers[n].step(
+                pnl, cost, rs, turnover = size_trackers[n].step(
                     t,
                     syms,
                     wts,
@@ -465,6 +479,7 @@ def run_replay(args: argparse.Namespace) -> int:
                         "net_pnl": round(pnl - cost, 6),
                         "n_exits": len(rs),
                         "avg_r": round(float(np.mean(rs)), 4) if rs else None,
+                        "turnover": round(turnover, 6),
                         "edge_retained_pct": round(100.0 * chain_metrics[n]["metrics"]["gross_edge"] / base_edge, 2)
                         if base_edge > 0
                         else None,
@@ -472,6 +487,30 @@ def run_replay(args: argparse.Namespace) -> int:
                         "max_abs_corr": round(chain_metrics[n]["metrics"]["max_abs_pairwise_corr"], 6),
                     }
                 )
+
+            # R4-20 control column: the frozen R4 baseline portfolio, realized
+            # under the SAME cost/rotation conventions as the shadow chain so
+            # D4 compares apples to apples. edge_retained_pct is definitionally
+            # 100% (it IS the baseline).
+            assert baseline_tracker is not None
+            base_syms = decision.baseline["symbols"]
+            base_wts = {s: decision.baseline["weights"][s] for s in base_syms if s in decision.baseline["weights"]}
+            bp, bc, brs, bturn = baseline_tracker.step(t, base_syms, base_wts, _row_prices(cw, t))
+            size_rows.append(
+                {
+                    "signal_date": decision.signal_date,
+                    "size": BASELINE_SIZE,
+                    "gross_pnl": round(bp, 6),
+                    "cost": round(bc, 6),
+                    "net_pnl": round(bp - bc, 6),
+                    "n_exits": len(brs),
+                    "avg_r": round(float(np.mean(brs)), 4) if brs else None,
+                    "turnover": round(bturn, 6),
+                    "edge_retained_pct": 100.0,
+                    "portfolio_vol_annual": round(decision.baseline["metrics"]["portfolio_vol_annual"], 6),
+                    "max_abs_corr": round(decision.baseline["metrics"]["max_abs_pairwise_corr"], 6),
+                }
+            )
 
         # Rotate shadow positions: close what left the selection, open the rest.
         # Prices at the decision bar cover ALL signal symbols — both the newly
@@ -493,7 +532,7 @@ def run_replay(args: argparse.Namespace) -> int:
         end_row = cw.iloc[-1]
         end_px = {s: float(end_row[s]) for s in cw.columns if np.isfinite(end_row[s])}
         for n in SIZE_BREAKDOWN_NS:
-            pnl, cost, rs = size_trackers[n].close_all(end_px)
+            pnl, cost, rs, turnover = size_trackers[n].close_all(end_px)
             size_rows.append(
                 {
                     "signal_date": "END",
@@ -503,11 +542,29 @@ def run_replay(args: argparse.Namespace) -> int:
                     "net_pnl": round(pnl - cost, 6),
                     "n_exits": len(rs),
                     "avg_r": round(float(np.mean(rs)), 4) if rs else None,
+                    "turnover": round(turnover, 6),
                     "edge_retained_pct": None,
                     "portfolio_vol_annual": None,
                     "max_abs_corr": None,
                 }
             )
+        assert baseline_tracker is not None
+        bp, bc, brs, bturn = baseline_tracker.close_all(end_px)
+        size_rows.append(
+            {
+                "signal_date": "END",
+                "size": BASELINE_SIZE,
+                "gross_pnl": round(bp, 6),
+                "cost": round(bc, 6),
+                "net_pnl": round(bp - bc, 6),
+                "n_exits": len(brs),
+                "avg_r": round(float(np.mean(brs)), 4) if brs else None,
+                "turnover": round(bturn, 6),
+                "edge_retained_pct": None,
+                "portfolio_vol_annual": None,
+                "max_abs_corr": None,
+            }
+        )
         with open(Path(out_dir) / "shadow_portfolio_size_breakdown.jsonl", "w") as f:
             for row in size_rows:
                 f.write(json.dumps(row) + "\n")

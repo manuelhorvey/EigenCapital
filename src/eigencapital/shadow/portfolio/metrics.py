@@ -45,7 +45,12 @@ class PortfolioMetrics:
     # Risk concentration (marginal contribution to portfolio variance)
     risk_contribution_hhi: float = 0.0  # HHI over per-asset variance shares
     max_risk_contribution_share: float = 0.0  # largest single-asset variance share
-    effective_risk_contributors: float = 0.0  # 1/HHI over variance shares
+    # Effective Risk Contributors (ERC) = 1/HHI over variance shares — the
+    # effective NUMBER of risk contributors. It is NOT a count of
+    # statistically independent bets: correlated positions share variance, so
+    # ERC is an effective-count diagnostic, and "independent bets" is reserved
+    # for a stronger statistical claim.
+    effective_risk_contributors: float = 0.0  # ERC = 1/HHI over variance shares
 
     # Exposure (from ExposureModel)
     exposure: Dict[str, Any] = field(default_factory=dict)
@@ -164,10 +169,11 @@ def compute_portfolio_metrics(
 
     # Marginal risk contribution: share of portfolio variance attributable to
     # each asset. c_i = w_i · (Σw)_i and Σ_i c_i = w'Σw = variance, so the
-    # normalized shares sum to 1. Concentration (HHI / max share) answers
-    # "how many independent risk bets is this portfolio really making?" — the
-    # weight-space HHI above counts positions, but correlated positions share
-    # risk, so risk-contribution concentration is the tighter diagnostic.
+    # normalized shares sum to 1. Concentration (HHI / max share) gives the
+    # Effective Risk Contributors (ERC = 1/HHI over variance shares) — an
+    # effective-count diagnostic. The weight-space HHI above counts positions,
+    # but correlated positions share risk, so ERC is the tighter diagnostic;
+    # it is NOT a count of statistically independent bets.
     rc_hhi, rc_max, rc_eff = 0.0, 0.0, 0.0
     if present and portfolio_vol > 1e-12:
         contrib = w_vec * (sigma @ w_vec)

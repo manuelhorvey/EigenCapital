@@ -1654,7 +1654,7 @@ def _run_shadow_constructor(
         SYMBOL_CURRENCY_MAP,
     )
     from eigencapital.shadow.portfolio.correlation import CorrelationModel
-    from eigencapital.shadow.portfolio.exposure import ExposureModel, get_factor_group
+    from eigencapital.shadow.portfolio.exposure import get_factor_group
     from eigencapital.shadow.portfolio.selector import (
         ShadowCandidate,
         ShadowSelector,

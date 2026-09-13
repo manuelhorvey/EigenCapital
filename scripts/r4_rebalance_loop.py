@@ -477,20 +477,32 @@ def generate_orders(
         if delta < min_vol:
             continue
 
-        if delta_signed > 0:
-            side = "BUY"
-            lots = delta
-            reason = f"{info['direction']} {info['weight']:+.1%} ({info['abs_weight']:.1%} |w|)"
-        else:
-            side = "SELL"
-            lots = delta
-            reason = f"{info['direction']} {info['weight']:+.1%} ({info['abs_weight']:.1%} |w|)"
+        # Hedging-safe: close ALL open tickets for this symbol first,
+        # then open at the target volume. This handles hedging duplicates
+        # (both sides open, net=0) as well as normal positions.
+        close_tickets = (pos_details or {}).get(sym, [])
+        if close_tickets:
+            for tkt in close_tickets:
+                # Close each ticket by its opposite side
+                tkt_close_side = "SELL" if tkt["type"] == 0 else "BUY"
+                orders.append((
+                    sym, tkt_close_side, tkt["volume"],
+                    f"lot adjustment ({abs(cur_lots):.2f}\u2192{abs(target_signed):.2f})",
+                    tkt["ticket"],
+                ))
+            # Reopen from flat at target volume
+            delta = abs(target_signed)
+            if delta < min_vol:
+                continue
 
-        orders.append((sym, side, lots, reason, None))
+        side = "BUY" if target_signed > 0 else "SELL"
+        reason = f"{info['direction']} {info['weight']:+.1%} ({info['abs_weight']:.1%} |w|)"
+        orders.append((sym, side, delta, reason, None))
 
-    # Sort: close orders first (free up margin), then open orders
-    close_orders = [o for o in orders if "rotated out" in o[3]]
-    open_orders = [o for o in orders if o not in close_orders]
+    # Sort: close orders first (free up margin), then open orders.
+    # Any order with a ticket or "rotated out" reason is a close.
+    close_orders = [o for o in orders if o[4] is not None or "rotated out" in o[3]]
+    open_orders = [o for o in orders if o[4] is None and "rotated out" not in o[3]]
 
     return close_orders + open_orders
 
@@ -1216,6 +1228,63 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     has_critical = any(r.result == GateResult.CRITICAL for r in gate_results)
     if has_critical:
         critical_gates = [r for r in gate_results if r.result == GateResult.CRITICAL]
+
+        # Overflow recovery: if position count is breached, close the weakest
+        # positions (lowest |signal weight|) to bring count back to limit.
+        pos_breach = [r for r in critical_gates if r.gate_name == "position_count"]
+        if pos_breach and capacity.r4_open_count > MAX_CONCURRENT:
+            excess = capacity.r4_open_count - MAX_CONCURRENT
+            log(f"🔴 CRITICAL: position_count breached ({capacity.r4_open_count}/{MAX_CONCURRENT}) — closing {excess} weakest")
+
+            r4_pos = [p for p in pos_list if p.magic == R4_MAGIC]
+
+            # Priority 1: close duplicate positions (same symbol, both BUY and SELL)
+            # These are hedging artifacts that waste slots.
+            from collections import defaultdict
+            by_sym = defaultdict(list)
+            for p in r4_pos:
+                by_sym[p.symbol].append(p)
+
+            close_orders = []
+            for sym, positions in by_sym.items():
+                types = {p.type for p in positions}
+                if len(types) > 1:  # both BUY (0) and SELL (1) present
+                    # Close the side opposite to the target signal
+                    target_side = 0 if target_weights.get(sym, 0.0) >= 0 else 1
+                    for p in positions:
+                        if p.type != target_side:
+                            close_side = "SELL" if p.type == 0 else "BUY"
+                            close_orders.append((p.symbol, close_side, p.volume, "overflow recovery (duplicate)", p.ticket))
+                            break  # close one duplicate per symbol
+
+            # Priority 2: if still over limit, close weakest by |signal weight|
+            remaining = excess - len(close_orders)
+            if remaining > 0:
+                dup_syms = {o[0] for o in close_orders}
+                r4_unique = [p for p in r4_pos if p.symbol not in dup_syms]
+                r4_ranked = sorted(
+                    r4_unique,
+                    key=lambda p: abs(target_weights.get(p.symbol, 0.0)),
+                )
+                for p in r4_ranked[:remaining]:
+                    close_side = "SELL" if p.type == 0 else "BUY"
+                    close_orders.append((p.symbol, close_side, p.volume, "overflow recovery", p.ticket))
+
+            if close_orders:
+                filling_mode = detect_filling_mode(mt5)
+                results = execute_orders(mt5, close_orders, filling_mode)
+                log(f"  🔧 Overflow recovery: {results['filled']}/{len(close_orders)} position(s) closed")
+                audit({"event": "overflow_recovery", "closed": results["filled"], "total": len(close_orders)})
+            else:
+                log("  ⚠️ No R4 positions available for overflow recovery")
+                audit({"event": "overflow_recovery", "closed": 0, "total": 0})
+
+            return {
+                "status": "RECOVERY",
+                "reason": "overflow_recovery",
+                "closed": results["filled"] if close_orders else 0,
+            }
+
         log(f"🔴 CRITICAL: {len(critical_gates)} gate(s) breached — NO ENTRIES")
         audit(
             {
@@ -1339,16 +1408,27 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         pos_details,
     )
 
-    # Split into closes and opens
-    closes = [o for o in orders if "rotated out" in o[3]]
-    opens = [o for o in orders if o not in closes]
+    # Split into closes and remaining orders.
+    # Closes: ticket-scoped orders AND rotation-closed fallbacks (both free a slot).
+    # Remaining naked orders: new entries consume slots; held-symbol opens
+    # (after a paired close in generate_orders) are slot-neutral.
+    # Use pos_list for held_symbols — any open ticket counts, even if net=0
+    # (hedging duplicates where BUY+SELL net to zero but both tickets are live).
+    held_symbols = {p.symbol for p in pos_list}
+    closes = [o for o in orders if o[4] is not None or "rotated out" in o[3]]
+    naked = [o for o in orders if o[4] is None and "rotated out" not in o[3]]
+    adjustments = [o for o in naked if o[0] in held_symbols]
+    new_entries = [o for o in naked if o[0] not in held_symbols]
 
-    # After closes, we have free slots for opens
+    # After closes, we have free slots for new entries (adjustments don't count)
     available_after_close = MAX_CONCURRENT - len(pos_list) + len(closes)
-    if len(opens) > available_after_close:
-        log(f"⚠️  {len(opens)} opens after {len(closes)} closes — truncating to {available_after_close}")
-        opens = opens[:available_after_close]
-        orders = closes + opens
+    if len(new_entries) > available_after_close:
+        log(
+            f"⚠️  {len(new_entries)} new entries after {len(closes)} closes "
+            f"— truncating to {available_after_close} ({len(adjustments)} slot-neutral adjustments kept)"
+        )
+        new_entries = new_entries[:available_after_close]
+        orders = closes + adjustments + new_entries
 
     # Check if anything actually needs to happen
     if not orders:

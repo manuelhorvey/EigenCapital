@@ -63,9 +63,7 @@ class TestMarginalEfficiency:
 
     def test_missing_values_skipped(self, diag):
         """None (pre-0.2.2 missing metric) must not produce bogus transitions."""
-        eff = diag.marginal_efficiency(
-            _table(sig=[100.0, 52.1, None, None, None, None], var=[0.00826] * 6)
-        )
+        eff = diag.marginal_efficiency(_table(sig=[100.0, 52.1, None, None, None, None], var=[0.00826] * 6))
         # Only the R4-20 → S-4 transition is computable; the rest are dropped.
         assert len(eff["transitions"]) == 1
         assert eff["transitions"][0]["transition"] == "R4-20 → S-4"

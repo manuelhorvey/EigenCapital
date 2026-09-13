@@ -236,9 +236,13 @@ class DashboardStateService:
                 risk_state = "HEALTHY"
                 risk_msg = "Risk envelope within limits"
             elif any_critical:
-                risk_state = "CRITICAL"
+                # Contract vocabulary (test_dashboard_contracts): dimension
+                # states are HEALTHY/DEGRADED/BLOCKED/CONTAINED/HALTED — a
+                # critical risk breach is BLOCKED, matching the reconciliation
+                # dimension's mapping of CRITICAL → BLOCKED below.
+                risk_state = "BLOCKED"
                 risk_msg = f"Critical risk: {', '.join(risk_data.get('critical_dimensions', []))}"
-                blocking.append("risk")
+                blocking.append("risk_envelope")
             elif any_warning:
                 risk_state = "DEGRADED"
                 risk_msg = f"Elevated risk: {', '.join(risk_data.get('warning_dimensions', []))}"

@@ -1649,24 +1649,22 @@ def _run_shadow_constructor(
 
     It never modifies R4 behavior, order intents, risk gates, or broker state.
     """
-    from eigencapital.shadow.portfolio.selector import (
-        ShadowSelector,
-        ShadowSelectorConfig,
-        ShadowCandidate,
+    from eigencapital.live.portfolio_analytics import (
+        ASSET_CLASS_MAP,
+        SYMBOL_CURRENCY_MAP,
     )
     from eigencapital.shadow.portfolio.correlation import CorrelationModel
     from eigencapital.shadow.portfolio.exposure import ExposureModel, get_factor_group
-    from eigencapital.shadow.portfolio.tracker import ShadowDecisionRecorder
-    from eigencapital.live.portfolio_analytics import (
-        ASSET_CLASS_MAP,
-        CURRENCIES,
-        SYMBOL_CURRENCY_MAP,
+    from eigencapital.shadow.portfolio.selector import (
+        ShadowCandidate,
+        ShadowSelector,
+        ShadowSelectorConfig,
     )
+    from eigencapital.shadow.portfolio.tracker import ShadowDecisionRecorder
 
     # ——— Configuration ———
     max_concurrent = int(config.capital.max_concurrent_positions)
     min_weight = float(config.signal.min_weight) if hasattr(config, "signal") else 0.005
-    exposure = ExposureModel()
 
     # ——— Build vol_at_t and history_ok from returns history ———
     vol_map: Dict[str, float] = {}
@@ -2132,7 +2130,6 @@ def main() -> None:
 
         if not mt5_ok:
             # MT5 disconnected
-            disconnect_start = time.time()
             if _disconnect_recovery.state == RecoveryState.CONNECTED:
                 recovery_msg = _disconnect_recovery.on_disconnect()
                 log(f"🔴 MT5 DISCONNECTED — {recovery_msg}")

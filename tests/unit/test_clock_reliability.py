@@ -173,15 +173,24 @@ class TestMidnightRollover:
     def test_restart_after_midnight_rebaselines(self, tmp_path):
         import json
 
-        from eigencapital.live.daily_loss import DailyLossTracker
+        from eigencapital.live.daily_loss import DailyBaseline, DailyLossTracker
 
-        # Write yesterday's baseline
+        # Write yesterday's baseline. The hash must be VALID for the content:
+        # since the fail-closed baseline change (P1-B2), an invalid hash means
+        # "corrupted" → blocked, while a valid hash with a stale date means
+        # "rollover" → re-baseline from current equity. A genuine yesterday
+        # baseline always carries a matching hash.
         yesterday = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
+        valid = DailyBaseline(
+            date_str=yesterday,
+            equity=5200.0,
+            timestamp_utc=datetime.now(UTC).isoformat(),
+        )
         baseline_data = {
             "date_str": yesterday,
             "equity": 5200.0,
-            "hash": "old123",
-            "timestamp_utc": datetime.now(UTC).isoformat(),
+            "hash": valid.compute_hash(),
+            "timestamp_utc": valid.timestamp_utc,
         }
         (tmp_path / "daily_baseline.json").write_text(json.dumps(baseline_data))
 
@@ -214,18 +223,25 @@ class TestMidnightRollover:
     def test_force_reset_rebases_and_persists(self, tmp_path):
         import json
 
-        from eigencapital.live.daily_loss import DailyLossTracker
+        from eigencapital.live.daily_loss import DailyBaseline, DailyLossTracker
 
         tracker = DailyLossTracker(max_daily_loss=100.0, persistence_dir=str(tmp_path))
         tracker.initialize(broker_equity=5000.0)
 
-        # Simulate: restart on a new day by writing yesterday's date to disk
+        # Simulate: restart on a new day by writing yesterday's baseline.
+        # Valid hash (rollover), not a corrupt file — see P1-B2 fail-closed
+        # semantics: corrupt baselines block, stale-but-valid baselines roll over.
         yesterday = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
+        valid = DailyBaseline(
+            date_str=yesterday,
+            equity=5000.0,
+            timestamp_utc=datetime.now(UTC).isoformat(),
+        )
         baseline_data = {
             "date_str": yesterday,
             "equity": 5000.0,
-            "hash": "old",
-            "timestamp_utc": datetime.now(UTC).isoformat(),
+            "hash": valid.compute_hash(),
+            "timestamp_utc": valid.timestamp_utc,
         }
         (tmp_path / "daily_baseline.json").write_text(json.dumps(baseline_data))
 

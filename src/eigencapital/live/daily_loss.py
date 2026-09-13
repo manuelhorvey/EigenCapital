@@ -95,6 +95,12 @@ class DailyLossTracker:
         self._baseline: DailyBaseline | None = None
         self._current_equity: float = 0.0
         self._baseline_file = self._persistence_dir / "daily_baseline.json"
+        # Fail-closed flag (P1 restart-consistency): set when a baseline file
+        # exists but cannot be trusted (corrupt JSON, missing fields, hash
+        # mismatch). While set, the tracker never silently re-baselines from
+        # current equity — that would silently disable the daily-loss limit
+        # for the rest of the trading day. Only force_reset() clears it.
+        self._corrupted = False
 
     def _today_str(self) -> str:
         """Get today's date string in the configured timezone."""
@@ -179,6 +185,16 @@ class DailyLossTracker:
         if loaded and loaded.date_str == today:
             # Same day — use existing baseline (survives restart)
             self._baseline = loaded
+        elif loaded is None and self._baseline_file.exists():
+            # Fail closed: a baseline file that exists but cannot be loaded
+            # (corrupt JSON, missing fields, hash mismatch) must NEVER silently
+            # reset to current equity — that would silently disable the daily
+            # loss limit for the rest of the trading day. is_daily_loss_breached
+            # stays True (blocking) until an operator explicitly re-baselines
+            # via force_reset(). Mirrors RiskEnforcer's CORRUPTED recovery
+            # state (P1-B).
+            self._corrupted = True
+            self._baseline = None
         else:
             # New day or no baseline — create from current equity
             self._baseline = self._make_baseline(today, broker_equity)
@@ -189,6 +205,10 @@ class DailyLossTracker:
     def update(self, equity: float) -> None:
         """Update with current equity. Handles day rollover."""
         self._current_equity = equity
+        if self._corrupted:
+            # Stay fail-closed: never overwrite an untrusted baseline file.
+            # Operator must call force_reset() to re-baseline deliberately.
+            return
         today = self._today_str()
 
         # Check for day rollover
@@ -216,8 +236,26 @@ class DailyLossTracker:
         return self._current_equity - self.baseline_equity
 
     @property
+    def baseline_trusted(self) -> bool:
+        """Whether the persisted baseline was loaded and verified.
+
+        False means the baseline file existed but was corrupted/unreadable:
+        the daily-loss limit cannot be enforced against a known baseline, so
+        the tracker fails closed (is_daily_loss_breached is True) until an
+        operator reviews and calls force_reset().
+        """
+        return not self._corrupted
+
+    @property
     def is_daily_loss_breached(self) -> bool:
-        """Check if daily loss exceeds the limit."""
+        """Check if daily loss exceeds the limit.
+
+        Fail closed: an untrusted (corrupted) baseline blocks trading even
+        though no loss amount can be computed — trading without a working
+        daily-loss limit is the worse outcome.
+        """
+        if self._corrupted:
+            return True
         return self.daily_loss > self._max_daily_loss
 
     @property
@@ -233,11 +271,17 @@ class DailyLossTracker:
         return self._baseline.date_str
 
     def force_reset(self, equity: float) -> None:
-        """Force a new baseline (e.g., after reconnect)."""
+        """Force a new baseline (e.g., after reconnect).
+
+        This is the ONLY way to clear a corrupted-baseline fail-closed state:
+        re-baselining is an explicit operator decision, never an automatic
+        side effect of a restart.
+        """
         today = self._today_str()
         self._baseline = self._make_baseline(today, equity)
         self._save_baseline(self._baseline)
         self._current_equity = equity
+        self._corrupted = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Export current state for diagnostics."""
@@ -249,5 +293,6 @@ class DailyLossTracker:
             "daily_pnl": self.daily_pnl,
             "max_daily_loss": self._max_daily_loss,
             "is_breached": self.is_daily_loss_breached,
+            "baseline_trusted": self.baseline_trusted,
             "remaining_budget": self.remaining_daily_loss_budget,
         }

@@ -109,7 +109,11 @@ class TestRealizedOutcomes:
         return {
             "signal_retained_pct": {
                 "r4_20": 100.0,
-                "s4": 52.1, "s5": 57.2, "s6": 60.5, "s7": 63.4, "s8": 66.2,
+                "s4": 52.1,
+                "s5": 57.2,
+                "s6": 60.5,
+                "s7": 63.4,
+                "s8": 66.2,
             }
         }
 
@@ -127,14 +131,24 @@ class TestRealizedOutcomes:
     def test_realized_rows_populated_from_ledger(self, diag):
         rows = [
             {
-                "signal_date": "2026-09-08", "size": 6,
-                "gross_pnl": 10.0, "cost": 0.5, "net_pnl": 9.5,
-                "n_exits": 2, "avg_r": 0.5, "turnover": 1.0,
+                "signal_date": "2026-09-08",
+                "size": 6,
+                "gross_pnl": 10.0,
+                "cost": 0.5,
+                "net_pnl": 9.5,
+                "n_exits": 2,
+                "avg_r": 0.5,
+                "turnover": 1.0,
             },
             {
-                "signal_date": "2026-09-09", "size": 6,
-                "gross_pnl": -4.0, "cost": 0.5, "net_pnl": -4.5,
-                "n_exits": 1, "avg_r": -0.2, "turnover": 1.5,
+                "signal_date": "2026-09-09",
+                "size": 6,
+                "gross_pnl": -4.0,
+                "cost": 0.5,
+                "net_pnl": -4.5,
+                "n_exits": 1,
+                "avg_r": -0.2,
+                "turnover": 1.5,
             },
             {"signal_date": "END", "size": 6, "net_pnl": 0.0},  # close row excluded
         ]

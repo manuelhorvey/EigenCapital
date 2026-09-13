@@ -198,10 +198,9 @@ def frontier(decisions: List[Dict[str, Any]], size_rows: List[Dict[str, Any]]) -
     return {"r4": avg_r4, "by_size": rows}
 
 
-def pretty_print_decision(decision: Dict[str, Any]) -> None:
+def pretty_print_decision(decision: Dict[str, Any], all_decisions: List[Dict[str, Any]]) -> None:
     """Pretty-print a single shadow decision record (the --last viewer)."""
     selected_syms = decision["selected"]["symbols"]
-    weights = decision["selected"].get("weights", {})
     by_sym = {c["symbol"]: c for c in decision["candidates"]}
     sel_set = set(selected_syms)
 
@@ -214,26 +213,65 @@ def pretty_print_decision(decision: Dict[str, Any]) -> None:
     )
     print(
         f"  selector: {decision.get('selector_version')}  |  "
-        f"config_hash: {str(decision.get('config_hash', ''))[:12]}"
-    )
-
+        f"config_hash: {str(decision.get('config_hash', ''))[:12]}"        )
+    hdr = f"{'rank':>3}  {'symbol':<9} {'dir':<7}  {'weight':>7}  vol   {'class':<9}  {'factor'}"
     print(f"\n  SELECTED ({len(selected_syms)})")
-    print(f"  {'rank':<5}{'symbol':<10}{'dir':<6}{'weight':<9}{'vol':<8}{'class':<10}{'factor'}")
-    print("  " + "─" * 60)
+    print(hdr)
+    print("  " + "─" * (len(hdr) - 2))
     for s in selected_syms:
         c = by_sym.get(s, {})
-        vol = c.get("annualized_vol")
-        print(
-            f"  {c.get('r4_rank', '?'):!s:<5}{s:<10}{c.get('direction', '?'):!s:<6}"
-            f"{weights.get(s, 0):+.4f}  {vol if vol is not None else 0.0:.1%}   "
-            f"{c.get('asset_class', '?'):!s:<10}{c.get('factor_group', '?')}"
+        vol = c.get("annualized_vol") or 0.0
+        vol_pct = float(vol * 100.0) if vol > 0 else 0.0
+        w = c.get("weight")
+        row = f"{c.get('r4_rank', '-')!s:>3}  {s:<9} {c.get('direction', '-')!s:<7}  {w:+6.3f}  {vol_pct:>3.0f}%  {c.get('asset_class', '-')!s:<9}  {c.get('factor_group', '-')!s:<12}"
+        print(row)
+
+    # ── Per-symbol summary across all decisions ──────────────────────────────
+    # Freq = how often the symbol appears in the shadow candidate universe.
+    # Avg Rank / Avg Weight / Avg Ann. Vol aggregate across those appearances.
+    # Rank order = descending avg rank (most consistently strong first).
+
+    by_sym_all: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for rec in all_decisions:
+        for c in rec.get("candidates", []):
+            by_sym_all[c["symbol"]].append(c)
+    sym_meta: List[Dict[str, Any]] = []
+    for sym, appearances in by_sym_all.items():
+        ranks = [c.get("r4_rank", 0) or 0 for c in appearances]
+        dirs = [c.get("direction", "?") for c in appearances]
+        ws = [abs(c.get("weight", 0) or 0) for c in appearances]
+        vols = [c.get("annualized_vol") or 0.0 for c in appearances]
+        dominant = max(set(dirs), key=dirs.count) if dirs else "-"
+        sym_meta.append(
+            {
+                "symbol": sym,
+                "freq": len(appearances),
+                "asset_class": appearances[0].get("asset_class", "-"),
+                "avg_rank": round(sum(ranks) / len(ranks), 1),
+                "dominant_dir": dominant,
+                "avg_weight": sum(ws) / len(ws),
+                "avg_vol": sum(vols) / len(vols),
+                "factor_group": appearances[0].get("factor_group") or "-",
+            }
         )
+    sym_meta.sort(key=lambda m: -m["avg_rank"])
+
+    print(f"\n  PER-SYMBOL SUMMARY (across {len(all_decisions)} decisions)")
+    hdr = f"{'symbol':<10}{'Freq':>5} {'Asset':<8} {'Avg Rank':>9} {'Direction':<11} {'Avg Weight':>11} {'Avg Ann. Vol':>13}"
+    print(hdr)
+    print("  " + "─" * (len(hdr) - 2))
+    for m in sym_meta:
+        row = (
+            f"  {m['symbol']:<10}{m['freq']:>5} {m['asset_class']:<8} {m['avg_rank']:>9.1f}"
+            f"{m['dominant_dir']:<11} {m['avg_weight']:>11.4f} {m['avg_vol']:>13.4f}"
+        )
+        print(row)
 
     rejected = [c for c in decision["candidates"] if c["symbol"] not in sel_set]
     print(f"\n  REJECTED ({len(rejected)})")
     for c in rejected:
         reason = c.get("dominant_rejection") or c.get("rejection_reason") or "-"
-        print(f"  #{c.get('r4_rank', '?'):!s:<3} {c['symbol']:<10} {reason}")
+        print(f"  #{c.get('r4_rank', '?')!s:<3} {c['symbol']:<10} {reason}")
 
     e = decision.get("edge_metrics", {})
     sel_m = decision["selected"]["metrics"]
@@ -816,7 +854,7 @@ def main() -> int:
         return 2
 
     if args.last:
-        pretty_print_decision(decisions[-1])
+        pretty_print_decision(decisions[-1], decisions)
         return 0
 
     outcomes = load_jsonl(out_dir / "shadow_portfolio_outcomes.jsonl")

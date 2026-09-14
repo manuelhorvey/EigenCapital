@@ -79,3 +79,5 @@ class TestRiskContributionConcentration:
         assert "risk_contribution_hhi" in d
         assert "max_risk_contribution_share" in d
         assert "effective_risk_contributors" in d
+        assert tuple(d["max_abs_corr_pair"]) in (("A", "B"), ("B", "A"))
+        assert d["risk_contribution_share_sum"] == pytest.approx(1.0)

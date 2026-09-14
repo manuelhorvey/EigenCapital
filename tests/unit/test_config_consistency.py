@@ -34,11 +34,18 @@ class TestConfigLoading:
         assert config.broker.broker_name == "exness"
 
     def test_live_risk_config_loads(self):
-        """live_risk config must load expected limits."""
+        """live_risk config must load expected limits.
+
+        T0 (forensic audit 2026-09-13): max_position_notional aligned 2500 →
+        5000, matching capital.max_position_size — the value the sizing path
+        has always used. The 2500 was a dead limit (never enforced) and sat
+        below XAUUSD/US30 min-lot cost, making it unenforceable as-written.
+        """
         config = load_config("production")
         lr = config.live_risk
         assert lr.max_concurrent_positions == 20
-        assert lr.max_position_notional == 2500.0
+        assert lr.max_position_notional == 5000.0
+        assert lr.max_order_notional == 5000.0
         assert lr.max_daily_loss == 250.0
         assert lr.min_equity == 4000.0
         assert lr.t0_equity == 5010.94
@@ -92,11 +99,16 @@ class TestConfigVsScriptConsistency:
             assert sym in eligible, f"{sym} missing from eligible symbols"
 
     def test_risk_envelope_from_config(self):
-        """RiskEnvelope values must match live_risk config."""
+        """RiskEnvelope values must match live_risk config.
+
+        T0: notionals aligned to the capital section (see
+        test_live_risk_config_loads); the alignment itself is enforced by
+        validate_config_consistency and tested in test_t0_sizing.py.
+        """
         config = load_config("production")
         lr = config.live_risk
         assert lr.max_concurrent_positions == 20
-        assert lr.max_position_notional == 2500.0
+        assert lr.max_position_notional == 5000.0
         assert lr.max_daily_loss == 250.0
         assert lr.min_equity == 4000.0
         assert lr.t0_equity == 5010.94

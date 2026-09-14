@@ -121,8 +121,16 @@ slippage_bps = 5.0               # 5 bps slippage
 # These are STRICTER than the general [risk] section
 # and are the AUTHORITATIVE source for the rebalance loop
 max_concurrent_positions = 20
-max_position_notional = 2500.0
-max_order_notional = 2500.0
+# T0 alignment (forensic audit 2026-09-13): notionals aligned to
+# capital.max_position_size = 5000, the value the rebalance loop has always
+# used for sizing (capped_equity / max_lots). The previous 2500 was a dead
+# limit — defined but never enforced anywhere — and was BELOW the minimum-lot
+# cost of XAUUSD ($4,627) and US30 ($2,675), so enforcing it as-written would
+# have made those frozen-universe symbols ineligible. This is an envelope
+# change, not a strategy-parameter change: signal math, universe, and sizing
+# philosophy are untouched.
+max_position_notional = 5000.0
+max_order_notional = 5000.0
 max_per_position_loss_pct = 0.10
 max_account_drawdown_pct = 0.10
 max_daily_loss = 250.0

@@ -401,6 +401,24 @@ def validate_config_consistency(config: EigenCapitalConfig) -> list[str]:
             f"CRITICAL: live_risk.max_account_drawdown_pct ({lr.max_account_drawdown_pct}) must be in (0, 1.0]"
         )
 
+    # Notional authority (T0, forensic audit 2026-09-13): the sizing path uses
+    # capital.max_position_size; the enforcement envelope uses live_risk. If
+    # they disagree, the envelope is either stricter than what is actually
+    # sized (dead limit / false assurance) or looser (envelope meaningless).
+    # Block startup on drift — pick ONE number and fix it in config.
+    if abs(lr.max_position_notional - cap.max_position_size) > 0.01:
+        warnings.append(
+            f"CRITICAL: live_risk.max_position_notional (${lr.max_position_notional:,.0f}) != "
+            f"capital.max_position_size (${cap.max_position_size:,.0f}) — the sizing path uses "
+            f"capital.max_position_size; the risk envelope must match it exactly"
+        )
+    if abs(lr.max_order_notional - cap.max_order_notional) > 0.01:
+        warnings.append(
+            f"CRITICAL: live_risk.max_order_notional (${lr.max_order_notional:,.0f}) != "
+            f"capital.max_order_notional (${cap.max_order_notional:,.0f}) — the enforcement "
+            f"envelope must match the capital section"
+        )
+
     return warnings
 
 

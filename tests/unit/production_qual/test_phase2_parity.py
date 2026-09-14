@@ -93,9 +93,21 @@ class TestR4ConfigParity:
         assert config.strategy.slippage_bps == 5.0
 
     def test_risk_envelope_unchanged(self, config):
-        """R4 risk envelope must not change."""
+        """R4 risk envelope must not change.
+
+        T0 (forensic audit 2026-09-13): max_position_notional/max_order_notional
+        were aligned from the dead 2500 to the enforced 5000 — the value the
+        sizing path (capital.max_position_size) has always used. This is an
+        envelope change approved during remediation, not strategy drift:
+        signal params, universe, cadence, and sizing philosophy are unchanged.
+        """
         assert config.live_risk.max_concurrent_positions == 20
-        assert config.live_risk.max_position_notional == 2500.0
+        assert config.live_risk.max_position_notional == 5000.0
+        assert config.live_risk.max_order_notional == 5000.0
+        # The envelope must stay aligned with the sizing path (T0 consistency
+        # gate) — this is the invariant that prevents the dead-limit bug.
+        assert config.live_risk.max_position_notional == config.capital.max_position_size
+        assert config.live_risk.max_order_notional == config.capital.max_order_notional
         assert config.live_risk.max_daily_loss == 250.0
         assert config.live_risk.min_equity == 4000.0
         assert config.live_risk.t0_equity == 5010.94

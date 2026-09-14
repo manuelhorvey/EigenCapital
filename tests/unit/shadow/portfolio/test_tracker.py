@@ -45,6 +45,15 @@ class TestRecorderGuards:
         assert Path(path).name == "shadow_portfolio_outcomes.jsonl"
         assert len(recorder.read_outcomes()) == 1
 
+    def test_intent_drift_round_trip(self, tmp_path: Path):
+        recorder = ShadowDecisionRecorder(audit_dir=str(tmp_path))
+        path = recorder.record_intent_drift({"EURUSD": {"weight_error_pct": 12.5}})
+        assert Path(path).name == "shadow_intent_drift.jsonl"
+        records = recorder.read_intent_drift()
+        assert len(records) == 1
+        assert records[0]["schema"] == "shadow_intent_drift"
+        assert records[0]["symbols"]["EURUSD"]["weight_error_pct"] == 12.5
+
     def test_isolated_namespace_untouched(self, tmp_path: Path):
         """Recording shadow evidence must not create/modify R4 evidence files."""
         recorder = ShadowDecisionRecorder(audit_dir=str(tmp_path))

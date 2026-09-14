@@ -160,7 +160,7 @@ class TestWeightErrorEvidence:
     def test_evidence_does_not_change_order_lot_sizes(self, loop):
         """Behavior preservation: lots must equal the frozen formula."""
         prices = {s: 100.0 for s in TEST_SYMBOLS}
-        cs = {s: 1000.0 for s in TEST_SYMBOLS}
+        cs = {s: 500.0 for s in TEST_SYMBOLS}
         mv = {s: 0.01 for s in TEST_SYMBOLS}
         weights = {s: 0.08 for s in TEST_SYMBOLS}
         equity = 5100.0
@@ -176,9 +176,23 @@ class TestWeightErrorEvidence:
         )
         # Frozen formula: round(|w|*capped_equity/(price*cs), 2), floored at
         # min_vol, capped at max_lots.
-        expected_lots = 0.08 * 5100.0 / (100.0 * 1000.0)  # 0.00408 → floored 0.01
+        expected_lots = 0.08 * 5100.0 / (100.0 * 500.0)  # 0.00816 → rounded 0.01
         for _sym, _side, lots, _reason, _tkt in orders:
             assert lots == pytest.approx(max(0.01, expected_lots), abs=1e-9)
+
+    def test_subminimum_target_rounds_to_broker_minimum(self, loop):
+        orders = loop.generate_orders(
+            target_weights=_series({"XAUUSD": 0.05}),
+            current_positions={},
+            prices={"XAUUSD": 4627.0},
+            contract_sizes={"XAUUSD": 100.0},
+            min_volumes={"XAUUSD": 0.01},
+            equity=5100.0,
+            pos_details=None,
+        )
+        assert len(orders) == 1
+        assert orders[0][0:3] == ("XAUUSD", "BUY", 0.01)
+        assert loop.weight_error_by_symbol["XAUUSD"]["floored"] is True
 
     def test_zero_weight_symbols_absent_from_evidence(self, loop):
         prices = {s: 100.0 for s in TEST_SYMBOLS}

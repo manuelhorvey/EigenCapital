@@ -618,13 +618,9 @@ def generate_orders(
             # T0 sizing evidence (forensic audit 2026-09-13): the min-lot floor
             # below can silently convert a weak signal into a much larger
             # exposure (e.g. XAUUSD |w|=14% → min-lot notional ≈ 91% of
-            # authorized capital). BEHAVIOR IS UNCHANGED — the floor stays —
-            # but every symbol's intended-vs-achievable weight deviation is
-            # computed here and reported via weight_error_by_symbol, so the
-            # distortion is measurable per cycle instead of invisible. The
-            # pre-registered promotion path (evidence-gated, NOT part of this
-            # change) is a hybrid tolerance: skip symbols whose min-lot cost
-            # exceeds a multiple of target notional.
+            # authorized capital). Every symbol's intended-vs-achievable
+            # deviation is recorded, while the broker minimum-lot rule is
+            # preserved: subminimum targets are rounded up to min_vol.
             raw_lots = notional / (price * cs)
             floored_lots = max(min_vol, round(raw_lots, 2))
             max_lots = MAX_POSITION_USD / (price * cs)
@@ -1987,6 +1983,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             if price > 0 and cs > 0:
                 notional = abs(lots) * price * cs
                 achieved_w = notional / max(equity, 1e-6)
+                achieved_w *= 1.0 if side == "BUY" else -1.0
                 # Find target weight for this symbol
                 target_w = target_weights.get(sym, 0.0) if hasattr(target_weights, "get") else 0.0
                 # Handle signed weight comparison

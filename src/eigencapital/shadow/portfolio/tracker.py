@@ -53,6 +53,7 @@ class ShadowDecisionRecorder:
         self._dir.mkdir(parents=True, exist_ok=True)
         self._decisions_path = self._dir / "shadow_portfolio_decisions.jsonl"
         self._outcomes_path = self._dir / "shadow_portfolio_outcomes.jsonl"
+        self._intent_drift_path = self._dir / "shadow_intent_drift.jsonl"
 
     @property
     def decisions_path(self) -> Path:
@@ -61,6 +62,10 @@ class ShadowDecisionRecorder:
     @property
     def outcomes_path(self) -> Path:
         return self._outcomes_path
+
+    @property
+    def intent_drift_path(self) -> Path:
+        return self._intent_drift_path
 
     def record_decision(self, decision: Any) -> str:
         """Append a ShadowDecision (anything with to_dict). Returns the path."""
@@ -78,11 +83,24 @@ class ShadowDecisionRecorder:
         self._append(self._outcomes_path, outcome)
         return str(self._outcomes_path)
 
+    def record_intent_drift(self, drift: Dict[str, Any]) -> str:
+        """Persist execution-intent deviations in the shadow namespace."""
+        record = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "schema": "shadow_intent_drift",
+            "symbols": drift,
+        }
+        self._append(self._intent_drift_path, record)
+        return str(self._intent_drift_path)
+
     def read_decisions(self) -> List[Dict[str, Any]]:
         return self._read(self._decisions_path)
 
     def read_outcomes(self) -> List[Dict[str, Any]]:
         return self._read(self._outcomes_path)
+
+    def read_intent_drift(self) -> List[Dict[str, Any]]:
+        return self._read(self._intent_drift_path)
 
     # ── guards ────────────────────────────────────────────────────────
     @staticmethod

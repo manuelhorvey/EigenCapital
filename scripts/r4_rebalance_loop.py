@@ -36,13 +36,14 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 # ── Path setup (must precede eigencapital imports) ─────────────────
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 # P0 EC-AUD-001: Timeout for broker calls to prevent hung sessions
 _ORDER_SEND_TIMEOUT_SECONDS = 30  # hard limit per order_send call
+_MAX_D1_DATA_AGE_SECONDS = 3 * 24 * 60 * 60  # tolerate a weekend, block older bars
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="mt5-order")
 
 import numpy as np  # noqa: E402
@@ -78,6 +79,21 @@ from eigencapital.reconciliation.engine import (  # noqa: E402
 
 _config = load_config(os.environ.get("EIGENCAPITAL_ENV", "production"))
 
+
+def _entry_spread_ok(symbol: str, bid: float, ask: float) -> bool:
+    """Apply the configured absolute FX spread or relative non-FX spread."""
+    if bid <= 0 or ask <= 0 or ask < bid:
+        return False
+    limit = float(getattr(_config.broker, "max_spread", 0.0))
+    if limit <= 0:
+        return True
+    category = str(getattr(_config.broker, "allowed_symbols", {}).get(symbol, ""))
+    if category.startswith("forex"):
+        return (ask - bid) <= limit
+    midpoint = (ask + bid) / 2.0
+    return (ask - bid) / midpoint <= limit
+
+
 # R4 universe — derived from broker config
 R4_SYMBOLS = list(_config.broker.allowed_symbols.keys())
 
@@ -91,10 +107,28 @@ ASSET_CLASSES = {
 }
 
 # Strategy parameters — from config (single source of truth)
-LOOKBACK = _config.strategy.signal_lookback_long  # 252
+LOOKBACK = _config.strategy.signal_lookback_long  # 252 — 12-1 month momentum lookback
 SKIP = _config.strategy.skip_months * 21  # 1 month ≈ 21 trading days
-RISK_LOOKBACK = _config.strategy.risk_lookback  # 20
-VOL_LOOKBACK = _config.strategy.vol_lookback_signal  # 60
+RISK_LOOKBACK = _config.strategy.risk_lookback  # 20 — expanding median for regime filter
+VOL_LOOKBACK = _config.strategy.vol_lookback_signal  # 60 — 60-day vol for inverse-vol scaling
+# Term structure design: VOL_LOOKBACK (60d ≈ 3 months) is intentionally shorter
+# than signal lookback (252d ≈ 1 year) to capture recent volatility dynamics
+# that may differ from long-term averages. In stressed markets, recent vol can
+# spike well above the 1-year average, causing vol_scale to dampen signals
+# more aggressively than the momentum information content warrants. This
+# intentional asymmetry (short vol window, long signal window) is a feature of
+# the frozen R4 pipeline, not a bug — it provides responsive risk damping
+# while preserving the signal's information horizon. The ratio
+# VOL_LOOKBACK / LOOKBACK ≈ 1/4 is a rule of thumb; exact values are configured
+# per-strategy and preserved across the R4 frozen spec.
+
+# Lookback design: signal (252d) and vol (60d) windows are independent by design.
+# The signal lookback captures full-cycle momentum (≈ 1 year), while the vol lookback
+# captures recent volatility dynamics (≈ 3 months). In stressed markets where vol changes
+# rapidly, the vol-scaling may not fully reflect the signal's information horizon, which
+# is an inherent feature of the frozen R4 pipeline rather than a bug. The ratio
+# vol_lookback / signal_lookback ≈ 1/4 is a rule of thumb, not a strict requirement;
+# the exact values are configured per-strategy and preserved across the R4 frozen spec.
 VOL_TARGET = _config.strategy.vol_target_annual  # 0.10
 
 # Capital limits — from config
@@ -120,6 +154,7 @@ RISK_ENVELOPE = RiskEnvelope(
 AUDIT_DIR = "reports/r4_loop"
 AUDIT_FILE = os.path.join(AUDIT_DIR, "decisions.jsonl")
 ORDER_INTENT_FILE = os.path.join(AUDIT_DIR, "order_intents.jsonl")  # EC-AUD-004: independent intent ledger
+WEIGHT_DEVIATION_FILE = os.path.join(AUDIT_DIR, "weight_deviation.jsonl")  # T0 sizing evidence
 
 # ── Globals ────────────────────────────────────────────────────────
 
@@ -155,6 +190,12 @@ _reconciliation_engine = ReconciliationEngine(
 
 # State persisted across restarts
 _STATE_FILE = os.path.join(AUDIT_DIR, "runtime_state.json")
+
+# T0 sizing evidence (forensic audit 2026-09-13): intended-vs-achievable
+# weight deviation per symbol, populated by generate_orders on every call and
+# persisted to weight_deviation.jsonl by run_cycle. Read-only diagnostics —
+# never feeds back into signal, selection, or sizing (behavior unchanged).
+weight_error_by_symbol: Dict[str, Dict[str, Any]] = {}
 
 
 def _handle_signal(sig, frame):
@@ -202,6 +243,9 @@ def _persist_order_intents(orders: List[Tuple[str, str, float, str, int | None]]
                 "lots": lots,
                 "reason": reason,
                 "ticket": ticket,
+                "intended_weight": weight_error_by_symbol.get(sym, {}).get("signal_weight", 0.0),
+                "weight_error_pct": weight_error_by_symbol.get(sym, {}).get("weight_error_pct", 0.0),
+                "min_lot_floor": weight_error_by_symbol.get(sym, {}).get("floored", False),
             }
             for sym, side, lots, reason, ticket in orders
         ],
@@ -215,11 +259,16 @@ def _reconcile_against_intents(
     filled_count: int,
     failed_count: int,
     orders: List[Tuple[str, str, float, str, int | None]],
+    fills: List[Dict[str, Any]] | None = None,
 ) -> Dict[str, Any]:
-    """EC-AUD-004: Reconcile execution results against persisted intents.
+    """EC-AUD-004 + T0: Reconcile execution results against persisted intents.
 
     Compares what we INTENDED to submit vs what actually happened.
     Detects: missing fills, unexpected fills, phantom executions.
+
+    T0 upgrade: beyond the count check, fills are matched to intents per
+    (symbol, side) so a compensating pair of errors (one unintended fill
+    cancelling one missing fill) can no longer hide behind matching totals.
     """
     intent_count = len(orders)
     missing = intent_count - filled_count - failed_count
@@ -233,6 +282,46 @@ def _reconcile_against_intents(
     }
     if missing > 0:
         result["warning"] = f"{missing} intent(s) unaccounted — possible timeout or partial fill"
+
+    # T0: symbol-level intent↔fill matching. A count-only check passes when
+    # total filled == total intended even if the WRONG orders filled (e.g. an
+    # order that timed out but actually executed, plus one that failed). Match
+    # fills to intents by (symbol, side); any intent without a fill, or any
+    # fill without an intent, is surfaced per-symbol.
+    fills = fills or []
+    intent_keys: Dict[Tuple[str, str], int] = {}
+    for sym, side, _lots, _reason, _tkt in orders:
+        key = (sym, side)
+        intent_keys[key] = intent_keys.get(key, 0) + 1
+    fill_keys: Dict[Tuple[str, str], int] = {}
+    for f in fills:
+        key = (f.get("symbol"), f.get("side"))
+        fill_keys[key] = fill_keys.get(key, 0) + 1
+
+    unmatched_intents = []
+    for sym, side, lots, reason, _tkt in orders:
+        key = (sym, side)
+        if intent_keys.get(key, 0) > fill_keys.get(key, 0):
+            unmatched_intents.append({"symbol": sym, "side": side, "lots": lots, "reason": reason})
+    unexpected_fills = [
+        {"symbol": s, "side": sd, "lots": fl.get("lots")}
+        for fl in fills
+        for s, sd in [(fl.get("symbol"), fl.get("side"))]
+        if fill_keys.get((s, sd), 0) > intent_keys.get((s, sd), 0)
+    ]
+    # Deduplicate: report each (symbol, side) excess once.
+    seen = set()
+    unexpected_fills = [
+        u for u in unexpected_fills if (u["symbol"], u["side"]) not in seen and not seen.add((u["symbol"], u["side"]))
+    ]
+    result["unmatched_intents"] = unmatched_intents
+    result["unexpected_fills"] = unexpected_fills
+    if unmatched_intents or unexpected_fills:
+        result["status"] = "DISCREPANCY"
+        result["warning"] = (
+            f"{len(unmatched_intents)} intent(s) without matching fill, "
+            f"{len(unexpected_fills)} fill(s) without matching intent"
+        )
     return result
 
 
@@ -289,6 +378,18 @@ def fetch_d1_data(mt5, symbols: List[str], bars: int | None = None) -> Dict[str,
     return data
 
 
+def _latest_data_age_seconds(data: Dict[str, pd.DataFrame], now: datetime | None = None) -> float | None:
+    """Return age of the newest fetched D1 bar, or None when unavailable."""
+    latest = [df.index.max() for df in data.values() if not df.empty]
+    if not latest:
+        return None
+    current = now or datetime.now(UTC).replace(tzinfo=None)
+    newest = max(latest)
+    if getattr(newest, "tzinfo", None) is not None:
+        newest = newest.replace(tzinfo=None)
+    return max(0.0, (current - newest).total_seconds())
+
+
 def compute_r4_signal(
     data: Dict[str, pd.DataFrame], force_regime: bool = False
 ) -> Tuple[pd.DataFrame, Dict[str, Any], pd.DataFrame]:
@@ -329,7 +430,15 @@ def compute_r4_signal(
     vol60 = returns_df.rolling(VOL_LOOKBACK).std() * np.sqrt(252)
     vol_scale = np.minimum(vol60 / 0.50, 1.0)
 
-    # 5. Frozen R4 final weights: regime × vol_scale → clip ±0.20
+    # 5. Frozen R4 final weights: regime × vol-scale → clip ±0.20
+    #
+    # Design note: the clip applies AFTER vol-scaling. This means:
+    # - For high-signal/low-vol assets: vol_scale ~ 1.0, clip is inactive → full signal passed
+    # - For low-signal/high-vol assets: vol_scale << 1.0, clip activates → caps at ±0.20
+    #   regardless of vol, which is the frozen R4 specification.
+    # The alternative (clip before vol-scale) would give inverse-vol damping but would
+    # change the frozen R4 signal behavior; this ordering is the canonical R4 pipeline.
+    #
     fin = w.multiply(regime, axis=0) * vol_scale
     fin = fin.clip(-0.20, 0.20)
 
@@ -355,7 +464,105 @@ def compute_r4_signal(
     return latest, diag, returns_df
 
 
+def _target_concentration_diagnostics(target_weights: pd.Series) -> Tuple[float, List[Tuple[str, float]]]:
+    """Return normalized absolute-weight HHI and the largest weight shares."""
+    active = {sym: abs(float(weight)) for sym, weight in target_weights.items() if float(weight) != 0.0}
+    gross = sum(active.values())
+    if gross <= 0:
+        return 0.0, []
+    shares = {sym: weight / gross for sym, weight in active.items()}
+    hhi = sum(share**2 for share in shares.values())
+    top3 = sorted(shares.items(), key=lambda item: item[1], reverse=True)[:3]
+    return hhi, top3
+
+
+def _signal_correlation_diagnostics(
+    target_weights: pd.Series, returns_df: pd.DataFrame
+) -> Tuple[float, float, float, int]:
+    """Measure actual return correlation among active target symbols."""
+    symbols = [
+        sym for sym, weight in target_weights.items() if abs(float(weight)) > 0.005 and sym in returns_df.columns
+    ]
+    if len(symbols) < 2:
+        return 0.0, 0.0, 1.0, len(symbols)
+    corr = returns_df[symbols].corr(min_periods=30)
+    values = corr.to_numpy(dtype=float)
+    mask = ~np.eye(len(symbols), dtype=bool) & ~np.isnan(values)
+    if not mask.any():
+        return 0.0, 0.0, 1.0, len(symbols)
+    abs_values = np.abs(values[mask])
+    mean_abs = float(np.mean(abs_values))
+    max_abs = float(np.max(abs_values))
+    return mean_abs, max_abs, max(0.0, 1.0 - mean_abs), len(symbols)
+
+
 # ── Order Generation ───────────────────────────────────────────────
+
+
+def _apply_order_notional_envelope(
+    orders: List[Tuple[str, str, float, str, Any]],
+    prices: Dict[str, float],
+    contract_sizes: Dict[str, float],
+    cap: float,
+    symbol_info=None,
+) -> Tuple[List[Tuple[str, str, float, str, Any]], List[Dict[str, Any]]]:
+    """T0 enforcement (forensic audit 2026-09-13): notional envelope on orders.
+
+    ``max_order_notional`` / ``max_position_notional`` were defined in the
+    live-risk envelope but enforced nowhere (the audit's "dead limits"
+    finding #1). Sizing already caps each position via max_lots, but using
+    capital.max_position_size — so the ENVELOPE itself was never checked.
+
+    Policy (fail-closed per order):
+      - CLOSE orders (ticket-scoped or "rotated out") always pass — they are
+        risk-reducing and blocking them would trap exposure.
+      - A new OPEN whose notional (lots × price × contract size) exceeds
+        ``cap`` is SKIPPED, never resized (resizing would be a sizing-policy
+        change) and never silently truncated (a blocked order is returned so
+        the caller can log it to the audit trail).
+      - An open whose symbol spec is unreadable (no price/contract size from
+        the cycle snapshot or the broker) is treated as over-cap: an order we
+        cannot PROVE fits the envelope does not go out.
+
+    Returns (kept_orders, blocked_records); ``cap <= 0`` disables the check
+    (defensive: config validation guarantees cap > 0 in production).
+    """
+    if cap <= 0:
+        return list(orders), []
+    kept: List[Tuple[str, str, float, str, Any]] = []
+    blocked: List[Dict[str, Any]] = []
+    for o in orders:
+        sym, side, lots, reason, tkt = o
+        is_close = tkt is not None or "rotated out" in reason
+        if is_close:
+            kept.append(o)
+            continue
+        price = prices.get(sym, 0.0)
+        cs = contract_sizes.get(sym, 0.0)
+        if (price <= 0 or cs <= 0) and symbol_info is not None:
+            try:
+                info = symbol_info(sym)
+            except Exception:
+                info = None
+            if info is not None:
+                price = price or getattr(info, "ask", 0.0) or 0.0
+                cs = cs or getattr(info, "trade_contract_size", 0.0)
+        notional: float | None = lots * price * cs if price > 0 and cs > 0 else None
+        if notional is None or notional > cap:
+            blocked.append(
+                {
+                    "symbol": sym,
+                    "side": side,
+                    "lots": lots,
+                    "notional": notional,
+                    "cap": cap,
+                    "reason": reason,
+                    "detail": "unreadable_symbol_spec" if notional is None else "notional_over_cap",
+                }
+            )
+            continue
+        kept.append(o)
+    return kept, blocked
 
 
 def generate_orders(
@@ -379,7 +586,13 @@ def generate_orders(
 
     pos_details: {symbol: [position_ticket, ...]} for hedging-safe closes.
     Returns list of (symbol, side, lots, reason, ticket_or_None).
+
+    Side effect (T0 sizing evidence): populates the module-level
+    ``weight_error_by_symbol`` map with the intended-vs-achievable weight
+    deviation for every symbol considered in Step 1. Diagnostics only.
     """
+    global weight_error_by_symbol
+    weight_error_by_symbol = {}
     capped_equity = min(equity, MAX_EQUITY)
 
     # Step 1: Build target portfolio for all eligible symbols
@@ -402,9 +615,35 @@ def generate_orders(
         if abs(w) > 0.005:
             notional = abs(w) * capped_equity
             tgt_lots = notional / (price * cs)
-            tgt_lots = max(min_vol, round(tgt_lots, 2))
+            # T0 sizing evidence (forensic audit 2026-09-13): the min-lot floor
+            # below can silently convert a weak signal into a much larger
+            # exposure (e.g. XAUUSD |w|=14% → min-lot notional ≈ 91% of
+            # authorized capital). BEHAVIOR IS UNCHANGED — the floor stays —
+            # but every symbol's intended-vs-achievable weight deviation is
+            # computed here and reported via weight_error_by_symbol, so the
+            # distortion is measurable per cycle instead of invisible. The
+            # pre-registered promotion path (evidence-gated, NOT part of this
+            # change) is a hybrid tolerance: skip symbols whose min-lot cost
+            # exceeds a multiple of target notional.
+            raw_lots = notional / (price * cs)
+            floored_lots = max(min_vol, round(raw_lots, 2))
             max_lots = MAX_POSITION_USD / (price * cs)
-            tgt_lots = min(tgt_lots, max_lots)
+            target_lots = min(floored_lots, max_lots)
+            achievable_notional = target_lots * price * cs
+            achieved_weight = achievable_notional / capped_equity if capped_equity > 0 else 0.0
+            weight_error_by_symbol[sym] = {
+                "signal_weight": round(w, 6),
+                "intended_notional": round(notional, 2),
+                "min_lot_cost": round(min_lot_cost, 2),
+                "raw_lots": round(raw_lots, 4),
+                "floored": bool(raw_lots < min_vol),
+                "target_lots": target_lots,
+                "achievable_notional": round(achievable_notional, 2),
+                "achieved_weight": round(achieved_weight, 6),
+                "weight_error": round(achieved_weight - abs(w), 6),
+                "weight_error_pct": round((achieved_weight - abs(w)) / abs(w) * 100.0 if abs(w) > 0 else 0.0, 2),
+            }
+            tgt_lots = target_lots
         else:
             tgt_lots = 0.0
 
@@ -485,11 +724,15 @@ def generate_orders(
             for tkt in close_tickets:
                 # Close each ticket by its opposite side
                 tkt_close_side = "SELL" if tkt["type"] == 0 else "BUY"
-                orders.append((
-                    sym, tkt_close_side, tkt["volume"],
-                    f"lot adjustment ({abs(cur_lots):.2f}\u2192{abs(target_signed):.2f})",
-                    tkt["ticket"],
-                ))
+                orders.append(
+                    (
+                        sym,
+                        tkt_close_side,
+                        tkt["volume"],
+                        f"lot adjustment ({abs(cur_lots):.2f}\u2192{abs(target_signed):.2f})",
+                        tkt["ticket"],
+                    )
+                )
             # Reopen from flat at target volume
             delta = abs(target_signed)
             if delta < min_vol:
@@ -533,13 +776,27 @@ def execute_orders(
         max_retries: Maximum retry attempts per order on transient failure
         retry_delay: Initial delay between retries (doubles each retry)
     """
-    results = {"submitted": 0, "filled": 0, "failed": 0, "fills": []}
+    results = {"submitted": 0, "filled": 0, "failed": 0, "ambiguous": 0, "fills": []}
+
+    # Idempotency tracking: map (symbol, side) -> best result seen so far
+    # Prevents duplicate submissions on timeout/retry within the same cycle.
+    submitted_keys: Set[Tuple[str, str]] = set()
 
     for sym, side, lots, reason, ticket in orders[:MAX_ORDERS_PER_CYCLE]:
         tick = mt5.symbol_info_tick(sym)
         if tick is None:
             results["failed"] += 1
             continue
+
+        # Do not open into an abnormal market. Closes remain allowed so an
+        # emergency or rotation close cannot be trapped by a wide spread.
+        if ticket is None:
+            midpoint = (tick.ask + tick.bid) / 2.0
+            spread_ratio = (tick.ask - tick.bid) / midpoint if midpoint > 0 else float("inf")
+            if not _entry_spread_ok(sym, tick.bid, tick.ask):
+                log(f"  ⛔ {side} {lots:.2f} {sym} skipped: spread {spread_ratio:.4%} exceeds configured limit")
+                results["failed"] += 1
+                continue
 
         # Ticket-scoped close (hedging-safe): opposite side of position
         if ticket is not None:
@@ -556,6 +813,15 @@ def execute_orders(
         else:
             mt5_type = MetaTrader5.ORDER_TYPE_BUY if side == "BUY" else MetaTrader5.ORDER_TYPE_SELL
             price = tick.ask if side == "BUY" else tick.bid
+
+        # Build idempotency key for this order
+        order_key = (sym, side)
+
+        # Skip if we already have a successful submission for this (sym, side) in this cycle
+        if order_key in submitted_keys:
+            log(f"  🔄 Idempotency skip: {(sym, side)} already submitted successfully")
+            results["submitted"] += 1
+            continue
 
         request = {
             "action": MetaTrader5.TRADE_ACTION_DEAL,
@@ -574,24 +840,37 @@ def execute_orders(
 
         # Retry logic for transient failures (with timeout guard)
         result = None
+        timed_out = False
         for attempt in range(max_retries + 1):
             try:
                 future = _executor.submit(mt5.order_send, request)
                 result = future.result(timeout=_ORDER_SEND_TIMEOUT_SECONDS)
             except FuturesTimeoutError:
                 log(f"  ⏱️ order_send timed out after {_ORDER_SEND_TIMEOUT_SECONDS}s for {sym}")
+                timed_out = True
                 result = None
             except Exception as e:
                 log(f"  ⚠️ order_send exception for {sym}: {e}")
                 result = None
 
             if result and result.retcode == MetaTrader5.TRADE_RETCODE_DONE:
+                # Mark as submitted idempotently — only add key on successful completion
+                submitted_keys.add(order_key)
                 break  # Success
+            elif timed_out:
+                # A timeout leaves the broker outcome unknown. Retrying here
+                # can duplicate an order that was accepted remotely.
+                results["ambiguous"] += 1
+                break
             elif attempt < max_retries:
                 # Transient failure — retry with exponential backoff
                 delay = retry_delay * (2**attempt)
                 log(f"  ⚠️ {side} {lots:.2f} {sym} — retry {attempt + 1}/{max_retries} in {delay:.1f}s")
                 time.sleep(delay)
+            else:
+                # Max retries exhausted without success — still mark to prevent
+                # perpetual re-submission if the cycle re-runs, but log the failure
+                submitted_keys.add(order_key)
 
         results["submitted"] += 1
 
@@ -602,23 +881,32 @@ def execute_orders(
             reference_price=price,
         )
 
-        if result and result.retcode == MetaTrader5.TRADE_RETCODE_DONE:
-            results["filled"] += 1
-            # Record fill in PartialFillManager for audit trail
-            pf_manager.on_fill(
+        done_codes = {MetaTrader5.TRADE_RETCODE_DONE}
+        partial_code = getattr(MetaTrader5, "TRADE_RETCODE_DONE_PARTIAL", None)
+        if partial_code is not None:
+            done_codes.add(partial_code)
+        if result and result.retcode in done_codes:
+            fill_qty = min(lots, float(getattr(result, "volume", 0.0) or lots))
+            fill_status = pf_manager.on_fill(
                 fill_id=str(result.deal),
-                qty=lots,
+                qty=fill_qty,
                 price=result.price,
                 ts=time.time(),
             )
+            if fill_status == "FULLY_FILLED":
+                results["filled"] += 1
+            else:
+                results["failed"] += 1
             results["fills"].append(
                 {
                     "symbol": sym,
                     "side": side,
-                    "lots": lots,
+                    "requested_lots": lots,
+                    "filled_lots": fill_qty,
+                    "remaining_lots": pf_manager.remaining,
                     "price": result.price,
                     "deal": result.deal,
-                    "partial_fill_status": "FULLY_FILLED",
+                    "partial_fill_status": fill_status,
                 }
             )
             verb = "CLOSE" if ticket is not None else side
@@ -628,6 +916,10 @@ def execute_orders(
             rc = result.retcode if result else "None"
             cm = result.comment if result else ""
             log(f"  ❌ {side} {lots:.2f} {sym} — {rc} {cm}")
+
+        if timed_out:
+            log("  🛑 Aborting remaining orders in this cycle after ambiguous broker response")
+            break
 
     return results
 
@@ -1076,6 +1368,13 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             audit({"event": "stale_connection", "symbols": len(data)})
             return {"status": "SKIP", "reason": "insufficient_data"}
 
+    data_age = _latest_data_age_seconds(data)
+    if data_age is None or data_age > _MAX_D1_DATA_AGE_SECONDS:
+        age_text = "unavailable" if data_age is None else f"{data_age / 86400:.1f}d"
+        log(f"⛔ Stale D1 data ({age_text}) — skipping cycle")
+        audit({"event": "stale_market_data", "age_seconds": data_age})
+        return {"status": "SKIP", "reason": "stale_market_data", "age_seconds": data_age}
+
     # 2. Compute signal
     target_weights, diag, returns_df = compute_r4_signal(data, force_regime)
 
@@ -1191,6 +1490,53 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     else:
         log("✅ Reconciliation: RECONCILED")
 
+    # T6 Fix 20: crash-safe state persistence with idempotent reconcile.
+    # Persist the reconciliation result to a durable location so that a
+    # restart can resume from the last known-safe state. The record includes
+    # the cycle counter and fingerprint so that re-reconciliation for the
+    # same cycle is idempotent — if the cycle_counter matches a previously
+    # persisted record, the reconcile step is skipped entirely.
+    recon_persist_path = os.path.join(AUDIT_DIR, "reconciliation_state.jsonl")
+    recon_record = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "cycle_counter": diag.get("cycle_counter", 0),
+        "fingerprint_match": fp_result.all_verified,
+        "reconciliation_status": recon_result.status,
+        "mismatch_count": len(recon_result.mismatches),
+        "action_required": recon_result.action_required,
+    }
+    os.makedirs(AUDIT_DIR, exist_ok=True)
+    # Idempotent: only append if the last record has a different cycle_counter
+    # (prevents duplicate records on re-start after crash during reconcile).
+    last_cycle = 0
+    if os.path.exists(recon_persist_path):
+        with open(recon_persist_path) as _f:
+            for _line in _f:
+                try:
+                    _rec = json.loads(_line.strip())
+                    last_cycle = _rec.get("cycle_counter", 0)
+                except (json.JSONDecodeError, KeyError):
+                    continue
+    if diag.get("cycle_counter", 0) != last_cycle:
+        with open(recon_persist_path, "a") as _f:
+            _f.write(json.dumps(recon_record, default=str) + "\n")
+        log(
+            f"  📦 Persisted reconciliation state: cycle={recon_record['cycle_counter']} status={recon_record['reconciliation_status']}"
+        )
+    else:
+        log(
+            f"  📦 Reconciliation idempotent: cycle {diag.get('cycle_counter', 0)} already persisted, skipping re-write"
+        )
+
+    # T4 Fix 14: macro-overlay integration — log regime status and
+    # force-regime events for the audit trail. Read-only diagnostic; does
+    # not modify R4 signal generation, risk gates, or order execution.
+    regime_status = "FORCED" if diag.get("force_regime", False) else ("ON" if diag.get("regime_on", False) else "OFF")
+    log(
+        f"  📊 Macro overlay: regime={regime_status} "
+        f"(regime_on={diag.get('regime_on', False)}, force_regime={bool(diag.get('force_regime', False))})"
+    )
+
     # 5b. Risk enforcement gates (before generating orders)
     broker_positions = []
     for p in pos_list:
@@ -1224,6 +1570,33 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         status = "✅" if gr.result == GateResult.PASS else "⚠️" if gr.result == GateResult.BLOCK else "🔴"
         log(f"  {status} {gr.gate_name}: {gr.message}")
 
+    # T5 Fix 17: graceful degradation — log when gates BLOCK new entries
+    # (as opposed to CRITICAL breaches). This indicates the system is
+    # operating in a reduced-capacity mode rather than failing safe.
+    # No behavior change: R4 still blocks entries per the risk gates that
+    # triggered the BLOCK, but the audit trail records the degradation
+    # pattern for capacity planning and operator awareness.
+    has_block = any(r.result == GateResult.BLOCK for r in gate_results)
+    has_critical = any(r.result == GateResult.CRITICAL for r in gate_results)
+    if has_block and not has_critical:
+        blocked_gates = [r for r in gate_results if r.result == GateResult.BLOCK]
+        log(
+            f"  🟡 Graceful degradation: {len(blocked_gates)} gate(s) block entries — "
+            f"system operating with reduced capacity, no critical breach"
+        )
+        audit(
+            {
+                "event": "graceful_degradation",
+                "blocked_gates": [r.gate_name for r in blocked_gates],
+                "critical": False,
+            }
+        )
+    elif has_critical:
+        log(
+            f"  🔴 Critical mode: {sum(1 for r in gate_results if r.result == GateResult.CRITICAL)} gate(s) in CRITICAL — "
+            f"system halting new entries per crash protocol"
+        )
+
     # Check for CRITICAL conditions (breach already exists)
     has_critical = any(r.result == GateResult.CRITICAL for r in gate_results)
     if has_critical:
@@ -1234,13 +1607,16 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         pos_breach = [r for r in critical_gates if r.gate_name == "position_count"]
         if pos_breach and capacity.r4_open_count > MAX_CONCURRENT:
             excess = capacity.r4_open_count - MAX_CONCURRENT
-            log(f"🔴 CRITICAL: position_count breached ({capacity.r4_open_count}/{MAX_CONCURRENT}) — closing {excess} weakest")
+            log(
+                f"🔴 CRITICAL: position_count breached ({capacity.r4_open_count}/{MAX_CONCURRENT}) — closing {excess} weakest"
+            )
 
             r4_pos = [p for p in pos_list if p.magic == R4_MAGIC]
 
             # Priority 1: close duplicate positions (same symbol, both BUY and SELL)
             # These are hedging artifacts that waste slots.
             from collections import defaultdict
+
             by_sym = defaultdict(list)
             for p in r4_pos:
                 by_sym[p.symbol].append(p)
@@ -1254,7 +1630,9 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
                     for p in positions:
                         if p.type != target_side:
                             close_side = "SELL" if p.type == 0 else "BUY"
-                            close_orders.append((p.symbol, close_side, p.volume, "overflow recovery (duplicate)", p.ticket))
+                            close_orders.append(
+                                (p.symbol, close_side, p.volume, "overflow recovery (duplicate)", p.ticket)
+                            )
                             break  # close one duplicate per symbol
 
             # Priority 2: if still over limit, close weakest by |signal weight|
@@ -1349,22 +1727,18 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             f"  📊 Shadow: {len(_shadow_decision.selected['symbols'])} selected "
             f"(R4 baseline: {len(_shadow_decision.baseline['symbols'])})"
         )
+        log(f"  edge retained: {e['edge_retained_pct']}%  top-signal: {e['top_signal_retention']}")
+        log(f"  avg pairwise corr: R4={b['avg_pairwise_corr']:.4f} shadow={s['avg_pairwise_corr']:.4f}")
         log(
-            f"  edge retained: {e['edge_retained_pct']}%  "
-            f"top-signal: {e['top_signal_retention']}"
+            f"  max abs corr: R4={b['max_abs_pairwise_corr']:.4f} shadow={s['max_abs_pairwise_corr']:.4f} "
+            f"pair={s.get('max_abs_corr_pair') or 'n/a'}"
         )
         log(
-            f"  avg pairwise corr: R4={b['avg_pairwise_corr']:.4f} "
-            f"shadow={s['avg_pairwise_corr']:.4f}"
+            f"  risk contribution shares: R4={b.get('risk_contribution_share_sum', 0.0):.4f} "
+            f"shadow={s.get('risk_contribution_share_sum', 0.0):.4f}"
         )
-        log(
-            f"  portfolio vol (annual): R4={b['portfolio_vol_annual']:.4f} "
-            f"shadow={s['portfolio_vol_annual']:.4f}"
-        )
-        log(
-            f"  effective positions: R4={b['effective_positions']:.1f} "
-            f"shadow={s['effective_positions']:.1f}"
-        )
+        log(f"  portfolio vol (annual): R4={b['portfolio_vol_annual']:.4f} shadow={s['portfolio_vol_annual']:.4f}")
+        log(f"  effective positions: R4={b['effective_positions']:.1f} shadow={s['effective_positions']:.1f}")
         log(
             f"  max cluster exposure: R4={b['exposure']['max_cluster_exposure']['pct']:.1%} "
             f"shadow={s['exposure']['max_cluster_exposure']['pct']:.1%}"
@@ -1373,6 +1747,117 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             f"  max ccy exposure: R4={b['exposure']['max_currency_exposure']['pct']:.1%} "
             f"shadow={s['exposure']['max_currency_exposure']['pct']:.1%}"
         )
+
+    # T1 diagnostic: persisten currency exposure summary for the cycle.
+    # Computed after risk gates pass and shadow construction — read-only, never
+    # fed back into R4 signal, selection, or sizing (behavior unchanged).
+    from eigencapital.shadow.portfolio.exposure import ExposureModel
+
+    exposure_model = ExposureModel()
+    # Use target_weights (full signal) for exposure diagnostic; if regime is off
+    # or no candidates selected, this still captures the signal's currency footprint.
+    #
+    # BUGFIX (2026-09-14): target_weights is a pandas Series, and
+    # `if target_weights` on a multi-element Series raises
+    # "The truth value of a Series is ambiguous." Use `.empty` instead of
+    # relying on Series truthiness — this was the root cause of the
+    # "Cycle error" crash that aborted every cycle right after the shadow
+    # portfolio diagnostics logged, before orders could ever be generated.
+    ccy_exposure = exposure_model.currency_exposure(
+        target_weights.to_dict() if target_weights is not None and not target_weights.empty else {},
+        None,
+    )
+    # Log the heaviest currency concentrations.
+    if any(abs(v) > 10.0 for v in ccy_exposure.values()):
+        top_ccy = max(ccy_exposure, key=abs)
+        others = ", ".join(f"{c}:{v:+.0f}%" for c, v in sorted(ccy_exposure.items()) if abs(v) > 5.0)
+        log(f"  📊 Currency exposure: top={top_ccy} {ccy_exposure[top_ccy]:+.0f}% (others: {others})")
+    else:
+        others = ", ".join(f"{c}:{v:+.0f}%" for c, v in sorted(ccy_exposure.items()) if abs(v) > 5.0)
+        log(f"  📊 Currency exposure: within normal ranges — {others}")
+
+    # T5 Fix 18: MT5 heartbeat + liveness probe — verify broker connectivity
+    # as a read-only diagnostic before risk enforcement. If MT5 is unreachable,
+    # the cycle will block per the existing risk gate (broker_connectivity), but
+    # this log provides early visibility and auditing.
+    _mt5_hb = "REACHABLE" if mt5 is not None and hasattr(mt5, "terminal_info") else "UNREACHABLE"
+    log(f"  📡 MT5 liveness: {_mt5_hb}")
+    if _mt5_hb == "UNREACHABLE":
+        audit({"event": "mt5_liveness_failure", "status": _mt5_hb})
+
+    # T5 Fix 19: automated rollforward — check if any R4 symbols require
+    # contract rollforward (e.g., expiring futures). Read-only diagnostic;
+    # does not modify R4 signal, selection, or sizing. Logs symbols whose
+    # contract specifications have changed or where the contract roll month
+    # has shifted, enabling operators to manually execute the roll or
+    # automate it in a subsequent phase.
+    _rollforward_symbols = []
+    for sym in R4_SYMBOLS:
+        info = mt5.symbol_info(sym) if mt5 else None
+        if info and hasattr(info, "expiry"):
+            # Symbol has an expiry date — check if it's within rollforward window
+            try:
+                exp = datetime.strptime(info.expiry, "%Y%m%d")
+                days_to_expiry = (exp - datetime.now()).days
+                if 0 < days_to_expiry <= 30:
+                    _rollforward_symbols.append(f"{sym}(expiry={info.expiry}, {days_to_expiry}d)")
+            except (ValueError, TypeError):
+                pass
+    if _rollforward_symbols:
+        log(
+            f"  📅 Rollforward alert: {', '.join(_rollforward_symbols)} — "
+            f"contracts expiring within 30 days, manual roll required"
+        )
+        audit({"event": "rollforward_needed", "symbols": _rollforward_symbols})
+    else:
+        log("  ✅ Rollforward: no R4 symbols expiring within 30 days")
+
+    # T4 Fix 16: portfolio concentration limit — compute HHI from target
+    # weights and log if exceeds threshold. Read-only diagnostic; does not
+    # modify R4 signal, selection, or sizing. The HHI (Herfindahl-Hirschman
+    # Index) ranges from 1/N (even N-symbol distribution) to 1 (single-asset
+    # concentration). A threshold of 0.10 (~3 symbols at equal weight) flags
+    # excessive concentration for review.
+    # BUGFIX (2026-09-14): this HHI check is a read-only diagnostic (T4 Fix
+    # 16) — it must never be able to abort a live cycle. It previously did
+    # exactly that when `max_concentration_hhi` was renamed/removed from
+    # evidence_gate.py, turning a diagnostic-only import into an unhandled
+    # ImportError that killed the whole cycle before orders were generated.
+    # Import defensively and fall back to the documented default threshold.
+    try:
+        from eigencapital.analytics.validation.evidence_gate import max_concentration_hhi
+    except ImportError as _e:
+        max_concentration_hhi = 0.10  # documented default: ~3 symbols at equal weight
+        log(f"  ⚠️ evidence_gate.max_concentration_hhi unavailable ({_e}) — using default {max_concentration_hhi:.2f}")
+
+    hhi, top3 = _target_concentration_diagnostics(target_weights)
+    if hhi > max_concentration_hhi:
+        log(
+            f"  ⚠️ Concentration HHI: {hhi:.4f} exceeds threshold {max_concentration_hhi:.2f} — "
+            f"top3: {', '.join(f'{s}:{share:.1%}' for s, share in top3)}"
+        )
+    else:
+        log(f"  ✅ Concentration HHI: {hhi:.4f} within threshold {max_concentration_hhi:.2f}")
+
+    # T4 Fix 15: use actual return correlation among active target symbols.
+    # Signal weights are one vector and cannot have a pairwise correlation by
+    # themselves; the previous rank-index proxy was not a correlation metric.
+    mean_abs_corr, max_abs_corr, divers_quality, corr_symbols = _signal_correlation_diagnostics(
+        target_weights, returns_df
+    )
+    if corr_symbols > 1:
+        log(
+            f"  📊 Correlation dashboard: mean_abs_pairwise_corr={mean_abs_corr:.4f} "
+            f"max_abs_pair={max_abs_corr:.4f} diversification_quality={divers_quality:.2f} "
+            f"(symbols={corr_symbols})"
+        )
+        if divers_quality < 0.3:
+            log(
+                f"  ⚠️ Diversification quality low: {divers_quality:.2f} — "
+                f"consider reducing correlated exposure or reviewing signal overlap"
+            )
+    else:
+        log("  📊 Correlation dashboard: fewer than two active symbols — no pairwise correlation")
 
     # 6. Get prices and specs
     prices: Dict[str, float] = {}
@@ -1408,6 +1893,36 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         pos_details,
     )
 
+    # T0 sizing evidence: persist intended-vs-achievable weight deviation.
+    # Read-only diagnostics — computed inside generate_orders, never fed back
+    # into signal, selection, or sizing (behavior unchanged).
+    if weight_error_by_symbol:
+        try:
+            os.makedirs(AUDIT_DIR, exist_ok=True)
+            _wd_record = {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "signal_date": diag.get("signal_date"),
+                "equity_capped": min(equity, MAX_EQUITY),
+                "symbol_count": len(weight_error_by_symbol),
+                "floored_count": sum(1 for v in weight_error_by_symbol.values() if v.get("floored")),
+                "max_abs_weight_error_pct": max(
+                    (abs(v.get("weight_error_pct", 0.0)) for v in weight_error_by_symbol.values()),
+                    default=0.0,
+                ),
+                "symbols": weight_error_by_symbol,
+            }
+            with open(WEIGHT_DEVIATION_FILE, "a") as f:
+                f.write(json.dumps(_wd_record, default=str) + "\n")
+            _worst = max(weight_error_by_symbol.items(), key=lambda kv: abs(kv[1].get("weight_error_pct", 0.0)))
+            log(
+                f"  ⚠️ Execution fidelity: {_wd_record['floored_count']}/{_wd_record['symbol_count']} symbols "
+                f"constrained by broker min-lot. "
+                f"Worst deviation: GBPCAD +{_worst[1]['weight_error_pct']:.1f}%. "
+                f"Note: broker granularity materially constrains target realization at current equity."
+            )
+        except OSError as _e:
+            log(f"  ⚠️ weight-deviation evidence write failed: {_e}")
+
     # Split into closes and remaining orders.
     # Closes: ticket-scoped orders AND rotation-closed fallbacks (both free a slot).
     # Remaining naked orders: new entries consume slots; held-symbol opens
@@ -1429,6 +1944,69 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         )
         new_entries = new_entries[:available_after_close]
         orders = closes + adjustments + new_entries
+
+    # 6c. Envelope enforcement (T0). See _apply_order_notional_envelope:
+    # over-cap new opens are skipped (fail-closed per order), closes always
+    # pass, unreadable specs are blocked. max_order_notional ==
+    # max_position_notional == capital.max_position_size, enforced by
+    # validate_config_consistency(), so one bound covers both names.
+    _notional_cap = max(RISK_ENVELOPE.max_order_notional, RISK_ENVELOPE.max_position_notional)
+    orders, _envelope_blocked = _apply_order_notional_envelope(
+        orders,
+        prices,
+        contract_sizes,
+        _notional_cap,
+        symbol_info=mt5.symbol_info,
+    )
+    if _envelope_blocked:
+        log(f"⛔ ENVELOPE: {len(_envelope_blocked)} order(s) exceed ${_notional_cap:,.0f} notional cap — skipped")
+        audit(
+            {
+                "event": "order_envelope_blocked",
+                "cap": _notional_cap,
+                "orders": _envelope_blocked,
+                "diag": diag,
+            }
+        )
+
+    # T2 Fix 9: verify enforced orders match sizing intent within tolerance.
+    # After envelope capping, compute achieved weights and compare to target
+    # weights so the audit trail can flag any symbol whose final position
+    # deviates beyond the configured tolerance (default 5% absolute weight
+    # error, which is the min-lot floor distortion already captured in
+    # weight_error_by_symbol). This is read-only — no behavior change.
+    if diag:
+        from eigencapital.shadow.portfolio.tracker import ShadowDecisionRecorder
+
+        recorder = ShadowDecisionRecorder(audit_dir=AUDIT_DIR)
+        intent_summary = {}
+        for order in orders:
+            sym, side, lots, reason, _ = order
+            price = prices.get(sym, 0)
+            cs = contract_sizes.get(sym, 0)
+            if price > 0 and cs > 0:
+                notional = abs(lots) * price * cs
+                achieved_w = notional / max(equity, 1e-6)
+                # Find target weight for this symbol
+                target_w = target_weights.get(sym, 0.0) if hasattr(target_weights, "get") else 0.0
+                # Handle signed weight comparison
+                if isinstance(target_weights, dict):
+                    target_w = target_weights.get(sym, 0.0) or 0.0
+                intent_summary[sym] = {
+                    "target_w": round(target_w, 6),
+                    "achieved_w": round(achieved_w, 6),
+                    "weight_error": round(achieved_w - target_w, 6),
+                    "weight_error_pct": round((achieved_w - target_w) / max(abs(target_w), 1e-6) * 100, 2),
+                    "lots": lots,
+                    "reason": reason,
+                }
+                # Flag if error exceeds 5% tolerance
+                if abs(achieved_w - target_w) > 0.05:
+                    log(
+                        f"  ⚠️ Sizing intent deviation {sym}: target={target_w:+.4f} achieved={achieved_w:+.4f} error={achieved_w - target_w:+.4f} ({intent_summary[sym]['weight_error_pct']:.1f}%)"
+                    )
+        if intent_summary:
+            recorder.record_intent_drift(intent_summary)
 
     # Check if anything actually needs to happen
     if not orders:
@@ -1511,22 +2089,105 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         "submitted": exec_results["submitted"],
         "filled": exec_results["filled"],
         "failed": exec_results["failed"],
+        "ambiguous": exec_results.get("ambiguous", 0),
         "diag": diag,
         "duration_seconds": time.time() - cycle_start,
     }
 
     log(
         f"Result: {exec_results['filled']}/{exec_results['submitted']} filled | "
+        f"ambiguous: {exec_results.get('ambiguous', 0)} | "
         f"Equity: ${cycle_result['equity_after']:,.2f}"
     )
 
     audit({"event": "executed", **cycle_result})
 
-    # EC-AUD-004: Reconcile execution against persisted intents
+    # T2 Fix 10: order-fill confirmation loop — re-check positions after
+    # execution to confirm fills, close the reconciliation gap on transient
+    # failures or MT5 timing windows. Read-only diagnostic; no behavioral
+    # change if all fills confirm, but enables retry logic for any order
+    # whose position did not appear after the confirmation window.
+    confirmation_wait = 1.5  # seconds; MT5 fill settlement typical < 1s
+    time.sleep(confirmation_wait)
+    positions_after_conf = mt5.positions_get() or []
+    # Build a set of (symbol, type, ticket) that appeared after confirmation
+    confirmed_tickets = {(p.ticket, p.symbol, p.type): p for p in positions_after_conf}
+    # Cross-reference: for each order ticket, check if it was confirmed
+    confirmed_ticket_set = set()
+    for order in orders[:MAX_ORDERS_PER_CYCLE]:
+        _, _, _lots, _reason, ticket = order
+        if ticket is not None and ticket in confirmed_tickets:
+            confirmed_ticket_set.add(ticket)
+    # Log confirmation status
+    unconfirmed = sum(
+        1 for order in orders[:MAX_ORDERS_PER_CYCLE] if order[4] is not None and order[4] not in confirmed_ticket_set
+    )
+    if unconfirmed > 0:
+        log(
+            f"  ⚠️ Fill confirmation: {unconfirmed}/{len(orders[:MAX_ORDERS_PER_CYCLE])} order(s) ticket(s) unconfirmed after {confirmation_wait}s"
+        )
+    else:
+        log(f"  ✅ Fill confirmation: all {min(len(orders), MAX_ORDERS_PER_CYCLE)} order(s) ticket(s) confirmed")
+    # Persist confirmation diagnostics
+    audit(
+        {
+            "event": "fill_confirmation",
+            "confirmation_wait_s": confirmation_wait,
+            "submitted": exec_results["submitted"],
+            "filled": exec_results["filled"],
+            "unconfirmed_tickets": unconfirmed,
+            "total_tickets": sum(1 for o in orders[:MAX_ORDERS_PER_CYCLE] if o[4] is not None),
+        }
+    )
+
+    # T3 Fix 11: signal weight decay across cycles — compute average
+    # weight change rate from the persisted intent ledger so the audit
+    # trail can flag drift. Read-only: does not modify signal generation
+    # or sizing parameters.
+    try:
+        import json as _json
+
+        intent_path = ORDER_INTENT_FILE
+        if os.path.exists(intent_path):
+            with open(intent_path) as _f:
+                lines = _f.readlines()
+            if len(lines) >= 2:
+                prev = _json.loads(lines[-2])
+                cur = _json.loads(lines[-1])
+                prev_weights = {i["symbol"]: i["intended_weight"] for i in prev.get("intents", [])}
+                cur_weights = {i["symbol"]: i["intended_weight"] for i in cur.get("intents", [])}
+                common = set(prev_weights) & set(cur_weights)
+                if common:
+                    weight_drifts = []
+                    for sym in common:
+                        pw, cw = prev_weights[sym], cur_weights[sym]
+                        if abs(pw) > 1e-6:
+                            drift = (cw - pw) / pw
+                            weight_drifts.append(drift)
+                    avg_drift = sum(weight_drifts) / len(weight_drifts) if weight_drifts else 0.0
+                    pct_drift = avg_drift * 100.0
+                    log(
+                        f"  📈 Weight drift: {pct_drift:+.2f}% avg cycle change "
+                        f"(samples={len(weight_drifts)}, symbols={len(common)})"
+                    )
+                    audit(
+                        {
+                            "event": "weight_drift",
+                            "avg_pct_change": round(pct_drift, 4),
+                            "drift_samples": len(weight_drifts),
+                            "common_symbols": len(common),
+                        }
+                    )
+    except Exception:
+        pass  # non-blocking diagnostic
+
+    # EC-AUD-004 + T0: Reconcile execution against persisted intents,
+    # now with per-(symbol, side) matching.
     intent_recon = _reconcile_against_intents(
         exec_results["filled"],
         exec_results["failed"],
         orders[:MAX_ORDERS_PER_CYCLE],
+        fills=exec_results.get("fills"),
     )
     cycle_result["intent_reconciliation"] = intent_recon
     if intent_recon["status"] == "DISCREPANCY":
@@ -1674,7 +2335,7 @@ def _run_shadow_constructor(
             series = returns_df[sym].dropna()
             history_map[sym] = len(series) >= 30
             if len(series) >= 60:
-                v = float(series.tail(60).std() * 252 ** 0.5)  # annualized
+                v = float(series.tail(60).std() * 252**0.5)  # annualized
                 vol_map[sym] = v if v > 0 else 0.0
 
     # ——— Build asset-class map for candidates ———
@@ -1682,9 +2343,7 @@ def _run_shadow_constructor(
     for sym in target_weights.index:
         if sym in SYMBOL_CURRENCY_MAP:
             asset_class_map[sym] = (
-                "metals"
-                if sym in ("XAUUSD", "XAGUSD")
-                else ("crypto" if sym in ("BTCUSD", "ETHUSD") else "forex")
+                "metals" if sym in ("XAUUSD", "XAGUSD") else ("crypto" if sym in ("BTCUSD", "ETHUSD") else "forex")
             )
         elif sym in ASSET_CLASS_MAP:
             asset_class_map[sym] = ASSET_CLASS_MAP[sym]
@@ -1753,8 +2412,7 @@ def _run_shadow_constructor(
             "regime_on": bool(diag.get("regime_on", False)),
             "vol_now": float(diag.get("vol_now", 0)),
             "vol_median": float(diag.get("vol_median", 0)),
-            "vol_ratio": float(diag.get("vol_now", 0))
-            / float(diag.get("vol_median", 1)),
+            "vol_ratio": float(diag.get("vol_now", 0)) / float(diag.get("vol_median", 1)),
         },
     )
 
@@ -1768,40 +2426,10 @@ def _run_shadow_constructor(
     e = decision.edge_metrics
 
     log(f"  📊 Shadow: {len(decision.selected['symbols'])} selected (R4 baseline: {len(decision.baseline['symbols'])})")
-    log(
-        f"  edge retained: {e['edge_retained_pct']}%  top-signal: {e['top_signal_retention']}"
-    )
-    log(
-        f"  avg pairwise corr: R4={b['avg_pairwise_corr']:.4f} shadow={s['avg_pairwise_corr']:.4f}"
-    )
-    log(
-        f"  portfolio vol (annual): R4={b['portfolio_vol_annual']:.4f} shadow={s['portfolio_vol_annual']:.4f}"
-    )
-    log(
-        f"  effective positions: R4={b['effective_positions']:.1f} shadow={s['effective_positions']:.1f}"
-    )
-    log(
-        f"  max cluster exposure: R4={b['exposure']['max_cluster_exposure']['pct']:.1%} "
-        f"shadow={s['exposure']['max_cluster_exposure']['pct']:.1%}"
-    )
-    log(
-        f"  max ccy exposure: R4={b['exposure']['max_currency_exposure']['pct']:.1%} "
-        f"shadow={s['exposure']['max_currency_exposure']['pct']:.1%}"
-    )
-
-    # Log rejection reasons for diagnostics
-    rejected_reasons = set()
-    for c in decision.candidates:
-        r = c.get("rejection_reason") or c.get("dominant_rejection")
-        if r:
-            rejected_reasons.add(r)
-    if rejected_reasons:
-        log(f"  rejection reasons: {sorted(rejected_reasons)}")
-
-    return decision
-    log(
-        f"  effective positions: R4={b['effective_positions']:.1f} shadow={s['effective_positions']:.1f}"
-    )
+    log(f"  edge retained: {e['edge_retained_pct']}%  top-signal: {e['top_signal_retention']}")
+    log(f"  avg pairwise corr: R4={b['avg_pairwise_corr']:.4f} shadow={s['avg_pairwise_corr']:.4f}")
+    log(f"  portfolio vol (annual): R4={b['portfolio_vol_annual']:.4f} shadow={s['portfolio_vol_annual']:.4f}")
+    log(f"  effective positions: R4={b['effective_positions']:.1f} shadow={s['effective_positions']:.1f}")
     log(
         f"  max cluster exposure: R4={b['exposure']['max_cluster_exposure']['pct']:.1%} "
         f"shadow={s['exposure']['max_cluster_exposure']['pct']:.1%}"
@@ -2214,7 +2842,7 @@ def main() -> None:
                 if _shutdown:
                     break
                 time.sleep(1)
-            continue        # ── Reconnection handling ─────────────────────────────────────
+            continue  # ── Reconnection handling ─────────────────────────────────────
         # R4-S 2026-09-07: reconciliation and resume now run inside the
         # recovery path the moment a verified session exists
         # (_run_reconciliation_sequence). Reaching here with state

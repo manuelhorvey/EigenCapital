@@ -36,6 +36,7 @@ class PortfolioMetrics:
     portfolio_vol_annual: float  # sqrt(w'Σw) annualized (weight space)
     avg_pairwise_corr: float
     max_abs_pairwise_corr: float
+    max_abs_corr_pair: tuple[str, str] | None
     herfindahl: float  # on |w| normalized to sum 1
     effective_positions: float  # 1/HHI
     diversification_ratio: float  # Σ|w|σ / portfolio_vol
@@ -45,6 +46,7 @@ class PortfolioMetrics:
     # Risk concentration (marginal contribution to portfolio variance)
     risk_contribution_hhi: float = 0.0  # HHI over per-asset variance shares
     max_risk_contribution_share: float = 0.0  # largest single-asset variance share
+    risk_contribution_share_sum: float = 0.0  # normalized contributor shares must sum to 1
     # Effective Risk Contributors (ERC) = 1/HHI over variance shares — the
     # effective NUMBER of risk contributors. It is NOT a count of
     # statistically independent bets: correlated positions share variance, so
@@ -64,6 +66,7 @@ class PortfolioMetrics:
             "portfolio_vol_annual": round(self.portfolio_vol_annual, 6),
             "avg_pairwise_corr": round(self.avg_pairwise_corr, 6),
             "max_abs_pairwise_corr": round(self.max_abs_pairwise_corr, 6),
+            "max_abs_corr_pair": list(self.max_abs_corr_pair) if self.max_abs_corr_pair else None,
             "herfindahl": round(self.herfindahl, 6),
             "effective_positions": round(self.effective_positions, 4),
             "diversification_ratio": round(self.diversification_ratio, 4),
@@ -71,21 +74,25 @@ class PortfolioMetrics:
             "max_corr_cluster_share": round(self.max_corr_cluster_share, 6),
             "risk_contribution_hhi": round(self.risk_contribution_hhi, 6),
             "max_risk_contribution_share": round(self.max_risk_contribution_share, 6),
+            "risk_contribution_share_sum": round(self.risk_contribution_share_sum, 6),
             "effective_risk_contributors": round(self.effective_risk_contributors, 4),
             "exposure": self.exposure,
         }
 
 
-def _pairwise_corr_stats(corr: pd.DataFrame) -> tuple[float, float]:
+def _pairwise_corr_stats(corr: pd.DataFrame) -> tuple[float, float, tuple[str, str] | None]:
     n = corr.shape[0]
     if n < 2:
-        return 0.0, 0.0
+        return 0.0, 0.0, None
     values = corr.values
     mask = ~np.eye(n, dtype=bool) & ~np.isnan(values)
     if not mask.any():
-        return 0.0, 0.0
+        return 0.0, 0.0, None
     off = values[mask]
-    return float(np.mean(off)), float(np.max(np.abs(off)))
+    positions = np.argwhere(mask)
+    max_position = int(np.argmax(np.abs(off)))
+    i, j = positions[max_position]
+    return float(np.mean(off)), float(np.max(np.abs(off))), (str(corr.index[i]), str(corr.columns[j]))
 
 
 def _max_corr_cluster_share(weights: Dict[str, float], corr: pd.DataFrame, threshold: float = 0.7) -> float:
@@ -153,7 +160,9 @@ def compute_portfolio_metrics(
         portfolio_vol = 0.0
 
     # Pairwise correlation stats over the restricted matrix
-    avg_corr, max_corr = _pairwise_corr_stats(corr.reindex(index=present, columns=present)) if present else (0.0, 0.0)
+    avg_corr, max_corr, max_corr_pair = (
+        _pairwise_corr_stats(corr.reindex(index=present, columns=present)) if present else (0.0, 0.0, None)
+    )
 
     # HHI on normalized |w|
     if gross > 0:
@@ -174,13 +183,17 @@ def compute_portfolio_metrics(
     # effective-count diagnostic. The weight-space HHI above counts positions,
     # but correlated positions share risk, so ERC is the tighter diagnostic;
     # it is NOT a count of statistically independent bets.
-    rc_hhi, rc_max, rc_eff = 0.0, 0.0, 0.0
+    rc_hhi, rc_max, rc_eff, rc_sum = 0.0, 0.0, 0.0, 0.0
     if present and portfolio_vol > 1e-12:
         contrib = w_vec * (sigma @ w_vec)
         total = float(contrib.sum())
         if total > 1e-12:
             shares = contrib / total
             shares = np.clip(shares, 0.0, None)  # PSD Σ keeps these non-negative
+            share_sum = float(shares.sum())
+            if share_sum > 0:
+                shares = shares / share_sum
+            rc_sum = float(shares.sum())
             rc_hhi = float(shares @ shares)
             rc_max = float(shares.max())
             rc_eff = 1.0 / rc_hhi if rc_hhi > 0 else 0.0
@@ -193,6 +206,7 @@ def compute_portfolio_metrics(
         portfolio_vol_annual=portfolio_vol,
         avg_pairwise_corr=avg_corr,
         max_abs_pairwise_corr=max_corr,
+        max_abs_corr_pair=max_corr_pair,
         herfindahl=hhi,
         effective_positions=eff_pos,
         diversification_ratio=div_ratio,
@@ -200,6 +214,7 @@ def compute_portfolio_metrics(
         max_corr_cluster_share=_max_corr_cluster_share(weights, corr),
         risk_contribution_hhi=rc_hhi,
         max_risk_contribution_share=rc_max,
+        risk_contribution_share_sum=rc_sum,
         effective_risk_contributors=rc_eff,
         exposure=exposure_summary,
     )

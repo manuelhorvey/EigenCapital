@@ -212,8 +212,8 @@ def pretty_print_decision(decision: Dict[str, Any], all_decisions: List[Dict[str
         f"recorded: {str(decision.get('record_timestamp', ''))[:19]}"
     )
     print(
-        f"  selector: {decision.get('selector_version')}  |  "
-        f"config_hash: {str(decision.get('config_hash', ''))[:12]}"        )
+        f"  selector: {decision.get('selector_version')}  |  config_hash: {str(decision.get('config_hash', ''))[:12]}"
+    )
     hdr = f"{'rank':>3}  {'symbol':<9} {'dir':<7}  {'weight':>7}  vol   {'class':<9}  {'factor'}"
     print(f"\n  SELECTED ({len(selected_syms)})")
     print(hdr)
@@ -277,21 +277,14 @@ def pretty_print_decision(decision: Dict[str, Any], all_decisions: List[Dict[str
     sel_m = decision["selected"]["metrics"]
     base_m = decision["baseline"]["metrics"]
     print("\n  EDGE & RISK vs R4 BASELINE")
-    print(
-        f"  edge retained: {e.get('edge_retained_pct')}%  |  "
-        f"top-signal: {e.get('top_signal_retention')}"
-    )
-    print(
-        f"  avg pairwise corr: R4={base_m.get('avg_pairwise_corr'):.4f} "
-        f"shadow={sel_m.get('avg_pairwise_corr'):.4f}"
-    )
+    print(f"  edge retained: {e.get('edge_retained_pct')}%  |  top-signal: {e.get('top_signal_retention')}")
+    print(f"  avg pairwise corr: R4={base_m.get('avg_pairwise_corr'):.4f} shadow={sel_m.get('avg_pairwise_corr'):.4f}")
     print(
         f"  portfolio vol:     R4={base_m.get('portfolio_vol_annual'):.4f} "
         f"shadow={sel_m.get('portfolio_vol_annual'):.4f}"
     )
     print(
-        f"  effective pos:     R4={base_m.get('effective_positions'):.1f} "
-        f"shadow={sel_m.get('effective_positions'):.1f}"
+        f"  effective pos:     R4={base_m.get('effective_positions'):.1f} shadow={sel_m.get('effective_positions'):.1f}"
     )
     print(
         f"  max cluster:       R4={base_m.get('exposure', {}).get('max_cluster_exposure', {}).get('pct', 0):.1%} "
@@ -393,12 +386,8 @@ def comparative_evidence(
         table[key] = {"r4_20": None, **{f"s{n}": None for n in COMPARATIVE_SIZES}}
 
     def fill(n: int, path: str) -> None:
-        table["portfolio_vol_annual"][f"s{n}"] = _avg_over(
-            decisions, lambda d, n=n: chain_metric(d, n, path)
-        )
-        table["portfolio_variance"][f"s{n}"] = _avg_over(
-            decisions, lambda d, n=n: var_of(chain_metric(d, n, path))
-        )
+        table["portfolio_vol_annual"][f"s{n}"] = _avg_over(decisions, lambda d, n=n: chain_metric(d, n, path))
+        table["portfolio_variance"][f"s{n}"] = _avg_over(decisions, lambda d, n=n: var_of(chain_metric(d, n, path)))
         # exposure pct values are stored as fractions (0.1262) — normalize to
         # percentage units so every "pct" row in the table is consistent.
         table["max_ccy"][f"s{n}"] = _avg_over(
@@ -427,7 +416,9 @@ def comparative_evidence(
 
     table["signal_retained_pct"]["r4_20"] = 100.0
     table["portfolio_vol_annual"]["r4_20"] = _avg_over(decisions, lambda d: base_metric(d, "portfolio_vol_annual"))
-    table["portfolio_variance"]["r4_20"] = _avg_over(decisions, lambda d: var_of(base_metric(d, "portfolio_vol_annual")))
+    table["portfolio_variance"]["r4_20"] = _avg_over(
+        decisions, lambda d: var_of(base_metric(d, "portfolio_vol_annual"))
+    )
     table["max_ccy"]["r4_20"] = _avg_over(
         decisions, lambda d: _to_pct(base_metric(d, "exposure.max_currency_exposure.pct"))
     )
@@ -543,9 +534,7 @@ def print_efficiency(eff: Dict[str, Any]) -> None:
     for t in eff["transitions"]:
         e = t["efficiency_pp_per_1e4_var"]
         e_str = f"{e:>12.2f}" if e is not None and e != float("inf") else f"{'∞':>12}"
-        print(
-            f"  {t['transition']:<16}{t['d_signal_pp']:>+9.2f}pp{t['d_variance']:>+12.6f}{e_str}"
-        )
+        print(f"  {t['transition']:<16}{t['d_signal_pp']:>+9.2f}pp{t['d_variance']:>+12.6f}{e_str}")
 
 
 _SELVER_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)$")
@@ -715,8 +704,17 @@ def realized_outcomes(
         table["erc"][f"s{n}"] = chain_mean(n, "effective_risk_contributors")
         table["max_risk_contribution"][f"s{n}"] = chain_mean_pct(n, "max_risk_contribution_share")
         stats = _per_cycle_stats(by_size.get(n, []))
-        for key in ("realized_r", "sharpe", "max_dd", "realized_vol", "downside_dev",
-                    "worst_cycle", "tail_loss", "turnover", "net_r_after_costs"):
+        for key in (
+            "realized_r",
+            "sharpe",
+            "max_dd",
+            "realized_vol",
+            "downside_dev",
+            "worst_cycle",
+            "tail_loss",
+            "turnover",
+            "net_r_after_costs",
+        ):
             table[key][f"s{n}"] = stats.get(key)
         # Total P&L / cost span ALL rows incl. END (matches D3 frontier totals).
         all_rows = by_size_all.get(n, [])
@@ -727,20 +725,25 @@ def realized_outcomes(
     # R4-20 ERC / max-risk-contribution come from baseline metrics (chain_by_n
     # only holds shadow sizes); only present in v0.2.2+ records.
     erc_vals = [
-        v
-        for d in decisions
-        if (v := _metric_at(d["baseline"]["metrics"], "effective_risk_contributors")) is not None
+        v for d in decisions if (v := _metric_at(d["baseline"]["metrics"], "effective_risk_contributors")) is not None
     ]
     table["erc"]["r4_20"] = round(float(np.mean(erc_vals)), 2) if erc_vals else None
     mrc_vals = [
-        v
-        for d in decisions
-        if (v := _metric_at(d["baseline"]["metrics"], "max_risk_contribution_share")) is not None
+        v for d in decisions if (v := _metric_at(d["baseline"]["metrics"], "max_risk_contribution_share")) is not None
     ]
     table["max_risk_contribution"]["r4_20"] = round(float(np.mean(mrc_vals)) * 100.0, 2) if mrc_vals else None
     base_stats = _per_cycle_stats(by_size.get(R4_BASELINE_SIZE, []))
-    for key in ("realized_r", "sharpe", "max_dd", "realized_vol", "downside_dev",
-                "worst_cycle", "tail_loss", "turnover", "net_r_after_costs"):
+    for key in (
+        "realized_r",
+        "sharpe",
+        "max_dd",
+        "realized_vol",
+        "downside_dev",
+        "worst_cycle",
+        "tail_loss",
+        "turnover",
+        "net_r_after_costs",
+    ):
         table[key]["r4_20"] = base_stats.get(key)
     base_all = by_size_all.get(R4_BASELINE_SIZE, [])
     table["realized_pnl"]["r4_20"] = _round_sum(base_all, "net_pnl")
@@ -872,8 +875,10 @@ def main() -> int:
     print("R4-S DIAGNOSTICS — where does the lost edge go?")
     print("═" * 74)
     if args.min_selector_version:
-        print(f"  evaluation boundary: selector_version >= {args.min_selector_version} "
-              f"({len(decisions)} decisions, {dropped} pre-boundary dropped)")
+        print(
+            f"  evaluation boundary: selector_version >= {args.min_selector_version} "
+            f"({len(decisions)} decisions, {dropped} pre-boundary dropped)"
+        )
 
     print("\n[D1] EDGE RETAINED BY SELECTION SIZE")
     print(f"  {'size':<6}{'days':<7}{'edge ret %':<12}{'port vol':<10}{'max |corr|':<12}{'quality'}")

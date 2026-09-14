@@ -71,6 +71,7 @@ class CorrelationSnapshot:
     pairwise_obs_counts: pd.DataFrame
     avg_pairwise_corr: float
     max_abs_pairwise_corr: float
+    max_abs_corr_pair: Tuple[str, str] | None
     cross_window_stability: float  # mean |Δcorr| across lookbacks (lower = stable)
     per_lookback_avg: Dict[int, float] = field(default_factory=dict)
 
@@ -81,6 +82,7 @@ class CorrelationSnapshot:
             "observations_used": self.observations_used,
             "avg_pairwise_corr": round(self.avg_pairwise_corr, 6),
             "max_abs_pairwise_corr": round(self.max_abs_pairwise_corr, 6),
+            "max_abs_corr_pair": list(self.max_abs_corr_pair) if self.max_abs_corr_pair else None,
             "cross_window_stability": round(self.cross_window_stability, 6),
             "per_lookback_avg": {str(k): round(v, 6) for k, v in self.per_lookback_avg.items()},
             "min_pairwise_obs": int(self.pairwise_obs_counts.values.min()) if self.pairwise_obs_counts.size else 0,
@@ -150,6 +152,12 @@ class CorrelationModel:
         vals = corr.values[off_diag]
         avg_corr = float(np.mean(vals)) if vals.size else 0.0
         max_abs = float(np.max(np.abs(vals))) if vals.size else 0.0
+        max_pair: Tuple[str, str] | None = None
+        if vals.size:
+            pair_positions = np.argwhere(off_diag)
+            max_position = int(np.argmax(np.abs(vals)))
+            i, j = pair_positions[max_position]
+            max_pair = (str(corr.index[i]), str(corr.columns[j]))
 
         # Cross-window stability: mean |Δcorr| of off-diagonal entries between
         # each secondary window and the primary window.
@@ -191,6 +199,7 @@ class CorrelationModel:
             pairwise_obs_counts=obs_counts,
             avg_pairwise_corr=avg_corr,
             max_abs_pairwise_corr=max_abs,
+            max_abs_corr_pair=max_pair,
             cross_window_stability=stability,
             per_lookback_avg=per_lb_avg,
         )

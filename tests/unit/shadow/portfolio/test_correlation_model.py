@@ -49,6 +49,7 @@ class TestCorrelationLevels:
         snap = CorrelationModel().build(returns, as_of=returns.index[-1])
         assert snap is not None
         assert snap.corr.loc["AUDUSD", "GBPUSD"] == pytest.approx(1.0, abs=1e-9)
+        assert snap.max_abs_corr_pair in (("AUDUSD", "GBPUSD"), ("GBPUSD", "AUDUSD"))
 
 
 class TestDataQuality:

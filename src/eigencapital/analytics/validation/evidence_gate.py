@@ -30,6 +30,8 @@ from eigencapital.analytics.validation.temporal import TemporalStabilityResult
 from eigencapital.analytics.validation.universe import UniversePerturbationResult
 from eigencapital.analytics.validation.walk_forward import WalkForwardResult
 
+max_concentration_hhi: float = 0.10  # documented default: ~3 symbols at equal weight
+
 
 class EvidenceVerdict(str):
     """Verdict from evidence gate."""

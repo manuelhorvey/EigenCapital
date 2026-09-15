@@ -66,8 +66,9 @@ class TestRiskContributionConcentration:
         rng = np.random.default_rng(7)
         weights = {f"S{i}": float(w) for i, w in enumerate(rng.uniform(-0.2, 0.2, 6))}
         n = len(weights)
-        corr = pd.DataFrame(rng.uniform(-0.3, 0.3, (n, n)), index=list(weights), columns=list(weights))
-        np.fill_diagonal(corr.values, 1.0)
+        mat = rng.uniform(-0.3, 0.3, (n, n))
+        np.fill_diagonal(mat, 1.0)
+        corr = pd.DataFrame(mat, index=list(weights), columns=list(weights))
         m = _metrics(weights, corr=corr)
         assert 0.0 < m.risk_contribution_hhi <= 1.0
         assert 0.0 < m.max_risk_contribution_share <= 1.0

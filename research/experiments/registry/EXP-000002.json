@@ -1,7 +1,7 @@
 {
   "cost_model_id": "uniform_bps_weight_space",
   "cost_model_version": "v1",
-  "created_at": "",
+  "created_at": "2026-09-16",
   "dataset_hash": "563812796b6d12a95648d27405113515934d1ff0dd6c4eb371fcfaf0704e26c6",
   "dataset_id": "mt5_d1_csv",
   "dataset_version": "R5_data_manifest_2026-08-25",
@@ -31,11 +31,45 @@
     "weekly_anchor": "Monday 00:00 UTC (configurable)"
   },
   "parent_experiment_id": "",
-  "provenance_hash": "6aa75f4258dbe42d717f157f5235fce54130f741a06826cf333e830e98644603",
+  "provenance_hash": "1b81b107a4d512f2f6f26a3872e6000e064004fccedc93299dd3e7ee4f6e8a31",
   "random_seed": null,
   "rejection_reason": "",
-  "result": {},
-  "status": "PRE_REGISTERED",
+  "result": {
+    "gate_status_WEEKLY": {
+      "g1_statistical_walk_forward": "PENDING",
+      "g2_economic": "PASS_FULL_SAMPLE",
+      "g3_turnover": "PASS",
+      "g4_risk": "PASS_FULL_SAMPLE",
+      "g5_regime_stability": "PENDING",
+      "g6_sensitivity": "PASS (no tuned parameter)",
+      "g7_execution_shadow": "PENDING",
+      "g8_operational": "PASS (72 unit tests green)"
+    },
+    "hypothesis_verdicts": {
+      "H1_turnover_reduction": "SUPPORTED_FOR_WEEKLY_ONLY (-56% turnover); REJECTED_FOR_THRESHOLD_BANDS (bands amplify turnover)",
+      "H2_capture": "SUPPORTED (daily arms highest gross return +1.218 vs weekly +1.095)",
+      "H3_implementation_efficiency": "REJECTED (all bands: higher turnover, lower net return, return_per_turnover 3-7x worse than CANONICAL)",
+      "H4_risk_drift": "REJECTED_FOR_BANDS (low tracking error is under-deployment, not risk control; realized vol 12.3% vs 17.0%)",
+      "H5_hybrid": "NOT_IDENTIFIABLE_OFFLINE (replay lacks live events; degenerates to T010; live shadow required)"
+    },
+    "next_stage": "walk-forward (CANONICAL vs WEEKLY only) + regime breakdown + live shadow per Section 28",
+    "policy_verdicts": {
+      "R4-REB-CANONICAL": "BASELINE (frozen, unchanged)",
+      "R4-REB-DAILY": "EQUIVALENT_TO_CANONICAL on D1 daily grid (cadence guards do not bind; differs on live hourly loop)",
+      "R4-REB-HYBRID-T010": "NOT_IDENTIFIABLE_OFFLINE",
+      "R4-REB-T005": "REJECTED (Gate 2)",
+      "R4-REB-T010": "REJECTED (Gate 2)",
+      "R4-REB-T020": "REJECTED (Gate 2)",
+      "R4-REB-T050": "REJECTED (Gate 2)",
+      "R4-REB-WEEKLY": "QUALIFICATION_CANDIDATE (net Sharpe 0.588 vs 0.550; turnover 94.2 vs 213.3; maxDD -25.8% vs -27.1%; Sharpe 0.500 vs 0.353 at 2x costs; min-lot stress robust 0.586 vs 0.535)"
+    },
+    "production_change": "NONE (CANONICAL remains default)",
+    "report_path": "reports/r4_rebalance_research/rebalance_report_20260916_052051.json",
+    "report_sha256": "8f79f46bcf729791576fa0dbe707e3d3034554f08f14bade53dccbee4a85b31e",
+    "sample": "2020-01-02..2026-08-24, 2427 daily decisions, 42 symbols, 15 bps base",
+    "stage": "full_sample_baseline"
+  },
+  "status": "COMPLETED",
   "strategy_artifact_hash": "",
   "strategy_config_hash": "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb",
   "strategy_id": "risk_conditioned_continuation",
@@ -67,7 +101,7 @@
     "trial_index": 1,
     "trials_in_family": 8
   },
-  "updated_at": "",
+  "updated_at": "2026-09-16T06:21:14.808375+00:00",
   "validation_end": "",
   "validation_start": ""
 }

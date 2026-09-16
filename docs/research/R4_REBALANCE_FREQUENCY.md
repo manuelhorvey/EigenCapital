@@ -1,7 +1,7 @@
 # R4 Rebalancing Frequency — When Should the Frozen Target Be Acted Upon?
 
 **Experiment:** EXP-000002 · **Hypothesis:** HYP-R4-REB-001 · **Trial group:** R4-REB-MATRIX-V1
-**Status:** PRE-REGISTERED, FULL-SAMPLE BASELINE COMPLETE — **no production change made or recommended yet**
+**Status:** COMPLETED (full-sample baseline; verdicts recorded in the registry) — **GO to qualification, NOT GO to production; no production change made**
 **Signal lineage:** frozen R4 (EXP-000001), reconstructed by the C1 parity-verified path
 `scripts/r4_shadow_portfolio.py::replicate_signal` + `build_universe` (no second signal implementation).
 
@@ -121,9 +121,12 @@ indistinguishable from CANONICAL.
 | T2% | 0.371 | 0.275 | 0.180 | −0.010 |
 | T5% | 0.398 | 0.306 | 0.214 | 0.030 |
 
-Weekly dominates CANONICAL at every cost level and degrades the slowest. Threshold bands go
-net-negative at 2× costs — they fail the "must not depend on unrealistically cheap
-execution" test outright.
+Weekly beat CANONICAL on net Sharpe at **all four tested cost levels** (×1.0: 0.588 vs 0.550; ×1.25: 0.566 vs 0.501; ×1.5: 0.544 vs 0.451; ×2.0: 0.500 vs 0.353) and degraded the slowest as costs rise. At 2× costs, three of the four bands (T0.5%–T2%) are
+net-negative and T5% survives at barely +0.03 — none approaches CANONICAL, let alone
+WEEKLY — so the band family fails the "must not depend on unrealistically cheap
+execution" test. (Audit-proof phrasing: *"Weekly outperformed canonical at the tested
+base, ×1.25, ×1.5 and ×2 transaction-cost scenarios and retained its advantage under
+min-lot stress."*)
 
 ### 4.4 Min-lot distortion sensitivity (Section 21; `--min-lot-weight 0.05` ≈ $5k-account granularity)
 
@@ -215,7 +218,18 @@ ladder, provenance, git head).
    canonical comparison should additionally be treated as selected-among-8 when Gate 1
    statistics run.
 
-## 10. Frozen-R4 verification
+## 10. Verdict record (also persisted in `research/experiments/registry/EXP-000002.json` → `result`)
+
+- ✅ Rebalance-policy abstraction: validated (CANONICAL default never vetoes; clean attribution)
+- ✅ Frozen-R4 attribution: validated (isolated worktree 96/96)
+- ✅ Two accounting bugs found and fixed with regression tests (phantom exits; union-scope turnover)
+- ✅ WEEKLY: **qualification candidate** — walk-forward (CANONICAL vs WEEKLY only), regime breakdown, live shadow required
+- ❌ Fixed per-symbol threshold bands: **rejected for the current R4 design** (H3 rejected; band-edge whipsaw)
+- ❌ HYBRID: not identifiable offline (degenerates to THRESHOLD; needs live events)
+- ❌ Production weekly promotion: **premature**
+- ❌ Dynamic lot sizing: **separate experiment, separate axis** (sizing answers "how large", rebalancing answers "when"; do not combine)
+
+## 11. Frozen-R4 verification
 
 `compute_r4_signal`, `generate_orders`, risk gates, execution stack and all config
 dataclasses are untouched by this work. Verified three ways: (a) HEAD-only worktree passes

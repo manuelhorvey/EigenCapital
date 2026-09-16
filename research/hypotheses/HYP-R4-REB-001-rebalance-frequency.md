@@ -1,6 +1,7 @@
 # HYP-R4-REB-001: R4 Rebalancing Frequency — When Should the Frozen Target Be Acted Upon?
 
-**Experiment:** EXP-000002 · **Trial group:** R4-REB-MATRIX-V1 · **Status:** PRE_REGISTERED
+**Experiment:** EXP-000002 · **Trial group:** R4-REB-MATRIX-V1 · **Status:** COMPLETED (full-sample baseline, 2026-09-16)
+**Verdict:** GO to qualification (walk-forward + regime breakdown + live shadow), NOT GO to production
 
 ## Motivation
 
@@ -93,4 +94,26 @@ pre-registration.
 
 - **Experiment ID:** EXP-000002
 - **Registered:** 2026-09-16 (registry: research/experiments/registry/EXP-000002.json)
-- **Status:** PRE_REGISTERED (test parameters frozen)
+- **Status:** PRE_REGISTERED (test parameters frozen) → **COMPLETED** (full-sample baseline)
+
+## Outcome — full-sample baseline (2026-09-16)
+
+Sample: 2020-01-02 → 2026-08-24, 2427 daily decisions, 42 symbols, 15 bps base cost.
+Full report: `docs/research/R4_REBALANCE_FREQUENCY.md`; result block persisted in the
+registry record (with report SHA-256).
+
+| Hypothesis | Verdict |
+|---|---|
+| H1 turnover reduction | Supported for WEEKLY only (−56% turnover). Rejected for threshold bands (bands *amplify* turnover via band-edge whipsaw on R4's mean-reverting micro-adjustments). |
+| H2 capture | Supported — daily arms have the highest gross return (+1.218 vs weekly +1.095). |
+| H3 implementation efficiency | **Rejected.** Every band width has higher turnover, lower net return, and 3–7× worse return-per-turnover than CANONICAL. No post-hoc threshold tuning — the family is rejected, not re-optimized. |
+| H4 risk drift | Rejected for bands: their low tracking error reflects under-deployment (realized vol 12.3% vs 17.0%), not risk control. WEEKLY shows no material drift (maxDD −25.8% vs −27.1%). |
+| H5 hybrid | Not identifiable offline (replay has no live risk/regime events; degenerates to T010). Deferred to live shadow. |
+
+Candidate status: **WEEKLY = qualification candidate** (gates 2/3/4/6/8 pass on this
+baseline; 1/5/7 pending). Threshold family rejected at Gate 2. DAILY ≡ CANONICAL on a D1
+daily grid (artifact; cadence guards only bind on the live hourly loop).
+
+**Non-promotion reaffirmed:** CANONICAL remains the production default. The next
+experiment (walk-forward) may only compare CANONICAL vs WEEKLY — widening the candidate
+set for selection would constitute parameter mining.

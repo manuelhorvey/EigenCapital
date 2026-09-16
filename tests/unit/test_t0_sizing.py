@@ -180,7 +180,8 @@ class TestWeightErrorEvidence:
         for _sym, _side, lots, _reason, _tkt in orders:
             assert lots == pytest.approx(max(0.01, expected_lots), abs=1e-9)
 
-    def test_subminimum_target_rounds_to_broker_minimum(self, loop):
+    def test_subminimum_target_executes_within_position_envelope(self, loop):
+        """Minimum-lot distortion is diagnostic when the notional remains safe."""
         orders = loop.generate_orders(
             target_weights=_series({"XAUUSD": 0.05}),
             current_positions={},
@@ -192,7 +193,71 @@ class TestWeightErrorEvidence:
         )
         assert len(orders) == 1
         assert orders[0][0:3] == ("XAUUSD", "BUY", 0.01)
-        assert loop.weight_error_by_symbol["XAUUSD"]["floored"] is True
+        ev = loop.weight_error_by_symbol["XAUUSD"]
+        assert bool(ev["is_feasible"]) is True
+        assert ev["absolute_weight_error"] > loop._config.execution.max_absolute_weight_error
+
+    def test_infeasible_target_does_not_close_existing_position(self, loop):
+        """Broker granularity must not turn an existing holding into an exit."""
+        orders = loop.generate_orders(
+            target_weights=_series({"XAUUSD": 0.05}),
+            current_positions={"XAUUSD": 0.01},
+            prices={"XAUUSD": 4627.0},
+            contract_sizes={"XAUUSD": 100.0},
+            min_volumes={"XAUUSD": 0.01},
+            equity=5100.0,
+            pos_details={"XAUUSD": [{"ticket": 123, "volume": 0.01, "type": 0}]},
+        )
+
+        assert orders == []
+
+    def test_minimum_lot_symbol_can_consume_target_slot_when_safe(self, loop):
+        """A safe minimum-lot candidate participates in target selection."""
+        symbols = ["XAUUSD", "EURUSD", "GBPUSD"]
+        weights = _series({"XAUUSD": 0.05, "EURUSD": 0.04, "GBPUSD": 0.03})
+        orders = loop.generate_orders(
+            target_weights=weights,
+            current_positions={},
+            prices={"XAUUSD": 4327.88, "EURUSD": 1.10, "GBPUSD": 1.27},
+            contract_sizes={"XAUUSD": 100.0, "EURUSD": 100000.0, "GBPUSD": 100000.0},
+            min_volumes={symbol: 0.01 for symbol in symbols},
+            equity=20000.0,
+            pos_details=None,
+        )
+
+        assert any(order[0] == "XAUUSD" for order in orders)
+        assert bool(loop.weight_error_by_symbol["XAUUSD"]["is_feasible"]) is True
+
+    def test_live_equity_uses_capped_step_safe_lot(self, loop):
+        """A larger account uses live equity but never exceeds position cap."""
+        orders = loop.generate_orders(
+            target_weights=_series({"XAUUSD": 0.066}),
+            current_positions={},
+            prices={"XAUUSD": 4327.88},
+            contract_sizes={"XAUUSD": 100.0},
+            min_volumes={"XAUUSD": 0.01},
+            equity=99483.0,
+            pos_details=None,
+        )
+
+        assert orders[0][0:3] == ("XAUUSD", "BUY", 0.01)
+        assert loop.weight_error_by_symbol["XAUUSD"]["executable_notional"] <= loop.MAX_POSITION_USD
+
+    def test_mt5_request_contains_native_scalars(self, loop):
+        """mt5linux remote eval must not receive NumPy scalar reprs."""
+        import numpy as np
+
+        request = loop._build_mt5_order_request(
+            symbol="BTCUSD",
+            lots=np.float64(0.03),
+            mt5_type=np.int64(loop.MetaTrader5.ORDER_TYPE_SELL),
+            price=np.float64(75814.3),
+            filling_mode=np.int64(loop.MetaTrader5.ORDER_FILLING_FOK),
+            ticket=np.int64(123),
+        )
+
+        assert all(type(value) in (int, float, str) for value in request.values())
+        assert "np." not in repr(request)
 
     def test_zero_weight_symbols_absent_from_evidence(self, loop):
         prices = {s: 100.0 for s in TEST_SYMBOLS}

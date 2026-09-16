@@ -60,10 +60,15 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
+
+from eigencapital.config import load_config
+
+_MAX_EQUITY = load_config(os.environ.get("EIGENCAPITAL_ENV", "production")).capital.max_equity
 
 # ── Currency Factor Definitions ──────────────────────────────────
 
@@ -482,7 +487,7 @@ class PortfolioAnalyzer:
         No state modification, no side effects.
         """
         now = datetime.now(UTC).isoformat()
-        capped_equity = min(equity, 5100.0)
+        capped_equity = equity
 
         # ── Build position details ──────────────────────────────
         positions = []

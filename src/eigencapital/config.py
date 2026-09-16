@@ -128,6 +128,7 @@ class ExecutionConfig:
     max_order_frequency: int = 10  # per hour
     max_orders_per_cycle: int = 8  # max orders per rebalance cycle
     loop_interval_seconds: int = 3600  # default loop interval (1 hour)
+    max_absolute_weight_error: float = 0.05  # max absolute weight error in pp; 0.05 = 5 percentage points
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> ExecutionConfig:

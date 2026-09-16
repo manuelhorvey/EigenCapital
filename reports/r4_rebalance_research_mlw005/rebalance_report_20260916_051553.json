@@ -1,0 +1,441 @@
+{
+  "cost_bps_base": 15.0,
+  "cost_ladder": [
+    {
+      "multiplier": 1.0,
+      "net_return": 0.879147352815298,
+      "net_sharpe": 0.5350281865270738,
+      "policy_id": "R4-REB-CANONICAL"
+    },
+    {
+      "multiplier": 1.0,
+      "net_return": 0.879147352815298,
+      "net_sharpe": 0.5350281865270738,
+      "policy_id": "R4-REB-DAILY"
+    },
+    {
+      "multiplier": 1.0,
+      "net_return": 0.9569932362568225,
+      "net_sharpe": 0.5858664516909223,
+      "policy_id": "R4-REB-WEEKLY"
+    },
+    {
+      "multiplier": 1.0,
+      "net_return": 0.34034532294400277,
+      "net_sharpe": 0.2839563482924255,
+      "policy_id": "R4-REB-T005"
+    },
+    {
+      "multiplier": 1.0,
+      "net_return": 0.3473856970588908,
+      "net_sharpe": 0.29020040762021393,
+      "policy_id": "R4-REB-T010"
+    },
+    {
+      "multiplier": 1.0,
+      "net_return": 0.37769444112863426,
+      "net_sharpe": 0.3155143666065612,
+      "policy_id": "R4-REB-T020"
+    },
+    {
+      "multiplier": 1.0,
+      "net_return": 0.3934229506600361,
+      "net_sharpe": 0.32798142270188446,
+      "policy_id": "R4-REB-T050"
+    },
+    {
+      "multiplier": 1.0,
+      "net_return": 0.3473856970588908,
+      "net_sharpe": 0.29020040762021393,
+      "policy_id": "R4-REB-HYBRID-T010"
+    },
+    {
+      "multiplier": 1.25,
+      "net_return": 0.7919574086415899,
+      "net_sharpe": 0.4818259313198616,
+      "policy_id": "R4-REB-CANONICAL"
+    },
+    {
+      "multiplier": 1.25,
+      "net_return": 0.7919574086415899,
+      "net_sharpe": 0.4818259313198616,
+      "policy_id": "R4-REB-DAILY"
+    },
+    {
+      "multiplier": 1.25,
+      "net_return": 0.9194798970541904,
+      "net_sharpe": 0.5628540488928928,
+      "policy_id": "R4-REB-WEEKLY"
+    },
+    {
+      "multiplier": 1.25,
+      "net_return": 0.20494663647337064,
+      "net_sharpe": 0.17075133974152587,
+      "policy_id": "R4-REB-T005"
+    },
+    {
+      "multiplier": 1.25,
+      "net_return": 0.21460828510155308,
+      "net_sharpe": 0.17902825995100308,
+      "policy_id": "R4-REB-T010"
+    },
+    {
+      "multiplier": 1.25,
+      "net_return": 0.24743830439710124,
+      "net_sharpe": 0.2064152832745945,
+      "policy_id": "R4-REB-T020"
+    },
+    {
+      "multiplier": 1.25,
+      "net_return": 0.2662575417485601,
+      "net_sharpe": 0.22165355972025305,
+      "policy_id": "R4-REB-T050"
+    },
+    {
+      "multiplier": 1.25,
+      "net_return": 0.21460828510155308,
+      "net_sharpe": 0.17902825995100308,
+      "policy_id": "R4-REB-HYBRID-T010"
+    },
+    {
+      "multiplier": 1.5,
+      "net_return": 0.7047674644678819,
+      "net_sharpe": 0.42864121208853634,
+      "policy_id": "R4-REB-CANONICAL"
+    },
+    {
+      "multiplier": 1.5,
+      "net_return": 0.7047674644678819,
+      "net_sharpe": 0.42864121208853634,
+      "policy_id": "R4-REB-DAILY"
+    },
+    {
+      "multiplier": 1.5,
+      "net_return": 0.8819665578515583,
+      "net_sharpe": 0.5398271936475755,
+      "policy_id": "R4-REB-WEEKLY"
+    },
+    {
+      "multiplier": 1.5,
+      "net_return": 0.06954795000273842,
+      "net_sharpe": 0.05784763768533369,
+      "policy_id": "R4-REB-T005"
+    },
+    {
+      "multiplier": 1.5,
+      "net_return": 0.08183087314421543,
+      "net_sharpe": 0.06815029143873426,
+      "policy_id": "R4-REB-T010"
+    },
+    {
+      "multiplier": 1.5,
+      "net_return": 0.11718216766556824,
+      "net_sharpe": 0.09759322815450702,
+      "policy_id": "R4-REB-T020"
+    },
+    {
+      "multiplier": 1.5,
+      "net_return": 0.13909213283708427,
+      "net_sharpe": 0.11559684681744785,
+      "policy_id": "R4-REB-T050"
+    },
+    {
+      "multiplier": 1.5,
+      "net_return": 0.08183087314421543,
+      "net_sharpe": 0.06815029143873426,
+      "policy_id": "R4-REB-HYBRID-T010"
+    },
+    {
+      "multiplier": 2.0,
+      "net_return": 0.5303875761204658,
+      "net_sharpe": 0.32234440491944827,
+      "policy_id": "R4-REB-CANONICAL"
+    },
+    {
+      "multiplier": 2.0,
+      "net_return": 0.5303875761204658,
+      "net_sharpe": 0.32234440491944827,
+      "policy_id": "R4-REB-DAILY"
+    },
+    {
+      "multiplier": 2.0,
+      "net_return": 0.8069398794462939,
+      "net_sharpe": 0.49373953238964774,
+      "policy_id": "R4-REB-WEEKLY"
+    },
+    {
+      "multiplier": 2.0,
+      "net_return": -0.20124942293852574,
+      "net_sharpe": -0.16670779562884666,
+      "policy_id": "R4-REB-T005"
+    },
+    {
+      "multiplier": 2.0,
+      "net_return": -0.18372395077046008,
+      "net_sharpe": -0.15238109679094627,
+      "policy_id": "R4-REB-T010"
+    },
+    {
+      "multiplier": 2.0,
+      "net_return": -0.1433301057974981,
+      "net_sharpe": -0.11888506496958871,
+      "policy_id": "R4-REB-T020"
+    },
+    {
+      "multiplier": 2.0,
+      "net_return": -0.11523868498586756,
+      "net_sharpe": -0.09537836090267919,
+      "policy_id": "R4-REB-T050"
+    },
+    {
+      "multiplier": 2.0,
+      "net_return": -0.18372395077046008,
+      "net_sharpe": -0.15238109679094627,
+      "policy_id": "R4-REB-HYBRID-T010"
+    }
+  ],
+  "evaluation_window": {
+    "end": null,
+    "grid": "daily",
+    "start": null
+  },
+  "experiment_id": "EXP-000002",
+  "generated_at": "2026-09-16T05:15:53.335534+00:00",
+  "git_head": "fda24682d38f96f2083e1ce74e6d3cac7dc3bdbb",
+  "hypothesis_id": "HYP-R4-REB-001",
+  "primary_table": [
+    {
+      "avg_holding_days": 2049.9285714285716,
+      "cost_bps": 15.0,
+      "cost_drag": -0.3487597766948318,
+      "cost_over_gross": 0.28402781310828334,
+      "entries": 1622,
+      "exits": 1602,
+      "gross_pnl": 6262.326360501662,
+      "gross_return": 1.2279071295101298,
+      "gross_sharpe": 0.7479119187467697,
+      "increases": 5278,
+      "max_drawdown": -0.27114656849651786,
+      "min_lot_distortion": 0.010704529028273858,
+      "net_pnl": 4483.6514993580195,
+      "net_return": 0.879147352815298,
+      "net_sharpe": 0.5350281865270738,
+      "orders": 29422,
+      "policy_id": "R4-REB-CANONICAL",
+      "rebalances": 1391,
+      "reductions": 6098,
+      "return_per_turnover": 0.003781172937201531,
+      "reversals": 72,
+      "total_costs": 1778.6748611436444,
+      "tracking_error_max": 0.2,
+      "tracking_error_mean": 0.02707085663331463,
+      "turnover_annualized": 24.141591464660788,
+      "turnover_total": 232.5065177965545
+    },
+    {
+      "avg_holding_days": 2049.9285714285716,
+      "cost_bps": 15.0,
+      "cost_drag": -0.3487597766948318,
+      "cost_over_gross": 0.28402781310828334,
+      "entries": 1622,
+      "exits": 1602,
+      "gross_pnl": 6262.326360501662,
+      "gross_return": 1.2279071295101298,
+      "gross_sharpe": 0.7479119187467697,
+      "increases": 5278,
+      "max_drawdown": -0.27114656849651786,
+      "min_lot_distortion": 0.010704529028273858,
+      "net_pnl": 4483.6514993580195,
+      "net_return": 0.879147352815298,
+      "net_sharpe": 0.5350281865270738,
+      "orders": 29422,
+      "policy_id": "R4-REB-DAILY",
+      "rebalances": 1391,
+      "reductions": 6098,
+      "return_per_turnover": 0.003781172937201531,
+      "reversals": 72,
+      "total_costs": 1778.6748611436444,
+      "tracking_error_max": 0.2,
+      "tracking_error_mean": 0.02707085663331463,
+      "turnover_annualized": 24.141591464660788,
+      "turnover_total": 232.5065177965545
+    },
+    {
+      "avg_holding_days": 2049.9285714285716,
+      "cost_bps": 15.0,
+      "cost_drag": -0.5311096478293509,
+      "cost_over_gross": 0.6045674014321799,
+      "entries": 2449,
+      "exits": 2429,
+      "gross_pnl": 4480.326258930032,
+      "gross_return": 0.8784953448882417,
+      "gross_sharpe": 0.7360661243727512,
+      "increases": 520,
+      "max_drawdown": -0.24318627643130608,
+      "min_lot_distortion": 0.011195031534338028,
+      "net_pnl": 1771.667055000343,
+      "net_return": 0.3473856970588908,
+      "net_sharpe": 0.29020040762021393,
+      "orders": 6074,
+      "policy_id": "R4-REB-HYBRID-T010",
+      "rebalances": 1171,
+      "reductions": 623,
+      "return_per_turnover": 0.000981112935375937,
+      "reversals": 53,
+      "total_costs": 2708.6592039296957,
+      "tracking_error_max": 0.00998659468280641,
+      "tracking_error_mean": 0.0008187427787649684,
+      "turnover_annualized": 36.76407945419498,
+      "turnover_total": 354.0730985529016
+    },
+    {
+      "avg_holding_days": 2049.9285714285716,
+      "cost_bps": 15.0,
+      "cost_drag": -0.5415947458825284,
+      "cost_over_gross": 0.6140947270976694,
+      "entries": 2449,
+      "exits": 2429,
+      "gross_pnl": 4497.894351015309,
+      "gross_return": 0.8819400688265312,
+      "gross_sharpe": 0.7379935681187308,
+      "increases": 1110,
+      "max_drawdown": -0.2437771230641539,
+      "min_lot_distortion": 0.010917515821257245,
+      "net_pnl": 1735.761147014414,
+      "net_return": 0.34034532294400277,
+      "net_sharpe": 0.2839563482924255,
+      "orders": 7322,
+      "policy_id": "R4-REB-T005",
+      "rebalances": 1256,
+      "reductions": 1281,
+      "return_per_turnover": 0.0009426198985444627,
+      "reversals": 53,
+      "total_costs": 2762.1332040008997,
+      "tracking_error_max": 0.004998554847466349,
+      "tracking_error_mean": 0.00035891672599825563,
+      "turnover_annualized": 37.48987116121342,
+      "turnover_total": 361.06316392168645
+    },
+    {
+      "avg_holding_days": 2049.9285714285716,
+      "cost_bps": 15.0,
+      "cost_drag": -0.5311096478293509,
+      "cost_over_gross": 0.6045674014321799,
+      "entries": 2449,
+      "exits": 2429,
+      "gross_pnl": 4480.326258930032,
+      "gross_return": 0.8784953448882417,
+      "gross_sharpe": 0.7360661243727512,
+      "increases": 520,
+      "max_drawdown": -0.24318627643130608,
+      "min_lot_distortion": 0.011195031534338028,
+      "net_pnl": 1771.667055000343,
+      "net_return": 0.3473856970588908,
+      "net_sharpe": 0.29020040762021393,
+      "orders": 6074,
+      "policy_id": "R4-REB-T010",
+      "rebalances": 1171,
+      "reductions": 623,
+      "return_per_turnover": 0.000981112935375937,
+      "reversals": 53,
+      "total_costs": 2708.6592039296957,
+      "tracking_error_max": 0.00998659468280641,
+      "tracking_error_mean": 0.0008187427787649684,
+      "turnover_annualized": 36.76407945419498,
+      "turnover_total": 354.0730985529016
+    },
+    {
+      "avg_holding_days": 2049.9285714285716,
+      "cost_bps": 15.0,
+      "cost_drag": -0.5210245469261328,
+      "cost_over_gross": 0.5797413361142671,
+      "entries": 2449,
+      "exits": 2429,
+      "gross_pnl": 4583.466839079312,
+      "gross_return": 0.898718988054767,
+      "gross_sharpe": 0.7529553687754957,
+      "increases": 225,
+      "max_drawdown": -0.24099352431282073,
+      "min_lot_distortion": 0.011492277485501136,
+      "net_pnl": 1926.2416497560348,
+      "net_return": 0.37769444112863426,
+      "net_sharpe": 0.3155143666065612,
+      "orders": 5433,
+      "policy_id": "R4-REB-T020",
+      "rebalances": 1098,
+      "reductions": 277,
+      "return_per_turnover": 0.001087360787577769,
+      "reversals": 53,
+      "total_costs": 2657.2251893232833,
+      "tracking_error_max": 0.019987229594272543,
+      "tracking_error_mean": 0.001507060701035252,
+      "turnover_annualized": 36.06597605421942,
+      "turnover_total": 347.3496979507561
+    },
+    {
+      "avg_holding_days": 2049.9285714285716,
+      "cost_bps": 15.0,
+      "cost_drag": -0.5086616356459037,
+      "cost_over_gross": 0.5638735473010204,
+      "entries": 2449,
+      "exits": 2429,
+      "gross_pnl": 4600.6313901602925,
+      "gross_return": 0.9020845863059398,
+      "gross_sharpe": 0.7543293902367313,
+      "increases": 61,
+      "max_drawdown": -0.24218054664577826,
+      "min_lot_distortion": 0.01203488249167294,
+      "net_pnl": 2006.457048366184,
+      "net_return": 0.3934229506600361,
+      "net_sharpe": 0.32798142270188446,
+      "orders": 5064,
+      "policy_id": "R4-REB-T050",
+      "rebalances": 1039,
+      "reductions": 72,
+      "return_per_turnover": 0.0011601708967901492,
+      "reversals": 53,
+      "total_costs": 2594.174341794115,
+      "tracking_error_max": 0.05,
+      "tracking_error_mean": 0.00278763353454102,
+      "turnover_annualized": 35.210199748047835,
+      "turnover_total": 339.1077570972702
+    },
+    {
+      "avg_holding_days": 2038.3809523809523,
+      "cost_bps": 15.0,
+      "cost_drag": -0.15005335681052867,
+      "cost_over_gross": 0.135543849509322,
+      "entries": 621,
+      "exits": 601,
+      "gross_pnl": 5645.937624643491,
+      "gross_return": 1.1070465930673512,
+      "gross_sharpe": 0.6777246443567316,
+      "increases": 878,
+      "max_drawdown": -0.25808609319593157,
+      "min_lot_distortion": 0.010702647882111754,
+      "net_pnl": 4880.665504909795,
+      "net_return": 0.9569932362568225,
+      "net_sharpe": 0.5858664516909223,
+      "orders": 5181,
+      "policy_id": "R4-REB-WEEKLY",
+      "rebalances": 229,
+      "reductions": 1027,
+      "return_per_turnover": 0.009566529432579225,
+      "reversals": 67,
+      "total_costs": 765.2721197336962,
+      "tracking_error_max": 0.4,
+      "tracking_error_mean": 0.032758499127747316,
+      "turnover_annualized": 10.386882548071199,
+      "turnover_total": 100.03557120701905
+    }
+  ],
+  "signal_provenance": {
+    "first_index": "2020-01-02",
+    "last_index": "2026-08-24",
+    "signal_cols": 42,
+    "signal_rows": 2427,
+    "signal_source": "scripts/r4_shadow_portfolio.py:replicate_signal (C1 parity-verified)",
+    "universe_source": "scripts/r4_shadow_portfolio.py:build_universe"
+  },
+  "trial_group": "R4-REB-MATRIX-V1"
+}

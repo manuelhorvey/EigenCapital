@@ -1,0 +1,73 @@
+{
+  "cost_model_id": "uniform_bps_weight_space",
+  "cost_model_version": "v1",
+  "created_at": "",
+  "dataset_hash": "563812796b6d12a95648d27405113515934d1ff0dd6c4eb371fcfaf0704e26c6",
+  "dataset_id": "mt5_d1_csv",
+  "dataset_version": "R5_data_manifest_2026-08-25",
+  "experiment_id": "EXP-000002",
+  "git_commit": "fda24682d38f96f2083e1ce74e6d3cac7dc3bdbb",
+  "hypothesis_id": "HYP-R4-REB-001",
+  "parameters": {
+    "config_version": "production",
+    "cost_model": "uniform bps per unit one-sided turnover (weight space)",
+    "policies": [
+      "R4-REB-CANONICAL",
+      "R4-REB-DAILY",
+      "R4-REB-WEEKLY",
+      "R4-REB-T005",
+      "R4-REB-T010",
+      "R4-REB-T020",
+      "R4-REB-T050",
+      "R4-REB-HYBRID-T010"
+    ],
+    "signal": "frozen R4, parity-verified offline reconstruction",
+    "threshold_candidates": [
+      0.005,
+      0.01,
+      0.02,
+      0.05
+    ],
+    "weekly_anchor": "Monday 00:00 UTC (configurable)"
+  },
+  "parent_experiment_id": "",
+  "provenance_hash": "6aa75f4258dbe42d717f157f5235fce54130f741a06826cf333e830e98644603",
+  "random_seed": null,
+  "rejection_reason": "",
+  "result": {},
+  "status": "PRE_REGISTERED",
+  "strategy_artifact_hash": "",
+  "strategy_config_hash": "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb",
+  "strategy_id": "risk_conditioned_continuation",
+  "strategy_version": "R4.0",
+  "test_end": "",
+  "test_frozen": true,
+  "test_start": "",
+  "train_end": "",
+  "train_start": "",
+  "trial_metadata": {
+    "hypothesis_family": "rebalance_frequency",
+    "parameter_search_space": {
+      "policy_type": [
+        "CANONICAL",
+        "DAILY",
+        "WEEKLY",
+        "THRESHOLD",
+        "HYBRID"
+      ],
+      "threshold": [
+        0.005,
+        0.01,
+        0.02,
+        0.05
+      ]
+    },
+    "selection_method": "pre_registered_matrix_no_search",
+    "trial_group_id": "R4-REB-MATRIX-V1",
+    "trial_index": 1,
+    "trials_in_family": 8
+  },
+  "updated_at": "",
+  "validation_end": "",
+  "validation_start": ""
+}

@@ -100,7 +100,7 @@ class TestBaselineParity:
         prices = {s: 100.0 for s in TEST_SYMBOLS}
         contract_sizes = {s: 1000.0 for s in TEST_SYMBOLS}
         min_volumes = {s: 0.01 for s in TEST_SYMBOLS}
-        equity = 5100.0
+        equity = loop.MAX_EQUITY
 
         orders = loop.generate_orders(latest, {}, prices, contract_sizes, min_volumes, equity, None)
         r4_selection = [o[0] for o in orders if "rotated out" not in o[3]]

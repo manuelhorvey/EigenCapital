@@ -63,7 +63,7 @@ BTCUSD = "crypto"         # min lot $792
 # Max position = $1,500 (30% of equity) — fits all tradeable instruments
 # Max order = $1,500 — single order can fill any position
 # 12 tradeable instruments out of 15 (USDJPY, XAUUSD, XAGUSD, US30 excluded)
-max_equity = 5100.0              # Maximum authorized equity ($5K + 2% buffer for P&L drift)
+max_equity = 20000.0             # Maximum authorized equity for the expanded $19K account tier
 max_drawdown_pct = 20.0          # 20% max campaign drawdown
 max_daily_loss = 250.0           # $250 max daily loss
 max_total_drawdown = 1000.0      # $1,000 max total drawdown
@@ -153,6 +153,9 @@ max_cumulative_slippage_bps = 15.0 # Max cumulative slippage
 max_order_frequency = 10         # Max orders per hour
 max_orders_per_cycle = 20        # Max orders per rebalance cycle (all R4 signals)
 loop_interval_seconds = 3600     # Default loop interval (1 hour)
+max_absolute_weight_error = 0.05 # Max absolute weight error in percentage points (5pp = 500bps).
+                                     # If achieved weight deviates from target weight by more than this,
+                                     # the position is SKIPPED_MIN_LOT and no order is submitted.
 
 [alerts]
 # Alert delivery

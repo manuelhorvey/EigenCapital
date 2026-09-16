@@ -7,7 +7,13 @@ and submits orders only when:
   3. Orders pass envelope and spread checks
 
 Runs on a configurable interval (default: 1 hour).
-Respects the rebalance frequency from config (weekly).
+
+Rebalance policy (EXP-000002, research-only): the intervention clock — WHEN an
+already-computed R4 target is acted upon — is selected via the
+R4_REBALANCE_POLICY env var (CANONICAL|DAILY|WEEKLY|THRESHOLD|HYBRID).
+Default CANONICAL reproduces the historical behavior exactly (act whenever
+orders exist). The policy layer never touches the signal, sizing, risk gates,
+or execution path; see eigencapital/live/rebalance_policy.py.
 
 Safety controls:
   - Regime gate: no trade when vol > median (unless --force-regime)
@@ -28,6 +34,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import math
 import os
 import signal
 import sys
@@ -58,6 +65,15 @@ from eigencapital.config import load_config  # noqa: E402
 from eigencapital.live.daily_loss import DailyLossTracker  # noqa: E402
 from eigencapital.live.partial_fills import PartialFillManager  # noqa: E402
 from eigencapital.live.position_attribution import R4_MAGIC, classify_all, snapshot_hash  # noqa: E402
+from eigencapital.live.rebalance_policy import (  # noqa: E402
+    RebalanceDecision,
+    RebalanceEvents,
+    RebalancePolicyLedger,
+    compute_target_hash,
+    load_policy_state,
+    policy_from_env,
+    save_policy_state,
+)
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState  # noqa: E402
 from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope  # noqa: E402
 from eigencapital.live.watchdog import ProbeResult, Watchdog, WatchState, trail_age_seconds  # noqa: E402
@@ -132,7 +148,9 @@ VOL_LOOKBACK = _config.strategy.vol_lookback_signal  # 60 — 60-day vol for inv
 VOL_TARGET = _config.strategy.vol_target_annual  # 0.10
 
 # Capital limits — from config
-MAX_EQUITY = _config.capital.max_equity  # 5100
+# Sizing uses verified live equity; this remains the campaign authorization
+# ceiling and is not used as the sizing denominator.
+MAX_EQUITY = _config.capital.max_equity
 MAX_POSITION_USD = _config.capital.max_position_size  # 1500
 MAX_CONCURRENT = _config.capital.max_concurrent_positions  # 8
 MAX_ORDERS_PER_CYCLE = _config.execution.max_orders_per_cycle  # 8
@@ -190,6 +208,120 @@ _reconciliation_engine = ReconciliationEngine(
 
 # State persisted across restarts
 _STATE_FILE = os.path.join(AUDIT_DIR, "runtime_state.json")
+
+# ── Rebalance policy (EXP-000002) — research-only intervention gate ──────
+# Selected via R4_REBALANCE_POLICY env var; default CANONICAL == frozen
+# behavior (no veto, no filtering). Policy state persists to its OWN file
+# (rebalance_policy_state.json); runtime_state.json (risk recovery state) is
+# never touched by the policy layer.
+_rebalance_policy = policy_from_env()
+_policy_ledger = RebalancePolicyLedger(AUDIT_DIR)
+
+
+def _current_weights_from_positions(
+    current_lots: Dict[str, float],
+    prices: Dict[str, float],
+    contract_sizes: Dict[str, float],
+    equity: float,
+) -> Dict[str, float]:
+    """Achieved signed weights, same convention as the sizing path (capped equity)."""
+    capped = equity
+    weights: Dict[str, float] = {}
+    for sym, lots in current_lots.items():
+        price = prices.get(sym, 0.0)
+        cs = contract_sizes.get(sym, 0.0)
+        if price <= 0 or cs <= 0 or capped <= 0:
+            continue
+        weights[sym] = lots * price * cs / capped
+    return weights
+
+
+def _evaluate_rebalance_policy(
+    *,
+    target_weights: pd.Series,
+    current_lots: Dict[str, float],
+    prices: Dict[str, float],
+    contract_sizes: Dict[str, float],
+    equity: float,
+    diag: Dict[str, Any],
+) -> RebalanceDecision:
+    """Run the intervention-clock policy for this cycle (research gate).
+
+    CANONICAL (default): always TRADE → zero behavior change.
+    Non-canonical policies may HOLD the whole cycle (no orders executed) or
+    restrict orders to the band-permitted symbol set via decision.tradable_symbols.
+
+    Canonical events consumed (Sections 8/9 — nothing invented here):
+      regime_transition: R4 regime state flip vs the previous evaluated cycle.
+      Risk/reconciliation events are NOT passed: upstream hard gates already
+      returned BLOCKED/HALTED before order generation, so the policy layer
+      can never become a path around them.
+    """
+    current_weights = _current_weights_from_positions(current_lots, prices, contract_sizes, equity)
+    target_map = {sym: float(w) for sym, w in target_weights.items()}
+    now = datetime.now(UTC)
+    events = RebalanceEvents(
+        regime_transition=(
+            _rebalance_policy.state.last_regime_on is not None
+            and bool(diag.get("regime_on", False)) != _rebalance_policy.state.last_regime_on
+        )
+    )
+    try:
+        signal_ts = pd.Timestamp(diag.get("signal_date")).to_pydatetime() if diag.get("signal_date") else None
+    except (TypeError, ValueError):
+        signal_ts = None
+    decision = _rebalance_policy.should_rebalance(
+        current_weights=current_weights,
+        target_weights=target_map,
+        signal_timestamp=signal_ts,
+        now=now,
+        events=events,
+    )
+    _rebalance_policy.record_target(compute_target_hash(target_map), signal_ts)
+    _rebalance_policy.record_regime(bool(diag.get("regime_on", False)))
+    estimated_cost = (
+        decision.gross_turnover_if_traded
+        * equity
+        * (_config.strategy.transaction_cost_bps + _config.strategy.slippage_bps)
+        / 1e4
+    )
+    cycle_id = f"R4REB-{now.strftime('%Y%m%d%H%M%S')}"
+    try:
+        _policy_ledger.record(
+            cycle_id=cycle_id,
+            decision=decision,
+            target_weights=target_map,
+            current_weights=current_weights,
+            target_hash=compute_target_hash(target_map),
+            signal_date=str(diag.get("signal_date", "")),
+            risk_state="gates_passed",
+            regime="ON" if diag.get("regime_on", False) else "OFF",
+            estimated_cost=round(estimated_cost, 4),
+        )
+    except OSError as e:
+        log(f"  ⚠️ rebalance-policy ledger write failed: {e}")
+    return decision
+
+
+def _apply_policy_to_orders(
+    orders: List[Tuple[str, str, float, str, int | None]],
+    decision: RebalanceDecision,
+) -> List[Tuple[str, str, float, str, int | None]]:
+    """Restrict the order plan to the policy-permitted symbol set.
+
+    Under threshold/hybrid policies, banded symbols produce no orders this
+    cycle (their adjustment order is dropped). Discrete events (entries,
+    exits, reversals, rotation closes) are always in the permitted set.
+    CANONICAL permits everything → no filtering, identical behavior.
+    """
+    if decision.should_trade and decision.policy_type.value != "CANONICAL":
+        allowed = set(decision.tradable_symbols)
+        filtered = [o for o in orders if o[0] in allowed]
+        if len(filtered) != len(orders):
+            log(f"  🔎 Rebalance policy: dropped {len(orders) - len(filtered)} banded order(s)")
+        return filtered
+    return orders
+
 
 # T0 sizing evidence (forensic audit 2026-09-13): intended-vs-achievable
 # weight deviation per symbol, populated by generate_orders on every call and
@@ -573,6 +705,8 @@ def generate_orders(
     min_volumes: Dict[str, float],
     equity: float,
     pos_details: Dict[str, List[Any]] | None = None,
+    volume_step: float = 0.01,
+    volume_max: float = 1.0,
 ) -> List[Tuple[str, str, float, str, int | None]]:
     """Portfolio rebalance: strongest longs + strongest shorts.
 
@@ -593,7 +727,9 @@ def generate_orders(
     """
     global weight_error_by_symbol
     weight_error_by_symbol = {}
-    capped_equity = min(equity, MAX_EQUITY)
+    if equity <= 0:
+        raise ValueError("equity must be positive for live sizing")
+    capped_equity = equity
 
     # Step 1: Build target portfolio for all eligible symbols
     target_portfolio: Dict[str, Dict[str, Any]] = {}
@@ -627,6 +763,49 @@ def generate_orders(
             target_lots = min(floored_lots, max_lots)
             achievable_notional = target_lots * price * cs
             achieved_weight = achievable_notional / capped_equity if capped_equity > 0 else 0.0
+
+            # ── FEASIBILITY ANALYSIS ──────────────────────────────────────
+            # Determine executable lots using the broker's actual volume specs.
+            # Do NOT hard-code round(..., 2) — use SymbolVolumeMin/Max/Step from
+            # the symbol specification. The min_vol passed in is volume_min from
+            # MT5 symbol_info; we also need volume_step and volume_max.
+            #
+            # Weight distortion is recorded as execution-fidelity evidence, but
+            # it is not an execution veto when the broker volume fits the risk
+            # envelope. The notional envelope remains the hard safety boundary.
+            #
+            # MT5 permitting a volume does not mean it faithfully represents the
+            # intended target; that mismatch remains visible in the evidence.
+            #
+            # Compute executable lots using the broker's actual volume specs.
+            # Do NOT hard-code round(..., 2) — use the actual broker volume_step
+            # and volume_max rather than assumed two-decimal-place precision.
+            # The function parameters volume_step and volume_max allow callers
+            # to pass the actual broker specifications; conservative defaults
+            # are provided for backward compatibility.
+            # min_vol is the per-symbol volume_min from the loop context.
+            executable_lots = min(target_lots, volume_max)
+            executable_lots = math.floor(executable_lots / volume_step) * volume_step
+            if executable_lots < min_vol:
+                executable_lots = 0.0
+
+            # Recompute achieved weight with executable lots
+            executable_notional = executable_lots * price * cs
+            executable_weight = executable_notional / capped_equity if capped_equity > 0 else 0.0
+            executable_absolute_error = executable_weight - abs(w)
+            if abs(w) > 0:
+                executable_relative_error = executable_weight / abs(w)
+            else:
+                executable_relative_error = 0.0
+
+            # Execution feasibility is governed by the broker and risk
+            # envelope, not by target-fidelity error. A minimum lot may be
+            # larger than the intended weight while still fitting safely
+            # inside the authorized per-position notional. Record that
+            # deviation for diagnostics, but do not silently veto the order.
+            is_feasible = 0.0 < executable_notional <= MAX_POSITION_USD
+
+            # Populate evidence map with full sizing metrics
             weight_error_by_symbol[sym] = {
                 "signal_weight": round(w, 6),
                 "intended_notional": round(notional, 2),
@@ -634,12 +813,19 @@ def generate_orders(
                 "raw_lots": round(raw_lots, 4),
                 "floored": bool(raw_lots < min_vol),
                 "target_lots": target_lots,
+                "executable_lots": executable_lots,
                 "achievable_notional": round(achievable_notional, 2),
+                "executable_notional": round(executable_notional, 2),
                 "achieved_weight": round(achieved_weight, 6),
+                "executable_weight": round(executable_weight, 6),
+                "absolute_weight_error": round(executable_absolute_error, 6),
+                "relative_weight_distortion": round(executable_relative_error, 6),
                 "weight_error": round(achieved_weight - abs(w), 6),
                 "weight_error_pct": round((achieved_weight - abs(w)) / abs(w) * 100.0 if abs(w) > 0 else 0.0, 2),
+                "is_feasible": bool(is_feasible),
+                "max_absolute_weight_error": _config.execution.max_absolute_weight_error,
             }
-            tgt_lots = target_lots
+            tgt_lots = executable_lots if is_feasible else 0.0
         else:
             tgt_lots = 0.0
 
@@ -659,15 +845,25 @@ def generate_orders(
 
     # Step 2: Sort by |weight| — strongest signals first
     ranked = sorted(
-        target_portfolio.items(),
+        ((sym, info) for sym, info in target_portfolio.items() if info["target_lots"] > 0.0),
         key=lambda x: x[1]["abs_weight"],
         reverse=True,
     )
 
-    # Step 3: Take top N — this is our target portfolio
+    # Step 3: Take top N — this is our target portfolio. Existing positions
+    # whose targets are infeasible at broker minimum lot must be retained;
+    # closing them would turn an execution constraint into an unintended exit.
     target_symbols = set()
     for sym, info in ranked[:MAX_CONCURRENT]:
         target_symbols.add(sym)
+    target_symbols.update(
+        sym
+        for sym, info in target_portfolio.items()
+        if info["target_lots"] == 0.0
+        and sym in current_positions
+        and abs(current_positions[sym]) > 0.0
+        and not bool(weight_error_by_symbol.get(sym, {}).get("is_feasible", True))
+    )
 
     # Step 4: Generate orders
     orders: List[Tuple[str, str, float, str]] = []
@@ -705,6 +901,13 @@ def generate_orders(
         cur_lots = current_positions.get(sym, 0)
         target_signed = info["target_signed"]
         min_vol = info["min_vol"]
+
+        if (
+            cur_lots != 0
+            and info["target_lots"] == 0.0
+            and not bool(weight_error_by_symbol.get(sym, {}).get("is_feasible", True))
+        ):
+            continue
 
         delta_signed = target_signed - cur_lots
         delta = abs(delta_signed)
@@ -753,6 +956,38 @@ def detect_filling_mode(mt5) -> int:
     """Try to detect the filling mode for the broker."""
     # Exness demo typically uses FOK
     return mt5.ORDER_FILLING_FOK
+
+
+def _build_mt5_order_request(
+    *,
+    symbol: str,
+    lots: float,
+    mt5_type: int,
+    price: float,
+    filling_mode: int,
+    ticket: int | None,
+) -> Dict[str, Any]:
+    """Build a bridge-safe request using only native Python scalar values.
+
+    mt5linux serializes requests through remote ``eval(repr(request))``;
+    NumPy scalar reprs such as ``np.float64(...)`` are not defined in the
+    terminal process.
+    """
+    request: Dict[str, Any] = {
+        "action": int(MetaTrader5.TRADE_ACTION_DEAL),
+        "symbol": symbol,
+        "volume": float(lots),
+        "type": int(mt5_type),
+        "price": float(price),
+        "deviation": 10,
+        "magic": 20260825,
+        "comment": "R4-Rebalance",
+        "type_time": int(MetaTrader5.ORDER_TIME_GTC),
+        "type_filling": int(filling_mode),
+    }
+    if ticket is not None:
+        request["position"] = int(ticket)
+    return request
 
 
 def execute_orders(
@@ -819,20 +1054,14 @@ def execute_orders(
             results["submitted"] += 1
             continue
 
-        request = {
-            "action": MetaTrader5.TRADE_ACTION_DEAL,
-            "symbol": sym,
-            "volume": lots,
-            "type": mt5_type,
-            "price": price,
-            "deviation": 10,
-            "magic": 20260825,
-            "comment": "R4-Rebalance",
-            "type_time": MetaTrader5.ORDER_TIME_GTC,
-            "type_filling": filling_mode,
-        }
-        if ticket is not None:
-            request["position"] = ticket
+        request = _build_mt5_order_request(
+            symbol=sym,
+            lots=lots,
+            mt5_type=mt5_type,
+            price=price,
+            filling_mode=filling_mode,
+            ticket=ticket,
+        )
 
         # Retry logic for transient failures (with timeout guard)
         result = None
@@ -1898,7 +2127,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             _wd_record = {
                 "timestamp": datetime.now(UTC).isoformat(),
                 "signal_date": diag.get("signal_date"),
-                "equity_capped": min(equity, MAX_EQUITY),
+                "equity_sized": equity,
                 "symbol_count": len(weight_error_by_symbol),
                 "floored_count": sum(1 for v in weight_error_by_symbol.values() if v.get("floored")),
                 "max_abs_weight_error_pct": max(
@@ -2018,6 +2247,70 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
         audit({"event": "aligned", "positions": len(pos_list), "diag": diag})
         return {"status": "ALIGNED", "diag": diag}
 
+    # ── Rebalance policy gate (EXP-000002, research-only) ─────────────
+    # Intervention clock: decide whether THIS cycle may act on the target.
+    # Runs only when an order plan exists (empty plans return ALIGNED above,
+    # unchanged). Default CANONICAL always trades → behavior identical to
+    # pre-research. Risk gates already ran above; a HOLD here never
+    # suppresses a risk response (hard gates returned earlier fail-closed).
+    _policy_decision = _evaluate_rebalance_policy(
+        target_weights=target_weights,
+        current_lots=current_lots,
+        prices=prices,
+        contract_sizes=contract_sizes,
+        equity=equity,
+        diag=diag,
+    )
+    log(
+        f"  ⏱️ Rebalance policy [{_policy_decision.policy_id}]: {_policy_decision.action.value} "
+        f"({_policy_decision.reason.value})"
+    )
+    if not _policy_decision.should_trade:
+        save_policy_state(AUDIT_DIR, _rebalance_policy.state)
+        audit(
+            {
+                "event": "rebalance_policy_hold",
+                "policy_id": _policy_decision.policy_id,
+                "reason": _policy_decision.reason.value,
+                "max_weight_deviation": _policy_decision.max_weight_deviation,
+                "banded_symbols": _policy_decision.banded_symbols,
+            }
+        )
+        return {
+            "status": "POLICY_HOLD",
+            "reason": _policy_decision.reason.value,
+            "policy_id": _policy_decision.policy_id,
+            "diag": diag,
+        }
+    orders = _apply_policy_to_orders(orders, _policy_decision)
+    if not dry_run:
+        # Only an actually-executed intervention advances the period anchor;
+        # a dry run must stay idempotent (re-running produces HOLD, not a
+        # phantom "already traded" state).
+        _rebalance_policy.record_trade(datetime.now(UTC), _policy_decision)
+    save_policy_state(AUDIT_DIR, _rebalance_policy.state)
+    audit(
+        {
+            "event": "rebalance_policy_trade",
+            "policy_id": _policy_decision.policy_id,
+            "reason": _policy_decision.reason.value,
+            "tradable_symbols": _policy_decision.tradable_symbols,
+            "banded_symbols": _policy_decision.banded_symbols,
+            "orders_after_filter": len(orders),
+            "dry_run": dry_run,
+        }
+    )
+    if not orders:
+        log("✅ Rebalance policy: permitted set produced no orders — portfolio aligned within band")
+        audit(
+            {
+                "event": "policy_aligned",
+                "policy_id": _policy_decision.policy_id,
+                "reason": _policy_decision.reason.value,
+            }
+        )
+        return {"status": "POLICY_ALIGNED", "reason": _policy_decision.reason.value, "diag": diag}
+
     # 7. Shadow portfolio analytics (read-only — no impact on orders)
     try:
         from eigencapital.live.portfolio_analytics import PortfolioAnalyzer
@@ -2076,11 +2369,14 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     account_after = mt5.account_info()
     positions_after = mt5.positions_get()
     pos_count = len(list(positions_after)) if positions_after else 0
+    if account_after is None:
+        log("  ⚠️ Post-trade account read unavailable; retaining pre-trade equity for audit continuity")
+    equity_after = float(account_after.equity) if account_after is not None else equity
 
     cycle_result = {
         "status": "EXECUTED",
         "equity_before": equity,
-        "equity_after": account_after.equity if account_after else 0,
+        "equity_after": equity_after,
         "positions_before": len(pos_list),
         "positions_after": pos_count,
         "submitted": exec_results["submitted"],
@@ -2107,24 +2403,18 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
     confirmation_wait = 1.5  # seconds; MT5 fill settlement typical < 1s
     time.sleep(confirmation_wait)
     positions_after_conf = mt5.positions_get() or []
-    # Build a set of (symbol, type, ticket) that appeared after confirmation
-    confirmed_tickets = {(p.ticket, p.symbol, p.type): p for p in positions_after_conf}
-    # Cross-reference: for each order ticket, check if it was confirmed
-    confirmed_ticket_set = set()
-    for order in orders[:MAX_ORDERS_PER_CYCLE]:
-        _, _, _lots, _reason, ticket = order
-        if ticket is not None and ticket in confirmed_tickets:
-            confirmed_ticket_set.add(ticket)
-    # Log confirmation status
-    unconfirmed = sum(
-        1 for order in orders[:MAX_ORDERS_PER_CYCLE] if order[4] is not None and order[4] not in confirmed_ticket_set
-    )
+    # A close is confirmed when its ticket has disappeared. New positions do
+    # not carry tickets in the local order plan and are accounted for by the
+    # broker fill result above.
+    confirmed_position_tickets = {p.ticket for p in positions_after_conf}
+    close_orders = [order for order in orders[:MAX_ORDERS_PER_CYCLE] if order[4] is not None]
+    unconfirmed = sum(1 for order in close_orders if order[4] in confirmed_position_tickets)
     if unconfirmed > 0:
         log(
-            f"  ⚠️ Fill confirmation: {unconfirmed}/{len(orders[:MAX_ORDERS_PER_CYCLE])} order(s) ticket(s) unconfirmed after {confirmation_wait}s"
+            f"  ⚠️ Fill confirmation: {unconfirmed}/{len(close_orders)} close ticket(s) unconfirmed after {confirmation_wait}s"
         )
     else:
-        log(f"  ✅ Fill confirmation: all {min(len(orders), MAX_ORDERS_PER_CYCLE)} order(s) ticket(s) confirmed")
+        log(f"  ✅ Fill confirmation: all {len(close_orders)} close ticket(s) confirmed")
     # Persist confirmation diagnostics
     audit(
         {
@@ -2133,7 +2423,7 @@ def run_cycle(mt5, force_regime: bool, dry_run: bool) -> Dict[str, Any]:
             "submitted": exec_results["submitted"],
             "filled": exec_results["filled"],
             "unconfirmed_tickets": unconfirmed,
-            "total_tickets": sum(1 for o in orders[:MAX_ORDERS_PER_CYCLE] if o[4] is not None),
+            "total_tickets": len(close_orders),
         }
     )
 
@@ -2555,6 +2845,14 @@ def main() -> None:
     log(
         f"Daily loss tracker: baseline=${_daily_loss_tracker.baseline_equity:,.2f}, "
         f"budget=${_daily_loss_tracker.remaining_daily_loss_budget:,.2f}"
+    )
+
+    # Rebalance policy (EXP-000002): restore persisted anchors so a restart
+    # cannot double-trade the same day/week (idempotency, Sections 23/24).
+    load_policy_state(AUDIT_DIR, _rebalance_policy)
+    log(
+        f"Rebalance policy: {_rebalance_policy.config.policy_id} "
+        f"(env R4_REBALANCE_POLICY={os.environ.get('R4_REBALANCE_POLICY', 'CANONICAL')})"
     )
 
     # Load persisted state (survives restart)

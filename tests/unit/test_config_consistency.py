@@ -116,7 +116,7 @@ class TestConfigVsScriptConsistency:
     def test_capital_limits_from_config(self):
         """Capital limits must match config."""
         config = load_config("production")
-        assert config.capital.max_equity == 5100.0
+        assert config.capital.max_equity == 20000.0
         assert config.capital.max_position_size == 5000.0
         assert config.capital.max_concurrent_positions == 20
 

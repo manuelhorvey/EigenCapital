@@ -2,8 +2,15 @@ import { getApiBase } from "./config";
 
 const API_BASE = getApiBase();
 
+// Must match the backend's DASHBOARD_API_KEY (S7). Overridable via Vite env.
+const API_KEY = import.meta.env.VITE_API_KEY || "dev-key-change-in-production";
+
 export async function fetchApi<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`);
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+    },
+  });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }

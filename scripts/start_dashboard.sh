@@ -15,6 +15,14 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND_PORT=8080
 FRONTEND_PORT=5173
 
+# Shared API key (S7): backend requires it on /api/v1/*; frontend sends it.
+# Override both by exporting DASHBOARD_API_KEY before running this script.
+if [ -z "${DASHBOARD_API_KEY:-}" ]; then
+    DASHBOARD_API_KEY="dev-key-change-in-production"
+    export DASHBOARD_API_KEY
+fi
+export VITE_API_KEY="${DASHBOARD_API_KEY}"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'

@@ -30,7 +30,7 @@ def main() -> None:
         sys.exit(1)
 
     print(f"Starting EigenCapital Dashboard on http://{args.host}:{args.port}")
-    print("API docs: http://localhost:{args.port}/api/docs")
+    print(f"API docs: http://localhost:{args.port}/api/docs")
     print("Read-only mode: Dashboard cannot modify trading state")
 
     uvicorn.run(

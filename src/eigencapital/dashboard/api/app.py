@@ -74,7 +74,9 @@ async def add_security_headers(request: Request, call_next: Any) -> Any:
 
 _RATE_LIMITS: dict[str, list[float]] = defaultdict(list)
 _RATE_LIMIT_WINDOW = 60  # seconds
-_RATE_LIMIT_MAX = 100  # requests per window per client IP
+# The dashboard frontend polls many endpoints every few seconds; 100/min exhausts
+# quickly and cascades into 429s. Default sized for the dashboard itself.
+_RATE_LIMIT_MAX = int(os.environ.get("DASHBOARD_RATE_LIMIT_MAX", "600"))  # requests per window per client IP
 
 
 def _api_key() -> str:

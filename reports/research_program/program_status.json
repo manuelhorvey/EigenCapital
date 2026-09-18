@@ -1,0 +1,127 @@
+{
+  "program": "eigen_capital_research_r0_r6",
+  "status": "CLOSED",
+  "closed_at": "2026-09-17",
+  "head_at_closure": "0b297a9",
+  "human_readable": "docs/research/RESEARCH_PROGRAM_STATUS.md",
+  "verdict_vocabulary": {
+    "COMPLETE": "stage infrastructure and planned scope delivered",
+    "FROZEN": "stage record immutable; changes require a new preregistration",
+    "REJECTED": "preregistered hypothesis failed its declared evidence bar",
+    "FALSIFIED": "evidence contradicts the preregistered hypothesis under the declared experiment",
+    "INCONCLUSIVE": "experiment did not generate sufficient evidence to decide the hypothesis; never read as a pass",
+    "PARKED": "further work under the current data/assumption class not justified; reopening requires a material change (new data class or new preregistered rationale)",
+    "BLOCKED_DATA": "required data class does not exist; synthetic proxies banned",
+    "DEFERRED": "prerequisite (an additional validated strategy family) does not exist"
+  },
+  "stages": [
+    {
+      "stage": "R0",
+      "name": "infrastructure_verification",
+      "verdict": "COMPLETE",
+      "ledger": "docs/research/R0_INFRASTRUCTURE_VERIFICATION.md",
+      "outcome_summary": "existing contracts verified; only real gap (trade-stream persistence) patched as R1-A"
+    },
+    {
+      "stage": "R1",
+      "name": "monte_carlo_diagnostics",
+      "verdict": "COMPLETE/FROZEN",
+      "ledger": "docs/research/R1_MONTE_CARLO.md",
+      "trial_slots": ["R1-A", "R1-B1", "R1-B2", "R1-B3", "R1-B4"],
+      "outcome_summary": "resampling ladder on TS-R4-D1-0001 (1,311 trades); IID resampling understates drawdown/streak/recovery tails vs dependence-aware block resampling; diagnostics, not forecasts",
+      "artifacts": "reports/r1_monte_carlo/"
+    },
+    {
+      "stage": "R2",
+      "name": "factor_laboratory",
+      "verdict": "COMPLETE/FROZEN",
+      "factor_experiment_verdict": "REJECTED",
+      "ledger": "docs/research/R2_FACTOR_LAB.md",
+      "trial_slots": ["R2-B1"],
+      "outcome_summary": "lab validated; momentum_12_1 x r4_local_v1 x h=21: mean rank IC -0.0440, Holm p 0.4398, stress-cost spread negative; one slot consumed",
+      "artifacts": "reports/r2_factor_lab/"
+    },
+    {
+      "stage": "R3",
+      "name": "parameter_stability",
+      "verdict": "COMPLETE",
+      "hypothesis_verdict": "H1_FALSIFIED",
+      "ledger": "docs/research/R3_PARAMETER_STABILITY.md",
+      "trial_slots": ["R3-B1"],
+      "outcome_summary": "frozen config OUTSIDE_STABLE_REGION on 1,500-point preregistered grid (92% fragile, PBO 1.000 across 16/16 partitions with non-independence caveat, DSR 0.0019 n.s.); observed axis associations quarantined from action",
+      "artifacts": "reports/r3_parameter_stability/"
+    },
+    {
+      "stage": "R4",
+      "name": "mean_reversion_stat_arb",
+      "verdict": "INCONCLUSIVE->PARKED",
+      "verdict_sequence": ["R4-B1 INCONCLUSIVE", "R4-B2 PARKED (parking rule fired: 5 trades < 20)"],
+      "ledger": "docs/research/R4_MEAN_REVERSION.md",
+      "trial_slots": ["R4-B1", "R4-B2"],
+      "outcome_summary": "gate starvation structural on daily bars (0-3 active regimes per ~87 estimation dates; 5 trades across 8 preregistered pairs); reopening requires a new data class",
+      "artifacts": "reports/r4_mean_reversion/"
+    },
+    {
+      "stage": "R5",
+      "name": "triple_barrier_labeling",
+      "verdict": "COMPLETE/FROZEN",
+      "ledger": "docs/research/R5_TRIPLE_BARRIER.md",
+      "trial_slots": ["R5-B1"],
+      "outcome_summary": "labeling instrument validated (1,311 events = TS-R4-D1-0001, 0 exclusions, byte-identical determinism, PIT proven by perturbation); overlap characterized (492 pairs, 663 events, mean uniqueness 0.837); NOT evidence of predictive power",
+      "artifacts": "reports/r5_triple_barrier/"
+    },
+    {
+      "stage": "R6",
+      "name": "meta_labeling",
+      "verdict": "INCONCLUSIVE->PARKED",
+      "verdict_sequence": ["R6-B1 INCONCLUSIVE (preregistered filter vacuous: skip class empty)"],
+      "ledger": "docs/research/R6_META_LABELING.md",
+      "trial_slots": ["R6-B1"],
+      "outcome_summary": "B1 design exercised end-to-end with all pre-execution checks passing; R4's upstream regime gate had already excluded the filter's targeted states; B2 correctly not run; supported claim is filter-specific, NOT 'no feature can work'",
+      "artifacts": "reports/r6_meta_labeling/"
+    },
+    {
+      "stage": "R7",
+      "name": "order_flow_entropy",
+      "verdict": "BLOCKED_DATA",
+      "outcome_summary": "requires trade/order-flow data with aggressor_side; see docs/research/DATA_REQUIREMENTS.md section 2"
+    },
+    {
+      "stage": "R8",
+      "name": "strategy_level_portfolio",
+      "verdict": "DEFERRED",
+      "outcome_summary": "requires at least one additional validated strategy family; none exists"
+    }
+  ],
+  "trial_accounting": {
+    "slots_registered": 6,
+    "slots_consumed": 6,
+    "slots_reopened": 0,
+    "post_hoc_adjustments": 0,
+    "slots": [
+      { "id": "R2-B1", "verdict": "REJECTED" },
+      { "id": "R3-B1", "verdict": "H1_FALSIFIED" },
+      { "id": "R4-B1", "verdict": "INCONCLUSIVE" },
+      { "id": "R4-B2", "verdict": "PARKED_rule_fired" },
+      { "id": "R5-B1", "verdict": "COMPLETE_measurement_delivered" },
+      { "id": "R6-B1", "verdict": "INCONCLUSIVE" }
+    ]
+  },
+  "production_boundary": {
+    "r4_frozen": true,
+    "r4_modified_by_research": false,
+    "modification_authority": "R4-S forward/soak evidence only",
+    "rule": "nothing in R0-R6 constitutes permission to alter frozen R4; any future change enters as a new preregistered research program with a fresh trial ledger"
+  },
+  "reopening_rules": [
+    "new research starts with a NEW preregistration and fresh trial accounting; never by extending R2-R6",
+    "parked stages reopen only via a materially different preregistered rationale or a new data class (see docs/research/DATA_REQUIREMENTS.md)",
+    "R8 requires at least one additional validated strategy family",
+    "queue closure means the currently justified program is exhausted without manufacturing evidence, not that research is finished"
+  ],
+  "verification_at_closure": {
+    "tests": "720/720 research suite",
+    "ruff": "clean",
+    "mypy": "clean (86 source files)"
+  }
+}

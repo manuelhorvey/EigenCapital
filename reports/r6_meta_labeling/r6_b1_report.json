@@ -1,0 +1,62 @@
+{
+  "experiment": "R6-B1 preregistered vol-cap deterministic filter (meta-labeling baseline 1)",
+  "contract": "docs/research/R6_META_LABELING.md (R6-A contract + B1 preregistration \u00a75)",
+  "timestamp_utc": "2026-09-17T23:42:44.641230+00:00",
+  "filter": "take iff vol_scale < 1.0 (vol60 < VOL_SCALE_REFERENCE = 0.50); skip iff vol_scale == 1.0",
+  "pre_execution_checks": {
+    "feature_availability_failures": 0,
+    "weights_identity_failures": 0,
+    "event_round_trip_correspondence": {
+      "n_events": 1311,
+      "n_entry_fills": 1311,
+      "n_round_trips": 1311,
+      "ok": true
+    },
+    "labels": {
+      "n_labeled": 1311,
+      "n_excluded": 0
+    },
+    "wf_fit": {
+      "n_events": 1311,
+      "train_purge_test": 1010,
+      "ok": true
+    }
+  },
+  "b1": {
+    "n_taken": 1311,
+    "n_skipped": 0,
+    "rate_taken": 0.5194508009153318,
+    "rate_skipped": null,
+    "rate_difference": null,
+    "ci_90": [
+      null,
+      null
+    ],
+    "verdict": "INCONCLUSIVE",
+    "verdict_statement": "missing evidence (empty filter class or unformable resample) \u2014 INCONCLUSIVE, never promoted to a pass",
+    "n_oos_windows": 10,
+    "oos_window_rate_diffs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "bootstrap": {
+      "n": 1000,
+      "block_length": 20,
+      "seed": 42
+    }
+  },
+  "guards": {
+    "filter_quality_only": true,
+    "not_a_strategy_verdict": true,
+    "not_a_forecast": true,
+    "label_balance_is_not_accuracy": "the R5 681/630 split is an instrument property; never quoted as baseline accuracy"
+  }
+}

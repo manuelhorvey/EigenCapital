@@ -1,0 +1,174 @@
+{
+  "experiment": "R5-B triple-barrier label-quality measurement",
+  "contract": "docs/research/R5_TRIPLE_BARRIER.md (frozen before code)",
+  "timestamp_utc": "2026-09-17T23:29:58.341945+00:00",
+  "spec_version": "r5_spec_v1",
+  "spec": {
+    "pt_multiplier": 2.0,
+    "sl_multiplier": 2.0,
+    "vertical_horizon_bars": 10,
+    "vol_lookback_days": 60,
+    "vol_source": "frozen replica per-symbol 60d realized vol (PIT by construction)",
+    "barriers": "multiplicative: entry \u00b1 m \u00b7 daily_vol \u00b7 entry_price"
+  },
+  "n_events": 1311,
+  "n_valid": 1311,
+  "n_excluded": 0,
+  "exclusion_reasons": {},
+  "label_distribution": {
+    "+1 (PT first or favorable vertical)": 681,
+    "-1 (SL first or adverse vertical)": 630,
+    "0 (vertical, exact equality)": 0
+  },
+  "first_touch_distribution": {
+    "PT": 624,
+    "SL": 584,
+    "VERTICAL": 103
+  },
+  "time_to_touch": {
+    "n_pt_sl": 1208,
+    "mean_bars": 3.3899006622516556,
+    "max_bars": 10
+  },
+  "overlap": {
+    "n_overlapping_pairs": 492,
+    "n_events_with_overlap": 663,
+    "max_overlaps_single_event": 4
+  },
+  "uniqueness": {
+    "mean": 0.8370896453180969,
+    "min": 0.38888888888888884,
+    "max": 1.0
+  },
+  "per_instrument": [
+    {
+      "instrument": "AUDUSDm",
+      "n_events": 167,
+      "n_excluded": 0,
+      "labels": {
+        "+1": 84,
+        "-1": 83,
+        "0": 0
+      },
+      "touches": {
+        "PT": 78,
+        "SL": 77,
+        "VERTICAL": 12
+      },
+      "mean_uniqueness": 0.844843970068521
+    },
+    {
+      "instrument": "EURUSDm",
+      "n_events": 167,
+      "n_excluded": 0,
+      "labels": {
+        "+1": 86,
+        "-1": 81,
+        "0": 0
+      },
+      "touches": {
+        "PT": 80,
+        "SL": 71,
+        "VERTICAL": 16
+      },
+      "mean_uniqueness": 0.8403923034162555
+    },
+    {
+      "instrument": "GBPUSDm",
+      "n_events": 152,
+      "n_excluded": 0,
+      "labels": {
+        "+1": 75,
+        "-1": 77,
+        "0": 0
+      },
+      "touches": {
+        "PT": 69,
+        "SL": 72,
+        "VERTICAL": 11
+      },
+      "mean_uniqueness": 0.8497226731601731
+    },
+    {
+      "instrument": "NZDUSDm",
+      "n_events": 151,
+      "n_excluded": 0,
+      "labels": {
+        "+1": 73,
+        "-1": 78,
+        "0": 0
+      },
+      "touches": {
+        "PT": 68,
+        "SL": 76,
+        "VERTICAL": 7
+      },
+      "mean_uniqueness": 0.8472520060268404
+    },
+    {
+      "instrument": "USDCADm",
+      "n_events": 167,
+      "n_excluded": 0,
+      "labels": {
+        "+1": 82,
+        "-1": 85,
+        "0": 0
+      },
+      "touches": {
+        "PT": 75,
+        "SL": 82,
+        "VERTICAL": 10
+      },
+      "mean_uniqueness": 0.8370494940854223
+    },
+    {
+      "instrument": "USDCHFm",
+      "n_events": 173,
+      "n_excluded": 0,
+      "labels": {
+        "+1": 77,
+        "-1": 96,
+        "0": 0
+      },
+      "touches": {
+        "PT": 73,
+        "SL": 82,
+        "VERTICAL": 18
+      },
+      "mean_uniqueness": 0.813901157181504
+    },
+    {
+      "instrument": "USDJPYm",
+      "n_events": 167,
+      "n_excluded": 0,
+      "labels": {
+        "+1": 96,
+        "-1": 71,
+        "0": 0
+      },
+      "touches": {
+        "PT": 84,
+        "SL": 68,
+        "VERTICAL": 15
+      },
+      "mean_uniqueness": 0.8284426457330649
+    },
+    {
+      "instrument": "XAUUSDm",
+      "n_events": 167,
+      "n_excluded": 0,
+      "labels": {
+        "+1": 108,
+        "-1": 59,
+        "0": 0
+      },
+      "touches": {
+        "PT": 97,
+        "SL": 56,
+        "VERTICAL": 14
+      },
+      "mean_uniqueness": 0.8380543746561709
+    }
+  ],
+  "determinism_note": "build_labels is a pure function; two runs on the same inputs are byte-identical (tested)"
+}

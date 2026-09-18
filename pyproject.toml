@@ -111,6 +111,7 @@ module = [
     "mt5linux.*",
     "yfinance.*",
     "MetaTrader5",
+    "statsmodels.*",
 ]
 ignore_missing_imports = true
 

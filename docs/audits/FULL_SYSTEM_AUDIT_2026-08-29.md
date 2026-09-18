@@ -3,7 +3,7 @@
 **Date:** 2026-08-29
 **Branch:** main
 **HEAD:** ea07779
-**Auditor:** REDACTED (REDACTED)
+**Auditor:** EigenCapital Engineering
 **Scope:** Complete production-grade system audit
 
 ---

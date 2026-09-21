@@ -8,10 +8,7 @@ boundary).  Only the minimal set required by
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
-
 
 CANONICAL_MIN_WEIGHT: float = 0.005
 

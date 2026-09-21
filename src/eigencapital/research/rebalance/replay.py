@@ -40,15 +40,12 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
-from eigencapital.live.rebalance_policy import (
+from eigencapital.core.rebalance import (
     CANONICAL_MIN_WEIGHT as MIN_SIGNAL_WEIGHT,
 )
-from eigencapital.live.rebalance_policy import (
+from eigencapital.core.rebalance import (
     PolicyConfig,
     RebalanceEvents,
-    RebalancePolicy,
-    build_policy,
-    compute_target_hash,
 )
 
 
@@ -395,7 +392,7 @@ def run_policy_matrix(
 
 
 def _matrix_configs() -> List[PolicyConfig]:
-    from eigencapital.live.rebalance_policy import experiment_matrix
+    from eigencapital.core.rebalance import experiment_matrix
 
     return experiment_matrix()
 

@@ -31,9 +31,7 @@ def program() -> dict:
 
 class TestRecordIntegrity:
     def test_governing_document_is_named_and_governs(self, program: dict) -> None:
-        assert program["authority"]["governing_document"] == (
-            "docs/research/RESEARCH_PROGRAM_STATUS.md"
-        )
+        assert program["authority"]["governing_document"] == ("docs/research/RESEARCH_PROGRAM_STATUS.md")
         assert program["authority"]["precedence"] == "document_governs"
 
     def test_queue_is_closed(self, program: dict) -> None:
@@ -109,10 +107,7 @@ class TestTrialSlotLedger:
             "R4-B2": "PARKED",
             "R6-B1": "INCONCLUSIVE",
         }
-        actual = {
-            slot["slot"]: slot["outcome"]
-            for slot in program["trial_slot_ledger"]["slots"]
-        }
+        actual = {slot["slot"]: slot["outcome"] for slot in program["trial_slot_ledger"]["slots"]}
         for slot_id, outcome in expected.items():
             assert actual[slot_id].startswith(outcome), slot_id
 

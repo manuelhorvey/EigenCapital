@@ -86,9 +86,7 @@ def filter_split(vol_scales: Sequence[float], signed_labels: Sequence[int]) -> F
     rates, never dropped.
     """
     if len(vol_scales) != len(signed_labels):
-        raise BaselineError(
-            f"vol_scales ({len(vol_scales)}) and signed_labels ({len(signed_labels)}) must align 1:1"
-        )
+        raise BaselineError(f"vol_scales ({len(vol_scales)}) and signed_labels ({len(signed_labels)}) must align 1:1")
     n_taken = n_skipped = fav_taken = fav_skipped = 0
     for vs, lab in zip(vol_scales, signed_labels):
         if not np.isfinite(vs) or vs < 0.0:
@@ -236,8 +234,7 @@ def evaluate_b1(
     if diff is None or low is None or high is None:
         verdict = "INCONCLUSIVE"
         statement = (
-            "missing evidence (empty filter class or unformable resample) — "
-            "INCONCLUSIVE, never promoted to a pass"
+            "missing evidence (empty filter class or unformable resample) — INCONCLUSIVE, never promoted to a pass"
         )
     elif diff > 0.0 and low > 0.0:
         verdict = "SUCCESS"

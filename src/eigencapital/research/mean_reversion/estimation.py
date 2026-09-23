@@ -39,16 +39,12 @@ def _require_series(name: str, series: pd.Series, min_len: int, positive: bool =
     raw-price primitive.
     """
     if len(series) < min_len:
-        raise EstimationError(
-            f"{name}: need ≥ {min_len} bars, got {len(series)}"
-        )
+        raise EstimationError(f"{name}: need ≥ {min_len} bars, got {len(series)}")
     values = series.to_numpy(dtype=float)
     if not np.all(np.isfinite(values)):
         raise EstimationError(f"{name}: non-finite values present")
     if positive and np.any(values <= 0.0):
-        raise EstimationError(
-            f"{name}: non-positive raw prices present (raw-price basis requires > 0)"
-        )
+        raise EstimationError(f"{name}: non-positive raw prices present (raw-price basis requires > 0)")
     return series
 
 

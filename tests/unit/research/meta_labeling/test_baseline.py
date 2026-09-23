@@ -130,7 +130,9 @@ def test_oos_slices_hand_computed() -> None:
 def test_evaluate_success_path() -> None:
     vs = [0.9] * 60 + [1.0] * 60
     labs = [1] * 60 + [-1] * 60
-    result = evaluate_b1(vs, labs, list(range(120)), train_bars=504, purge_bars=2, embargo_bars=1, test_bars=10, n_resamples=200)
+    result = evaluate_b1(
+        vs, labs, list(range(120)), train_bars=504, purge_bars=2, embargo_bars=1, test_bars=10, n_resamples=200
+    )
     assert isinstance(result, B1Result)
     assert result.verdict == "SUCCESS"
     assert result.ci_low is not None and result.ci_low > 0.0
@@ -140,14 +142,23 @@ def test_evaluate_success_path() -> None:
 def test_evaluate_failure_path() -> None:
     vs = [0.9] * 60 + [1.0] * 60
     labs = [-1] * 60 + [1] * 60  # skipped events are the favorable ones
-    result = evaluate_b1(vs, labs, list(range(120)), train_bars=504, purge_bars=2, embargo_bars=1, test_bars=10, n_resamples=200)
+    result = evaluate_b1(
+        vs, labs, list(range(120)), train_bars=504, purge_bars=2, embargo_bars=1, test_bars=10, n_resamples=200
+    )
     assert result.verdict == "FAILURE"
     assert result.rate_difference is not None and result.rate_difference < 0.0
 
 
 def test_evaluate_inconclusive_when_one_class_empty() -> None:
     result = evaluate_b1(
-        [0.9] * 24, [1] * 24, list(range(24)), train_bars=504, purge_bars=2, embargo_bars=1, test_bars=10, n_resamples=50
+        [0.9] * 24,
+        [1] * 24,
+        list(range(24)),
+        train_bars=504,
+        purge_bars=2,
+        embargo_bars=1,
+        test_bars=10,
+        n_resamples=50,
     )
     assert result.verdict == "INCONCLUSIVE"
     assert result.ci_low is None and result.ci_high is None
@@ -156,7 +167,9 @@ def test_evaluate_inconclusive_when_one_class_empty() -> None:
 def test_summarize_is_json_safe() -> None:
     vs = [0.9] * 30 + [1.0] * 30
     labs = [1] * 30 + [-1] * 30
-    result = evaluate_b1(vs, labs, list(range(60)), train_bars=504, purge_bars=2, embargo_bars=1, test_bars=10, n_resamples=50)
+    result = evaluate_b1(
+        vs, labs, list(range(60)), train_bars=504, purge_bars=2, embargo_bars=1, test_bars=10, n_resamples=50
+    )
     summary = summarize(result)
     assert summary["verdict"] in ("SUCCESS", "FAILURE", "INCONCLUSIVE")
     assert len(summary["oos_window_rate_diffs"]) == len(result.oos_slices)

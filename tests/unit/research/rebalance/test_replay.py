@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from eigencapital.live.rebalance_policy import (
+from eigencapital.core.rebalance import (
     PolicyConfig,
     PolicyType,
     experiment_matrix,

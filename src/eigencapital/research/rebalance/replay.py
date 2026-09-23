@@ -46,6 +46,9 @@ from eigencapital.core.rebalance import (
 from eigencapital.core.rebalance import (
     PolicyConfig,
     RebalanceEvents,
+    RebalancePolicy,
+    build_policy,
+    compute_target_hash,
 )
 
 

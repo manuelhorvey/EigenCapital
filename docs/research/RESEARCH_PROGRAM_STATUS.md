@@ -86,13 +86,17 @@ evidence remains the only production decision path.
 — canonical stage verdicts, trial-slot ledger, production-boundary flags, and
 reopening rules in structured form. In any disagreement between the JSON and
 this document, this document governs and the JSON must be corrected to match.
+The JSON was regenerated from this document on 2026-09-23 and is guarded by
+`tests/unit/research/test_program_status_json.py` (verdict kinds, trial-slot
+accounting, production-boundary flags, reopening-rule count).
 
 > **Working-tree note (2026-09-23):** the `reports/r*_*/` research artifact
 > directories listed below are **not present in the current checkout** (removed
 > from `reports/` in repository history; `reports/` currently holds runtime
-> `r4_loop/` and `r4_qualification/` only). Stage **verdicts in this document
-> remain authoritative**; artifact paths are where those artifacts *were*
-> written / should be regenerated, not a guarantee they exist on disk now.
+> `r4_loop/`, `r4_qualification/`, and the tracked
+> `reports/research_program/program_status.json` record). Stage **verdicts in
+> this document remain authoritative**; artifact paths are where those artifacts
+> *were* written / should be regenerated, not a guarantee they exist on disk now.
 
 | Stage | Artifacts |
 |---|---|
@@ -109,7 +113,9 @@ Verification at closure: **720/720 research tests · ruff clean · mypy clean
 with runners in `scripts/run_r{1..6}_*.py` and the shared pipeline exporter
 `scripts/export_r4_trade_stream.py`.
 
-*Re-check (2026-09-23):* `pytest tests/unit/research` → **720 passed** (matches closure claim).
+*Re-check (2026-09-23):* `pytest tests/unit/research` → **720 passed** at program
+closure; after regeneration of the JSON record, **735 passed** (720 + 15
+`test_program_status_json.py` guard tests).
 
 ---
 

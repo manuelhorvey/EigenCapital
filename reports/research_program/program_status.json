@@ -1,0 +1,231 @@
+{
+  "record_type": "research_program_status",
+  "schema_version": "1.0",
+  "authority": {
+    "governing_document": "docs/research/RESEARCH_PROGRAM_STATUS.md",
+    "governing_roadmap": "docs/research/RESEARCH_LITERATURE_AUDIT_REVIEW.md",
+    "precedence": "document_governs",
+    "rule": "In any disagreement between this JSON and the governing document, the document governs and this JSON must be corrected to match."
+  },
+  "provenance": {
+    "program_closure_date": "2026-09-17",
+    "head_at_closure": "0b297a9",
+    "generated_at": "2026-09-23",
+    "generated_at_head": "d4fe56dcfb552b3bb03d036b1d9d6bc1300e8076",
+    "generated_from": "docs/research/RESEARCH_PROGRAM_STATUS.md (verbatim verdict text; not softened)"
+  },
+  "status": "RESEARCH QUEUE CLOSED",
+  "queue_closed": true,
+  "queue_closed_note": "The currently justified program is exhausted without manufacturing evidence — not that research is finished forever.",
+  "production_boundary": {
+    "statement": "Nothing in R0-R6 constitutes permission to alter frozen R4. The program generated diagnostics, rejections, falsifications, instrument characterizations, and data-dependency findings - not a new production specification. Any future R4 modification is a NEW strategy candidate under the frozen stage-boundary process, never an \"improvement\".",
+    "production_strategy": "risk_conditioned_continuation (R4.0, frozen)",
+    "production_strategy_modifiable_by_research": false,
+    "r4s_forward_soak_only_production_decision_path": true,
+    "r4_manifest_fingerprint": "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb",
+    "stage_boundary_rule": "Every stage R0-R8: can_modify_r4 = false. Only a separate, explicitly approved promotion process ever turns research output into production strategy behavior."
+  },
+  "result_vocabulary": {
+    "FALSIFIED": {
+      "definition": "Evidence contradicts the preregistered hypothesis under the declared experiment.",
+      "applies_to": ["R3 (H1)", "R2 (factor)"]
+    },
+    "INCONCLUSIVE": {
+      "definition": "The experiment did not generate sufficient evidence to decide the hypothesis.",
+      "applies_to": ["R4-B1", "R6-B1"],
+      "rule": "INCONCLUSIVE is never read as a pass."
+    },
+    "PARKED": {
+      "definition": "Further work under the current data/assumption class is not justified; reopening requires a MATERIAL change (new data class or new preregistered rationale).",
+      "applies_to": ["R4", "R6"],
+      "rule": "PARKED is never read as falsified, and vice versa."
+    },
+    "VALIDATED": {
+      "exists_in_eigencapital_research": false,
+      "note": "No VALIDATED verdict exists in EigenCapital research; the best available research outcome is CANDIDATE within research only."
+    }
+  },
+  "naming_disambiguation": {
+    "frozen_r4": "The frozen R4 production strategy (risk_conditioned_continuation) — also called production R4.",
+    "stage_r4": "Research stage R4 (mean reversion / stat-arb family) — also called R4-MR. Entirely distinct from the production strategy."
+  },
+  "stages": [
+    {
+      "id": "R0",
+      "name": "Research Infrastructure Verification",
+      "ledger": "docs/research/R0_INFRASTRUCTURE_VERIFICATION.md",
+      "verdict": "COMPLETE",
+      "verdict_kind": "COMPLETE",
+      "summary": "Existing research machinery inspected against the frozen R0-R8 requirements; only demonstrable gaps patched.",
+      "artifacts": [],
+      "runners": [],
+      "can_modify_r4": false
+    },
+    {
+      "id": "R1",
+      "name": "Monte Carlo Diagnostics",
+      "ledger": "docs/research/R1_MONTE_CARLO.md",
+      "verdict": "COMPLETE / FROZEN",
+      "verdict_kind": "COMPLETE_FROZEN",
+      "arms": {"A": "PASS", "B1": "PASS", "B2": "PASS", "B3": "PASS", "B4": "PASS"},
+      "key_finding": "Dependence effect: IID resampling understates drawdown/streak/recovery tails vs block resampling.",
+      "artifacts": ["reports/r1_monte_carlo/ (trade stream TS-R4-D1-0001, evidence report JSON/MD)"],
+      "runners": ["scripts/run_r1_evidence_report.py", "scripts/export_r4_trade_stream.py"],
+      "can_modify_r4": false
+    },
+    {
+      "id": "R2",
+      "name": "Alpha Factor Laboratory",
+      "ledger": "docs/research/R2_FACTOR_LAB.md",
+      "verdict": "COMPLETE / FROZEN",
+      "verdict_kind": "COMPLETE_FROZEN",
+      "summary": "Lab validated; first preregistered factor REJECTED (momentum_12_1 x r4_local_v1 x h=21: mean rank IC -0.0440, Holm p 0.4398, stress-cost spread negative).",
+      "artifacts": ["reports/r2_factor_lab/ (first-factor experiment report)"],
+      "runners": ["scripts/run_r2_first_factor.py"],
+      "can_modify_r4": false
+    },
+    {
+      "id": "R3",
+      "name": "Parameter Stability",
+      "ledger": "docs/research/R3_PARAMETER_STABILITY.md",
+      "verdict": "COMPLETE / H1 FALSIFIED",
+      "verdict_kind": "COMPLETE_FALSIFIED",
+      "key_finding": "Frozen config OUTSIDE_STABLE_REGION (92% of 1,500 points fragile; PBO 1.000 across 16/16 partitions with non-independence caveat; DSR 0.0019 n.s.). Observed axis associations quarantined — acting on them requires a NEW preregistration.",
+      "artifacts": ["reports/r3_parameter_stability/ (1,500-point grid surface + verdicts)"],
+      "runners": ["scripts/run_r3_b1_grid.py"],
+      "can_modify_r4": false
+    },
+    {
+      "id": "R4",
+      "name": "Mean Reversion / Statistical Arbitrage (R4-MR)",
+      "ledger": "docs/research/R4_MEAN_REVERSION.md",
+      "verdict": "INCONCLUSIVE -> CLOSED / PARKED",
+      "verdict_kind": "CLOSED_PARKED",
+      "summary": "B1: 2 pairs, 1 trade. B2: 8-pair preregistered expansion, 5 trades < 20 -> parking rule fired. Gate starvation structural on daily bars. Reopening requires a new data class.",
+      "artifacts": ["reports/r4_mean_reversion/ (B1 + B2 reports, per-pair trade CSVs)"],
+      "runners": ["scripts/run_r4_b1_pairs.py", "scripts/run_r4_b2_pairs.py"],
+      "can_modify_r4": false
+    },
+    {
+      "id": "R5",
+      "name": "Triple-Barrier Labeling",
+      "ledger": "docs/research/R5_TRIPLE_BARRIER.md",
+      "verdict": "COMPLETE / FROZEN",
+      "verdict_kind": "COMPLETE_FROZEN",
+      "key_finding": "Instrument validated (1,311 events = TS-R4-D1-0001, 0 exclusions, byte-identical determinism, PIT proven by perturbation); overlap characterized (492 pairs, 663 events, mean uniqueness 0.837). NOT evidence of predictive power.",
+      "artifacts": ["reports/r5_triple_barrier/ (label run JSON/CSV/MD, per-event audit trail)"],
+      "runners": ["scripts/run_r5_b1_labels.py"],
+      "can_modify_r4": false
+    },
+    {
+      "id": "R6",
+      "name": "Meta-Labeling",
+      "ledger": "docs/research/R6_META_LABELING.md",
+      "verdict": "INCONCLUSIVE -> CLOSED / PARKED",
+      "verdict_kind": "CLOSED_PARKED",
+      "summary": "B1 design exercised end-to-end; preregistered filter vacuous (skip class empty: R4's upstream regime gate had already excluded the targeted states). B2 correctly not run. Supported claim is filter-specific, NOT \"no feature can work\".",
+      "artifacts": ["reports/r6_meta_labeling/ (B1 report with pre-execution checks)"],
+      "runners": ["scripts/run_r6_b1_baseline.py"],
+      "can_modify_r4": false
+    },
+    {
+      "id": "R7",
+      "name": "Order-Flow Entropy",
+      "ledger": null,
+      "verdict": "BLOCKED - DATA",
+      "verdict_kind": "BLOCKED_DATA",
+      "summary": "Requires trade/order-flow data that does not exist locally; OHLC proxies banned.",
+      "artifacts": [],
+      "runners": [],
+      "can_modify_r4": false
+    },
+    {
+      "id": "R8",
+      "name": "Strategy-Level Portfolio Construction",
+      "ledger": null,
+      "verdict": "DEFERRED",
+      "verdict_kind": "DEFERRED",
+      "summary": "Requires >= 1 additional validated strategy family; none exists.",
+      "artifacts": [],
+      "runners": [],
+      "can_modify_r4": false
+    }
+  ],
+  "trial_slot_ledger": {
+    "accounting_rule": "One preregistration consumes one trial slot; the family is the unit of evidence where preregistered. No slot re-opened; no post-hoc filter/threshold shopping.",
+    "slots_consumed": 6,
+    "slots": [
+      {
+        "slot": "R2-B1",
+        "stage": "R2",
+        "subject": "First preregistered factor: momentum_12_1 x r4_local_v1 x h=21",
+        "outcome": "REJECTED",
+        "evidence": "Mean rank IC -0.0440; Holm p 0.4398; stress-cost spread negative."
+      },
+      {
+        "slot": "R3-B1",
+        "stage": "R3",
+        "subject": "H1: frozen config lies inside a stable parameter region",
+        "outcome": "FALSIFIED",
+        "evidence": "Frozen config OUTSIDE_STABLE_REGION; 92% of 1,500 points fragile; PBO 1.000 (16/16 partitions, non-independence caveat); DSR 0.0019 n.s."
+      },
+      {
+        "slot": "R4-B1",
+        "stage": "R4",
+        "subject": "Two-pair mean-reversion family (AUDUSDm/NZDUSDm, EURUSDm/GBPUSDm)",
+        "outcome": "INCONCLUSIVE",
+        "evidence": "Gate starvation on daily bars; 1 trade total; missing evidence, never promoted to a pass."
+      },
+      {
+        "slot": "R4-B2",
+        "stage": "R4",
+        "subject": "8-pair preregistered expansion under unchanged frozen pipeline",
+        "outcome": "PARKED",
+        "evidence": "Pre-committed parking rule fired: 5 trades < 20 across the family."
+      },
+      {
+        "slot": "R5-B1",
+        "stage": "R5",
+        "subject": "Triple-barrier label run on trade stream TS-R4-D1-0001",
+        "outcome": "COMPLETE / FROZEN (instrument validated)",
+        "evidence": "1,311 events, 0 exclusions, byte-identical determinism, PIT proven by perturbation; not evidence of predictive power."
+      },
+      {
+        "slot": "R6-B1",
+        "stage": "R6",
+        "subject": "Meta-labeling baseline with preregistered filter",
+        "outcome": "INCONCLUSIVE",
+        "evidence": "Filter vacuous (skip class empty — upstream regime gate had already excluded the targeted states); B2 correctly not run."
+      }
+    ]
+  },
+  "reopening_rules": {
+    "status": "FROZEN",
+    "rules": [
+      "New research starts with a NEW preregistration and fresh trial accounting — never by quietly extending R2-R6 (that would contaminate their records).",
+      "Parked stages reopen only via a materially different preregistered rationale or a new data class (intraday / order-flow for R4-MR and R7).",
+      "R8 requires at least one additional validated strategy family, which does not exist.",
+      "\"The queue is closed\" means the currently justified program is exhausted without manufacturing evidence — not that research is finished forever."
+    ],
+    "data_upgrade_contract": {
+      "document": "docs/research/DATA_REQUIREMENTS.md",
+      "status": "DRAFT contract — NOT a preregistration, opens no trial slots, authorizes no experiment.",
+      "applies_to": ["R7 (order-flow data)", "R4-MR (intraday data)"]
+    }
+  },
+  "verification_at_closure": {
+    "research_tests": "720/720 passed",
+    "lint": "ruff clean",
+    "type_check": "mypy clean (86 source files)",
+    "research_modules": [
+      "src/eigencapital/research/monte_carlo",
+      "src/eigencapital/research/factor_lab",
+      "src/eigencapital/research/parameter_stability",
+      "src/eigencapital/research/mean_reversion",
+      "src/eigencapital/research/labeling",
+      "src/eigencapital/research/meta_labeling"
+    ],
+    "recheck_2026_09_23": "pytest tests/unit/research -> 720 passed (matches closure claim)"
+  },
+  "artifact_availability_note": "Artifact directories under reports/ (r1_monte_carlo, r2_factor_lab, r3_parameter_stability, r4_mean_reversion, r5_triple_barrier, r6_meta_labeling) were pruned from the repository tree after closure; stage verdicts in the governing document and in this record remain authoritative. Artifact paths are where reports were written / should be regenerated, not a guarantee they exist on disk."
+}

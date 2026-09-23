@@ -243,16 +243,28 @@ class TestWeightErrorEvidence:
         assert orders[0][0:3] == ("XAUUSD", "BUY", 0.01)
         assert loop.weight_error_by_symbol["XAUUSD"]["executable_notional"] <= loop.MAX_POSITION_USD
 
-    def test_mt5_request_contains_native_scalars(self, loop):
-        """mt5linux remote eval must not receive NumPy scalar reprs."""
+    def test_mt5_request_contains_native_scalars(self, loop, monkeypatch):
+        """mt5linux remote eval must not receive NumPy scalar reprs.
+
+        mt5linux is an optional ``mt5`` extra — CI installs only
+        ``research``/``dev``, so ``loop.MetaTrader5`` may be None. The
+        request builder only needs the enum constants, not a live bridge.
+        """
         import numpy as np
 
+        class _MT5Stub:
+            TRADE_ACTION_DEAL = 1
+            ORDER_TIME_GTC = 0
+            ORDER_TYPE_SELL = 1
+            ORDER_FILLING_FOK = 0
+
+        monkeypatch.setattr(loop, "MetaTrader5", _MT5Stub, raising=False)
         request = loop._build_mt5_order_request(
             symbol="BTCUSD",
             lots=np.float64(0.03),
-            mt5_type=np.int64(loop.MetaTrader5.ORDER_TYPE_SELL),
+            mt5_type=np.int64(_MT5Stub.ORDER_TYPE_SELL),
             price=np.float64(75814.3),
-            filling_mode=np.int64(loop.MetaTrader5.ORDER_FILLING_FOK),
+            filling_mode=np.int64(_MT5Stub.ORDER_FILLING_FOK),
             ticket=np.int64(123),
         )
 

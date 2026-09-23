@@ -1,9 +1,11 @@
 # Production Evidence Index
 
+> **Status: HISTORICAL campaign index (2026-09-23).** Dated 2026-08-26 for the `$5K` qualification campaign. Gate table and “19 ≤ 19” / “SL on all positions” rows describe **that campaign**, not current config. Current limits: max concurrent **20**, max position **$5,000**, `max_equity = 20000`, `require_sl_on_positions = false` (signal-based exits). Artifact paths under `reports/r4_economics_audit/` etc. may be **absent** from the current tree (see `reports/` contents). Current phase state: [`PHASE_STATUS.md`](PHASE_STATUS.md).
+
 This document indexes all evidence artifacts for the EigenCapital $5K controlled qualification.
 Each artifact is designated as authoritative (governance-critical) or informational.
 
-Last updated: 2026-08-26
+Last updated (original campaign): 2026-08-26 · banner added 2026-09-23
 
 ## Current Qualification Status
 
@@ -15,9 +17,9 @@ Last updated: 2026-08-26
 | Build/config fingerprint | ✅ Fail-closed | 5-component verification |
 | Foreign positions | ✅ 0 | Position attribution audit |
 | R4 ownership | ✅ 100% | Attestation report |
-| Position protection | ✅ 19/19 | Catastrophic SL on all positions |
+| Position protection | ✅ Campaign-era | Catastrophic SL layer (position-protection gate off when `require_sl_on_positions=false`) |
 | Catastrophic layer | ✅ Proven | Adversarial audit 10/10 |
-| Position-count enforcement | ✅ Proven | 19 ≤ 19 configured max |
+| Position-count enforcement | ✅ Proven (campaign) | 19 ≤ 19 at campaign time; config now **20** |
 | Equity/daily-loss controls | ✅ Proven | Risk enforcement gates |
 | Watchdog | ✅ Proven | State machine tests |
 | Disconnect/recovery | ✅ Proven | Auto-reconnect in loop |
@@ -90,16 +92,16 @@ Last updated: 2026-08-26
 
 | Claim | Source Code | Test | Evidence | Status |
 |---|---|---|---|---|
-| Max positions = 19 | `config.py` | `test_risk_enforcement.py` | Live verification | VERIFIED |
+| Max positions = 19 (campaign-era) | `config.py` | `test_risk_enforcement.py` | Live verification | **HISTORICAL** — config now 20 |
 | Max position = $5,000 | `config.py` | `test_config_consistency.py` | Config audit | VERIFIED |
 | Fingerprint enforced | `fingerprint_verifier.py` | P0 safety tests | Startup log | VERIFIED |
-| Catastrophic SL | `catastrophic_protection.py` | P0 safety tests | Broker verification | VERIFIED |
+| Catastrophic SL | `catastrophic_protection.py` | P0 safety tests | Broker verification | VERIFIED (catastrophic layer; position-protection gate off when `require_sl_on_positions=false`) |
 | Watchdog state machine | `watchdog.py` | P0 safety tests | Adversarial audit | VERIFIED |
 | Foreign quarantine | `position_attribution.py` | P0 safety tests | Adversarial audit | VERIFIED |
 | Auto-reconnect | `r4_rebalance_loop.py` | Integration | Loop log | VERIFIED |
 | XAUUSD admitted | `config.toml` | Config check | Live position | VERIFIED |
 | US30 admitted | `config.toml` | Config check | Live position | VERIFIED |
-| 97.4% signal coverage | Signal computation | Coverage analysis | Evidence snapshot | VERIFIED |
+| 97.4% signal coverage | Signal computation | Coverage analysis | Evidence snapshot | **UNRESOLVED artifact** — coverage snapshot not present in tree (`reports/` pruned); claim not re-verified 2026-09-23 |
 
 ## Unresolved Evidence Gaps
 

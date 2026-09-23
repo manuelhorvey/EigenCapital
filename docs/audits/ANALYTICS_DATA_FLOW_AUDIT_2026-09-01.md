@@ -1,5 +1,7 @@
 # Shadow Analytics — Data Flow Integrity Audit
 
+> **Status: HISTORICAL (2026-09-23).** Point-in-time audit; dollar figures (e.g. "$5,100") reflect the capital envelope **as of the audit date** — since changed (`capital.max_equity = 20000`). Findings about the data-flow structure remain valid descriptions of the audited code. Current authority: code + `configs/` + tests.
+
 **Audit date:** 2026-09-01
 **Scope:** Full pipeline from MT5 positions through to JSONL evidence
 **Status:** All findings documented below

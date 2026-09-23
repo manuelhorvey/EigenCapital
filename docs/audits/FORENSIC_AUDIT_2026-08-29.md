@@ -1,5 +1,7 @@
 # EigenCapital — Full-System Forensic Audit
 
+> **Status: HISTORICAL (2026-09-23).** Point-in-time audit at HEAD `db3c867` (package `v0.1.0`). Counts (24 symbols / 25 instruments, etc.) are frozen measurements for that commit — not current config. Current authority: code + `configs/` + tests.
+
 **Date:** 2026-08-29
 **Branch:** main
 **HEAD:** db3c867

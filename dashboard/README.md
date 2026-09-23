@@ -1,32 +1,25 @@
-# React + TypeScript + Vite
+# EigenCapital Dashboard (frontend)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + TypeScript + Vite operator UI. **Read-only observer** — never controls trading.
 
-Currently, two official plugins are available:
+| Topic | Document |
+|---|---|
+| Architecture | [`docs/production/DASHBOARD_ARCHITECTURE.md`](../docs/production/DASHBOARD_ARCHITECTURE.md) |
+| API | [`docs/production/DASHBOARD_API.md`](../docs/production/DASHBOARD_API.md) |
+| Operations | [`docs/production/DASHBOARD_OPERATIONS.md`](../docs/production/DASHBOARD_OPERATIONS.md) |
+| Security | [`docs/production/DASHBOARD_SECURITY.md`](../docs/production/DASHBOARD_SECURITY.md) |
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Develop
 
-## React Compiler
+```bash
+# From repo root: start API/backend helpers as documented in ops docs
+./scripts/start_dashboard.sh
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# Frontend (this directory)
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Canonical server entrypoint: `scripts/dashboard_server.py` / `scripts/start_dashboard.sh`. Backend package: `src/eigencapital/dashboard/`.
+
+Invariant: dashboard routes are GET-only; no POST/PUT/PATCH/DELETE.

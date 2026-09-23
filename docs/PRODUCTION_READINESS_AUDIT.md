@@ -1,9 +1,11 @@
 # Production Readiness Audit — R4 Phase 1U Funding Gate
 
-**Status:** ⚠️ CONDITIONAL GO — hardening required before capital at MINIMAL scale
-**Audit Date:** 2026-08-25
-**Scope:** data → signal → portfolio → risk → execution → reconciliation → monitoring → kill switch
-**Test baseline:** 1729 passed / 1 skipped
+> **Status: HISTORICAL (2026-09-23).** Audit dated 2026-08-25 with its own test baseline (1729 passed). Not current production status. Current phase state: [`docs/production/PHASE_STATUS.md`](production/PHASE_STATUS.md). Path note: `tests/unit/fidelity/test_r4_manifest_guard.py` was later realized as `test_r4_manifest_freeze.py` (name drift).
+
+**Status (at audit date):** ⚠️ CONDITIONAL GO — hardening required before capital at MINIMAL scale  
+**Audit Date:** 2026-08-25  
+**Scope:** data → signal → portfolio → risk → execution → reconciliation → monitoring → kill switch  
+**Test baseline (historical):** 1729 passed / 1 skipped
 
 ---
 

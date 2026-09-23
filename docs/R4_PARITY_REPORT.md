@@ -1,5 +1,7 @@
 # R4 Paper Fidelity Report
 
+> **Status: HISTORICAL campaign artifact (2026-09-23).** Frozen campaign `R4-REPLAY-2c20472b64a5` verdict record — do not treat as live system status. Path note: `test_r4_manifest_guard.py` later realized as `test_r4_manifest_freeze.py`.
+
 **Campaign:** R4-REPLAY-2c20472b64a5
 **Manifest:** 2c20472b64a54084...
 **Verdict:** paper_fidelity_pass

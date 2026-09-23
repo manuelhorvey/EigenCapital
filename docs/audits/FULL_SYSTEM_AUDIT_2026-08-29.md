@@ -1,5 +1,7 @@
 # EigenCapital Full System Audit
 
+> **Status: HISTORICAL (2026-09-23).** Point-in-time audit at HEAD `ea07779`. Counts and configurations are frozen measurements for that commit — not current state. Current authority: code + `configs/` + tests + `docs/production/PHASE_STATUS.md`.
+
 **Date:** 2026-08-29
 **Branch:** main
 **HEAD:** ea07779

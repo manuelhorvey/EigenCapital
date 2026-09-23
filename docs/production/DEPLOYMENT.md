@@ -1,16 +1,19 @@
 # EigenCapital — Deployment Guide
 
-**Last Updated:** 2026-08-27  
-**Supported Platforms:** Linux, macOS, Windows
+**Last Updated:** 2026-09-23 (docs audit)  
+**Production-certified platform:** Linux (Ubuntu/Debian)  
+**Also documented:** macOS/Windows for development (not production-certified)
+
+> Config paths are `configs/<environment>/config.toml` (not `config/*.toml`).
 
 ---
 
 ## Prerequisites
 
-- Python 3.11+ (tested on 3.11, 3.12, 3.13, 3.14)
+- Python 3.11+ (CI matrix: 3.11, 3.12, 3.13)
 - MetaTrader 5 terminal (Wine on Linux/macOS, native on Windows)
 - Exness demo account (or configured broker)
-- Minimum $5,000 equity for qualification
+- Equity appropriate to the active campaign tier (Phase 2: $5K qualification envelope)
 
 ---
 
@@ -93,7 +96,7 @@ python scripts/r4_monitor.py --loop --interval 60
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `EIGENCAPITAL_ENV` | `production` | Config profile to use |
+| `EIGENCAPITAL_ENV` | from `.env` (see `.env.example`; template uses `development`) | Config profile to use |
 | `MT5_HOST` | `127.0.0.1` | MT5 bridge host |
 | `MT5_PORT` | `8001` | MT5 bridge port |
 | `WINEPREFIX` | `~/.wine_mt5` | Wine prefix for MT5 (Linux/macOS) |
@@ -102,8 +105,11 @@ python scripts/r4_monitor.py --loop --interval 60
 
 | File | Purpose |
 |------|---------|
-| `config/production.toml` | Production configuration |
-| `config/development.toml` | Development configuration |
+| `configs/production/config.toml` | Production configuration |
+| `configs/development/config.toml` | Development configuration |
+| `configs/paper/config.toml` | Paper configuration |
+| `configs/research/config.toml` | Research configuration |
+| `configs/market_schedules/default.toml` | Market schedules |
 | `src/eigencapital/config.py` | Config loader (single source of truth) |
 
 ---
@@ -120,13 +126,13 @@ python scripts/r4_monitor.py --loop --interval 60
 ./scripts/start_trading.sh --stop        # graceful shutdown
 ```
 
-### `mt5-bridge` Helper
+### MT5 bridge helper
+
+`start_trading.sh --bridge-only` starts the RPyC bridge (port 8001). An external `mt5-bridge` binary may exist on the host PATH but is **not tracked in this repository** — do not assume it is installed.
 
 ```bash
-mt5-bridge              # start bridge (idempotent)
-mt5-bridge --status     # check if bridge is alive
-mt5-bridge --restart    # restart bridge
-mt5-bridge --stop       # stop bridge
+./scripts/start_trading.sh --bridge-only   # start bridge via repo script
+./scripts/start_trading.sh --status        # check what is running
 ```
 
 ### Direct Python (Windows)
@@ -154,7 +160,8 @@ python scripts/r4_monitor.py --loop --interval 60
 ./scripts/start_trading.sh --status
 
 # Check bridge specifically
-mt5-bridge --status
+./scripts/start_trading.sh --bridge-only
+./scripts/start_trading.sh --status
 
 # Check rebalance loop logs
 tail -50 reports/r4_loop/loop_stdout.log
@@ -177,8 +184,8 @@ lsof -i :8001          # macOS
 # Kill stale processes
 pkill -f "server.py.*8001"
 
-# Restart bridge
-mt5-bridge --restart
+# Restart bridge (repo entrypoint)
+./scripts/start_trading.sh --bridge-only
 ```
 
 ### MT5 Connection Refused

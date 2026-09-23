@@ -1,20 +1,21 @@
 # Testing Architecture
 
-This document describes the testing strategy and current status.
+This document describes the testing strategy and how to run suites.
 
-Last updated: 2026-08-26
+Last updated: 2026-09-23 (counts removed per governance rule — no hardcoded test counts as current claims)
 
-## Current Status
+## How to run
 
-| Suite | Count | Command | Status |
-|---|---|---|---|
-| Unit | 2,301 | `pytest tests/unit/` | ✅ All passing |
-| P0 Safety | 44 | `pytest tests/unit/live/test_p0_safety.py` | ✅ All passing |
-| Risk Enforcement | — | `pytest tests/unit/live/test_risk_enforcement.py` | ✅ All passing |
-| Property | — | `pytest tests/property/` | ✅ Passing |
-| Integration | — | `pytest tests/integration/` | Scaffolded |
-| Simulation | — | `pytest tests/simulation/` | Scaffolded |
-| Failure Injection | — | `pytest tests/failure_injection/` | Scaffolded |
+| Suite | Command | Notes |
+|---|---|---|
+| All | `make test` / `pytest tests/` | Includes unit + integration + property |
+| Unit | `pytest tests/unit/` or `make test-unit` | Primary CI suite |
+| Property | `pytest tests/property/` | |
+| Integration | `pytest tests/integration/` | Crash/restart + lifecycle (present) |
+| Coverage | `pytest --cov=eigencapital tests/unit/` | `fail_under = 80` in `pyproject.toml` |
+| Collect count | `pytest --co -q` | Prefer this over prose counts |
+
+**Historical note:** older revisions of this table listed fixed counts (e.g. 2,301 unit tests on 2026-08-26). Those are historical; re-collect for current numbers.
 
 ## Test Categories
 
@@ -27,29 +28,19 @@ Tests individual models, layers, and subsystems in isolation.
 | `tests/unit/test_*` | Core models, config, features |
 | `tests/unit/live/` | Live trading modules |
 | `tests/unit/production_qual/` | Qualification modules |
+| `tests/unit/research/` | Research-only suite (720 tests at research-program closure) |
 
 ### P0 Safety Tests (`tests/unit/live/test_p0_safety.py`)
 
-44 tests covering the complete safety architecture:
-
-- Catastrophic protection
-- Watchdog state machine
-- Position attribution
-- Fingerprint verification
-- Durable audit
-- Process supervision
+Safety architecture coverage: catastrophic protection, watchdog, position
+attribution, fingerprint verification, durable audit, process supervision.
+Run: `pytest tests/unit/live/test_p0_safety.py`
 
 ### Risk Enforcement Tests (`tests/unit/live/test_risk_enforcement.py`)
 
-Tests all seven risk gates:
-
-- Broker connectivity
-- Position count
-- Account drawdown
-- Daily loss
-- Equity floor
-- Position protection
-- Fingerprint verification
+Exercises the risk envelope gates (connectivity, position count, drawdown,
+daily loss, equity floor, position protection when enabled, fingerprint).
+Run: `pytest tests/unit/live/test_risk_enforcement.py`
 
 ### Architecture Audit (`tests/unit/test_architecture_audit.py`)
 
@@ -146,7 +137,7 @@ Tests verify correct behavior during failures:
 
 | Claim | Test | Evidence |
 |---|---|---|
-| Max positions = 19 | `test_risk_enforcement.py` | Unit test |
+| Max positions | 20 (config) | `test_config_consistency.py` / `test_risk_enforcement.py` | Unit test |
 | Max position = $5,000 | `test_config_consistency.py` | Unit test |
 | Fingerprint enforced | `test_p0_safety.py` | Unit test |
 | Catastrophic SL | `test_p0_safety.py` | Unit test |
@@ -164,9 +155,9 @@ Tests verify correct behavior during failures:
 
 ## Pre-existing Failures
 
-Currently: **0 pre-existing failures**
+Currently: **0 pre-existing failures** (as of last CI run)
 
-All 2,301 tests pass.
+Full-suite totals change with the tree — re-run `pytest --co -q` or `pytest tests/` rather than trusting prose counts.
 
 ## Adding New Tests
 

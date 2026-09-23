@@ -1,9 +1,11 @@
 # Phase 1I Architecture Audit — Feature Infrastructure & Alpha Research Readiness
 
-**Status:** ✅ GO
-**Audit Date:** August 2025
-**Repository State:** 565 tests passing, 0 failures
-**Latest Commit:** `16b77bb` — Phase 1H adversarial simulation
+**Status (at audit):** ✅ GO  
+**Audit Date:** August 2025  
+**Repository State (historical):** 565 tests passing, 0 failures  
+**Latest Commit (historical):** `16b77bb` — Phase 1H adversarial simulation  
+
+> **HISTORICAL (2026-09-23):** Not current status. Paths under `strategies/trend/` referenced below **no longer exist** (`CFG-001` / later cleanup). Current production R4 signal: `scripts/r4_rebalance_loop.py::compute_r4_signal`. Current phase state: [`docs/production/PHASE_STATUS.md`](production/PHASE_STATUS.md).
 
 ---
 

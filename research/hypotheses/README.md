@@ -10,20 +10,20 @@ Candidate research claims. **Hypotheses are NOT strategies.**
 
 ## Governance
 
-1. **Do not run these yet.** Execution requires Phase 1G statistical validation
-   infrastructure (purged/embargoed CV, cost-adjusted backtesting under
-   [RESEARCH_ENGINE_CONTRACT.md](../../docs/RESEARCH_ENGINE_CONTRACT.md)).
+1. **Library hypotheses are candidates, not production code.** Execution happens only through an explicit preregistration + trial-slot process (see [`docs/research/RESEARCH_PROGRAM_STATUS.md`](../../docs/research/RESEARCH_PROGRAM_STATUS.md)). Phase 1G statistical infrastructure exists (`docs/PHASE_1G_VALIDATION_REPORT.md`); that does **not** authorize running every stub below.
 2. Every stub below enters as `status = UNVALIDATED`. Nothing here carries
    implied alpha — these are candidates for aggressive rejection.
 3. `economic_rationale` and `falsification_criteria` are mandatory. A claim
    without a falsifier is not admissible.
 4. Each experiment spawned from a hypothesis MUST carry `TrialMetadata`
    (`trial_group_id`, `trial_index`, `selection_method`, ...) per the Trial
-   Accounting section of the research engine contract.
+   Accounting section of the research engine contract
+   ([`docs/RESEARCH_ENGINE_CONTRACT.md`](../../docs/RESEARCH_ENGINE_CONTRACT.md)).
 5. Provenance: most seeds derive from [ml4t-extraction.md](../../docs/research/ml4t-extraction.md)
    (Jansen 2020, read as reference material — not architectural authority).
-   The authoritative specs remain SYSTEM_SPECIFICATION.md, domain_contracts.md,
-   and the EigenCapital contracts.
+   Domain contracts live under [`docs/`](../../docs/) (e.g. `DATA_CONTRACT.md`,
+   `RESEARCH_ENGINE_CONTRACT.md`, `RESEARCH_ACCOUNTING_CONTRACT.md`); there is
+   **no** `SYSTEM_SPECIFICATION.md` or `domain_contracts.md` in this tree.
 
 ## Status Lifecycle
 

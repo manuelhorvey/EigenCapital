@@ -34,11 +34,11 @@ Seven gates enforce limits before any order reaches the broker:
 | # | Gate | Limit | Enforcement | Fail Mode |
 |---|---|---|---|---|
 | 1 | Broker connectivity | equity > 0 | `check_all()` | CRITICAL — short-circuit |
-| 2 | Position count | ≤ 19 | `check_all()` | BLOCK — no new entries |
+| 2 | Position count | ≤ 20 | `check_all()` | BLOCK — no new entries |
 | 3 | Account drawdown | ≤ 10% from peak | `check_all()` | BLOCK |
 | 4 | Daily loss | ≤ $250 | `check_all()` | BLOCK |
 | 5 | Equity floor | ≥ $4,000 | `check_all()` | CRITICAL |
-| 6 | Position protection | SL on all R4 positions | `check_all()` | CRITICAL |
+| 6 | Position protection | SL required **only if** `require_sl_on_positions=true` (production: **false** — signal-based exits) | `check_all()` | Configurable |
 | 7 | Fingerprint | Config matches T=0 | `check_all()` | BLOCK |
 
 ### Gate Behavior
@@ -74,10 +74,10 @@ Disaster stop-loss boundary for every R4 position:
 
 | Metric | Value |
 |---|---|
-| Positions | 19 |
-| Total loss-at-SL (nominal) | ~$450 (6.4% of equity) |
+| Positions | 20 (max concurrent) |
+| Total loss-at-SL (nominal) | Snapshot-dependent — see live evidence |
 | Equity floor | $4,000 |
-| Buffer to floor | ~$3,000 (43%) |
+| Buffer to floor | Depends on current equity |
 | Worst single loss-at-SL | ~$177 (XAUUSD) |
 
 ### Stress Test Results
@@ -124,21 +124,21 @@ NORMAL → DEGRADED → BLIND → CONTAIN → RECONCILING → RESUMED
 | Drawdown from peak | 10% ($698) | 0% | ✅ |
 | Equity floor | $4,000 | $6,981 | ✅ |
 | Max position | $5,000 | 0.01 lots | ✅ |
-| Max concurrent | 19 | 19 | ✅ |
-| Portfolio loss-at-SL | ~$450 | ~$450 | ✅ |
+| Max concurrent | 20 | Config |
+| Portfolio loss-at-SL | Snapshot-dependent | Live evidence |
 
 ## Capital Semantics
 
 | Concept | Value | Meaning |
 |---|---|---|
-| Account equity | ~$6,980 | What broker shows |
-| Authorized capital | $5,100 | What strategy trades against |
-| Campaign tier | $5,000 | Qualification level |
+| Account equity | Live (varies) | What broker shows |
+| `capital.max_equity` | $20,000 | Production sizing envelope ceiling |
+| Campaign tier | $5,000 | Qualification level label |
 | Position limit | $5,000 | Max notional per position |
 | Risk budget (daily) | $250 | Daily loss limit |
-| Risk budget (DD) | $1,000 | Max drawdown |
+| Risk budget (DD) | $1,000 | Max total drawdown (`capital.max_total_drawdown`) |
 
-**The gap between account equity and authorized capital is governance protection, not deployable capital.**
+**Envelope limits are governance protection, not a claim that all authorized equity is deployable or proven.
 
 ## What Is NOT Risk Management
 

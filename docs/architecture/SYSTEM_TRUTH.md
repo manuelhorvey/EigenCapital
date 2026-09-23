@@ -1,6 +1,7 @@
 # EigenCapital — System Truth Map
 
-**STATUS: CURRENT** | Last updated: 2026-08-29
+**STATUS: CURRENT (structure) | Last reviewed: 2026-09-23**  
+*(Test counts and per-file “N tests” figures below were measured ~2026-08-29 — re-run `pytest --co -q` for live totals. Paths and authority targets re-checked 2026-09-23.)*
 
 This document maps every critical concept to its authoritative implementation, downstream consumer, test coverage, and documentation. When documentation and code disagree, trace back here.
 
@@ -174,14 +175,15 @@ Consumer:    MarketDataBridge → DataQuality → DataTruth
 ```
 Authority:  configs/production/config.toml
 Loaded by:  eigencapital/config.py
-Override:   .env (environment variables)
+Env select: EIGENCAPITAL_ENV via .env → picks configs/<env>/config.toml
+            (capital/risk values are NOT overridden by env vars)
 ```
 
 ### Market Schedules
 ```
 Authority:  configs/market_schedules/default.toml
 Loaded by:  core/market_schedule.py → load_schedules_from_file()
-25 instruments: 21 FX, 1 metals, 1 indices, 1 energy, 1 crypto
+26 instruments: 21 FX, 1 metals, 2 indices, 1 energy, 1 crypto
 ```
 
 ### Environment Variables

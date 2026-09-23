@@ -1,7 +1,16 @@
 # Documentation Truth Matrix
 
-**Date:** 2026-08-29
-**Status:** CURRENT
+> **Status: SUPERSEDED / HISTORICAL (2026-09-23)**  
+> This matrix recorded a 2026-08-29 verification snapshot. Several rows are no longer true of the current tree and must not be used as current state:
+> - `strategies/trend/strategy.py` and `TrendConfig` (63/21/±1) **no longer exist**; production R4 signal is `scripts/r4_rebalance_loop.py::compute_r4_signal` (12−1 momentum: lookback 252, skip 21, vol window 60, risk lookback 20, weight clip ±0.20 / BTC ±0.10).
+> - `max_concurrent_positions` is **20**, not 19.
+> - Market schedule instruments: **26** in `configs/market_schedules/default.toml`, not 25.
+>
+> Current authority: [`docs/DOCUMENTATION_SOURCE_OF_TRUTH.md`](../DOCUMENTATION_SOURCE_OF_TRUTH.md) · [`docs/architecture/SYSTEM_TRUTH.md`](../architecture/SYSTEM_TRUTH.md) · code/config/tests.  
+> Keep this file as a historical audit record only.
+
+**Date:** 2026-08-29  
+**Status (at write time):** CURRENT — now HISTORICAL
 
 Every claim in documentation traced to its authoritative source. Code is the source of truth.
 

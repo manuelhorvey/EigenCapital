@@ -115,7 +115,7 @@ Example:
 - 40 days with 40 completed trades across multiple regimes = meaningful evidence
 - 100 short-duration trades = insufficient for a slow-edge strategy
 
-For a portfolio strategy with 19 positions, track three sample sizes:
+For a portfolio strategy with up to 20 positions (max concurrent), track three sample sizes:
 
 ```
 N_positions (total entries)     — may be correlated

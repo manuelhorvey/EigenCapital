@@ -1,5 +1,7 @@
 # R4-S Shadow Portfolio Construction — Forensic Research Report
 
+> **Status: HISTORICAL research record (2026-09-23).** Verdicts recorded here belong to this campaign and are not re-litigated. Shadow observation does not modify frozen R4. Current phase state: [`docs/production/PHASE_STATUS.md`](../production/PHASE_STATUS.md) · research governance: [`docs/research/RESEARCH_PROGRAM_STATUS.md`](../research/RESEARCH_PROGRAM_STATUS.md).
+
 **Date:** 2026-09-07
 **Campaign:** R4-S (shadow-only portfolio-construction experiment alongside frozen R4)
 **Git HEAD:** `aa6e629a3206d06dfdd58b74fdb99292ed51debd`

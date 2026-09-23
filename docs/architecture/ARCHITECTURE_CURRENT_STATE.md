@@ -1,10 +1,13 @@
 # EigenCapital Current Architecture
 
-Audit date: 2026-08-27
-Git branch: `main`
-Git HEAD: `ea223e2c28148883ba38f6411423d6af41882383`
-Working tree at audit start: clean
-**⚠ DEPLOYMENT DRIFT**: Build manifest HEAD (`375a71b`, 2026-08-27) does not match git HEAD. Live process must be restarted to deploy v0.2.0 safety improvements.
+> **Snapshot:** inventory/HEAD/test counts below are from the audit date and are **historical measurements**, not live values. Re-run collection/`git rev-parse HEAD` for current numbers.  
+> **Runtime contradictions section (bottom):** several items were fixed after this audit (README no longer points at `CAPITAL_SEMANTICS.md`; treat remaining items as leads, not guarantees).
+
+Audit date: 2026-08-27  
+Git branch: `main`  
+Git HEAD: `ea223e2c28148883ba38f6411423d6af41882383`  
+Working tree at audit start: clean  
+**⚠ DEPLOYMENT DRIFT (as of audit date):** Build manifest HEAD (`375a71b`, 2026-08-27) did not match git HEAD. Live process restart status is **not re-verified in this document** — check current process fingerprint before relying on it.  
 Runtime used for verification: Python 3.14.7 on Linux
 
 ## Inventory
@@ -141,8 +144,10 @@ No systemd service, container spec, migration system, or CI deployment artifact 
 
 ## Current Runtime Contradictions
 
-- README references `docs/production/CAPITAL_SEMANTICS.md`, which is not present.
-- Deployment docs reference `config/production.toml` and `config/development.toml`, but actual files are under `configs/{environment}/config.toml`.
-- Deployment docs reference an `mt5-bridge` helper; no such tracked script was found.
-- README says production Linux is certified and Python 3.12 recommended; deployment docs claim 3.14 tested; pyproject classifiers stop at 3.12; CI runs 3.11, 3.12, 3.13; local audit ran on 3.14.7.
-- Older `reports/codebase_audit/provenance.json` is for a different HEAD and reported test collection errors; current collection succeeds.
+**Recorded at audit date 2026-08-27 (historical):**
+
+- ~~README references `docs/production/CAPITAL_SEMANTICS.md`~~ — **resolved**: README links `CAPITAL_SCALING.md`.
+- Deployment docs referenced `config/production.toml` / `config/development.toml` — **addressed in 2026-09-23 docs audit** (`configs/{environment}/config.toml`).
+- Deployment docs referenced an untracked `mt5-bridge` helper — **clarified**: use `scripts/start_trading.sh --bridge-only`.
+- Python/OS version matrix differs across README, classifiers, and CI — **still worth reconciling** (see audit report).
+- Older `reports/codebase_audit/provenance.json` is for a different HEAD — **still historical if present**.

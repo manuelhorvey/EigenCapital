@@ -2,7 +2,8 @@
 
 > **Scope:** Full repository configuration architecture  
 > **Method:** Code-traces-code, not documentation-trusts-documentation  
-> **Governance:** Phase 2 frozen — no R4 behavior changes
+> **Governance:** Phase 2 frozen — no R4 behavior changes  
+> **Status update (2026-09-23):** HISTORICAL audit. Follow-up on CFG-001: `strategies/trend/` (including `TrendConfig`) is **no longer present** in the tree — finding resolved by removal, not by labeling. Re-run this audit if a new configuration inventory is needed.
 
 ## Executive Summary
 

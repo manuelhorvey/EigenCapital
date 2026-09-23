@@ -1,5 +1,7 @@
 # EigenCapital — Forensic Audit of Signal Selection, Portfolio Construction, Position Sizing & Order Submission
 
+> **Status: HISTORICAL (2026-09-23).** Point-in-time audit at its stated HEAD. Values such as "capped equity $5,100" describe the capital envelope **as of the audit date**; the config envelope has since changed (`capital.max_equity = 20000`). Signal/pipeline findings remain valid descriptions of the code paths audited. Current authority: code + `configs/` + tests.
+
 **Audit date:** 2026-09-01
 **Git branch:** `main`
 **Working tree:** clean (no uncommitted changes)

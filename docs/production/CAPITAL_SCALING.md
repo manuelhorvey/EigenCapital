@@ -1,22 +1,24 @@
 # EigenCapital — Capital Scaling
 
-**Last Updated:** 2026-08-27  
-**Current Tier:** T1 — $5K Controlled Qualification (Live)
+**Last Updated:** 2026-09-23 (synced to `configs/production/config.toml`)  
+**Current Tier:** T1 — $5K Controlled Qualification (Live evidence collection)
 
 ---
 
-## Current Tier
+## Current Tier (config values)
 
-| Parameter | Value |
-|---|---|
-| Campaign tier | $5,000 |
-| Authorized capital | $5,100 |
-| Max position | $1,500 |
-| Max concurrent | 19 |
-| Max order | $1,500 |
-| Daily loss limit | $250 |
-| Universe | 24 symbols |
-| Status | 🟢 Live, collecting evidence |
+| Parameter | Value | Config key |
+|---|---|---|
+| Campaign tier | $5,000 | Campaign label (qualification level) |
+| Max authorized equity | $20,000 | `[capital].max_equity` |
+| Max position | $5,000 | `[capital].max_position_size` |
+| Max concurrent | 20 | `[capital]` / `[live_risk].max_concurrent_positions` |
+| Max order | $5,000 | `[capital].max_order_notional` |
+| Daily loss limit | $250 | `[live_risk].max_daily_loss` |
+| Universe | 26 tradeable listed symbols (7 `forex_excluded`) | `[broker.allowed_symbols]` |
+| Status | 🟢 Live, collecting evidence (Phase 2) | `docs/production/PHASE_STATUS.md` |
+
+> **Historical note:** earlier docs listed authorized capital `$5,100`, max position `$1,500`, and max concurrent `19`. Config and tests now enforce the values above (`tests/unit/test_config_consistency.py`, `tests/unit/production_qual/test_phase2_parity.py`).
 
 ---
 
@@ -24,13 +26,13 @@
 
 | Tier | Max Equity | Max Position | Max Order | Max Positions | Daily Loss | Stable Days |
 |------|-----------|-------------|-----------|--------------|-----------|-------------|
-| T1 QUALIFICATION | $5,100 | $1,500 | $1,500 | 19 | $250 | 0 |
+| T1 QUALIFICATION | $20,000 (config) | $5,000 | $5,000 | 20 | $250 | 0 |
 | T2 PROVISIONAL | $10,100 | $2,500 | $2,500 | 10 | $500 | 14 |
 | T3 CONTROLLED | $25,100 | $5,000 | $5,000 | 12 | $1,000 | 30 |
 | T4 SCALED | $50,100 | $8,000 | $8,000 | 15 | $2,000 | 60 |
 | T5 INSTITUTIONAL | $100,100 | $15,000 | $15,000 | 20 | $3,000 | 90 |
 
-All tiers are **immutable frozen dataclasses**.
+Tier rows T2–T5 are **planned governance definitions** (not active). T1 row reflects current production config. All tier dataclasses remain immutable frozen definitions where implemented.
 
 ---
 
@@ -84,21 +86,21 @@ All tiers are **immutable frozen dataclasses**.
 
 ## Capacity Analysis
 
-### $5K Tier Capacity
+### Current production envelope (T1 / config)
 
 | Metric | Value | Source |
 |--------|-------|--------|
-| Account equity | ~$7,000 | MT5 live |
-| Max position notional | $1,500 | Config |
-| Max concurrent | 19 | Config |
-| Total capacity | $28,500 | 19 × $1,500 |
-| Leverage utilized | ~4x | $28,500 / $7,000 |
+| Account equity | Live (varies) | MT5 |
+| Max authorized equity | $20,000 | `[capital].max_equity` |
+| Max position notional | $5,000 | `[capital].max_position_size` |
+| Max concurrent | 20 | `[capital].max_concurrent_positions` |
+| Total capacity (max) | $100,000 notional | 20 × $5,000 (theoretical ceiling; gated by equity, risk gates, min-lot) |
 
 ### Scalability Notes
 
-- System tested at $5K tier only
-- Higher tiers require live validation at each level
-- Position sizing scales linearly with equity
+- System tested at T1 qualification tier only
+- Higher tiers (T2–T5 above) require live validation at each level
+- Position sizing scales linearly with equity (subject to config envelope)
 - Risk gates enforce per-tier limits automatically
 
 ---

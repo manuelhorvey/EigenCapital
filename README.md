@@ -15,8 +15,20 @@
 | [Research](#research) | |
 | [Deployment](#deployment) | |
 | [Testing](#testing) | |
+| [Documentation Map](#documentation-map) | |
 | [Limitations](#limitations) | |
 | [Licensing](#licensing) | |
+
+### Status at a Glance
+
+| Area | Status | Authority |
+|---|---|---|
+| System phase | Phase 1 complete · Phase 2 evidence collection active · Phase 3 locked | [`docs/production/PHASE_STATUS.md`](docs/production/PHASE_STATUS.md) |
+| Production strategy | R4 frozen (`risk_conditioned_continuation` R4.0) — frozen ≠ proven profitable | [`src/eigencapital/fidelity/r4_manifest.py`](src/eigencapital/fidelity/r4_manifest.py), [`configs/production/config.toml`](configs/production/config.toml) |
+| Execution | MT5 loop under safety gates; evidence collection (no capital promotion) | [`docs/production/LIVE_TRADING.md`](docs/production/LIVE_TRADING.md) |
+| Research queue | R0–R8 closed at last review (COMPLETE/FROZEN/PARKED/BLOCKED/DEFERRED per stage) | [`docs/research/RESEARCH_PROGRAM_STATUS.md`](docs/research/RESEARCH_PROGRAM_STATUS.md) |
+| Architecture map | Current concept → authority map | [`docs/architecture/SYSTEM_TRUTH.md`](docs/architecture/SYSTEM_TRUTH.md) |
+| Doc authority | One source per mutable fact | [`docs/DOCUMENTATION_SOURCE_OF_TRUTH.md`](docs/DOCUMENTATION_SOURCE_OF_TRUTH.md) |
 
 ## Overview
 
@@ -100,7 +112,7 @@ python scripts/r4_adversarial_audit.py
 python scripts/r4_generate_t0.py
 
 # 5. Generate attestation
-python scripts/r4_attestation.py"
+python scripts/r4_attestation.py
 ```
 
 ## Requirements
@@ -176,12 +188,14 @@ python scripts/r4_attestation.py"
 | Gate | Limit | Enforcement |
 |---|---|---|
 | Fingerprint | 5 components | Fail-closed |
-| Position count | ≤ 19 | Block new entries |
+| Position count | ≤ 20 | Block new entries |
 | Position notional | ≤ $5,000 | Skip symbol |
 | Equity floor | ≥ $4,000 | Block trading |
 | Daily loss | ≤ $250 | Block trading |
 | Drawdown | ≤ 10% | Block trading |
 | Foreign quarantine | 0 foreign | Block new entries |
+
+Authoritative gate semantics: [`docs/production/RISK_ARCHITECTURE.md`](docs/production/RISK_ARCHITECTURE.md) and `configs/production/config.toml` (`[live_risk]`).
 
 ### During-Trade Controls
 
@@ -205,7 +219,7 @@ MarketSchedule → DataQuality → DataTruth → MarketDataBridge
 
 | Component | Purpose |
 |---|---|
-| **MarketSchedule** | Authoritative trading calendar per instrument (25 instruments: FX, metals, indices, energy, crypto) |
+| **MarketSchedule** | Authoritative trading calendar per instrument (26 instruments in `configs/market_schedules/default.toml`: FX, metals, indices, energy, crypto) |
 | **DataQuality** | Freshness, completeness, spread, plausibility, timestamp integrity assessment |
 | **DataTruth** | Provenance tracking: AUTHORITATIVE / DERIVED / ESTIMATED / STALE / UNAVAILABLE / CORRUPT |
 | **MarketDataBridge** | Connects schedule → quality → truth; distinguishes expected vs unexpected data absence |
@@ -219,7 +233,7 @@ See [`docs/architecture/DATA_INVARIANTS.md`](docs/architecture/DATA_INVARIANTS.m
 
 | Tier | Max Position | Max Concurrent | Universe | Status |
 |---|---|---|---|---|
-| $5K | $5,000 | 19 | 24 symbols | 🟢 Live |
+| $5K campaign | $5,000 | 20 | 26 tradeable listed symbols | 🟢 Live (Phase 2 evidence collection) |
 | $10K | $10,000 | TBD | TBD | 🔴 Not qualified |
 | $25K | $25,000 | TBD | TBD | 🔴 Not qualified |
 | $50K | $50,000 | TBD | TBD | 🔴 Not qualified |
@@ -230,33 +244,34 @@ See [`docs/production/CAPITAL_SCALING.md`](docs/production/CAPITAL_SCALING.md) f
 
 ### Position Count Governance
 
-- **MAX_CONCURRENT = 19** (explicit governance decision)
-- Top-19 captures **97.4%** of total signal weight
-- Remaining 5 symbols contribute <3% — marginal
-- `MAX_CONCURRENT` is a risk-policy parameter, not tied to universe size
+- **`max_concurrent_positions = 20`** (config + tests; risk-policy parameter, not tied to universe size)
+- Universe listing: 33 entries under `[broker.allowed_symbols]`, of which 7 are `forex_excluded` → **26 tradeable**
 
-### Capital Semantics
+### Capital Semantics (current config)
 
 | Concept | Value | Meaning |
 |---|---|---|
-| Account equity | ~$6,980 | What broker shows |
-| Authorized capital | $5,100 | What strategy trades against |
-| Campaign tier | $5,000 | Qualification level |
+| Account equity | Live (varies) | What broker shows |
+| `capital.max_equity` | $20,000 | Sizing/envelope ceiling in production config |
+| Campaign tier | $5,000 | Qualification level label |
 | Position limit | $5,000 | Max notional per position |
-| Risk budget | $250/day | Daily loss limit |
+| Risk budget | $250/day | Daily loss limit (`[live_risk]`) |
 
 See [`docs/production/CAPITAL_SCALING.md`](docs/production/CAPITAL_SCALING.md) for full definitions.
 
 ## Research
 
-R4 is the current production strategy. Research history:
+R4 is the current production strategy. Research does not modify R4.
 
-| Strategy | Status | Notes |
+| Track | Status | Notes |
 |---|---|---|
-| R4 momentum | 🟢 Live | Frozen, qualified at $5K |
-| R5 swing breadth | 🔴 Rejected | 16/16 hypotheses failed |
-| M1-1H OHLCV | 🔴 Frozen | Not production-qualified |
-| Tick microstructure | 🔴 Frozen | Campaign 7 hardened, not promoted |
+| R4 production (`risk_conditioned_continuation`) | 🟢 Live evidence collection | Frozen parameters; Phase 2 gates control promotion |
+| Literature research program (R0–R8) | Queue closed at last status | Verdicts per stage in [`docs/research/RESEARCH_PROGRAM_STATUS.md`](docs/research/RESEARCH_PROGRAM_STATUS.md) |
+| R4 rebalance-frequency study (EXP-000002) | Research complete | GO to qualification, **not** production change ([`docs/research/R4_REBALANCE_FREQUENCY.md`](docs/research/R4_REBALANCE_FREQUENCY.md)) |
+| R5 swing-breadth campaign (2026-08-25) | 0/16 supported | 13 REJECTED, 3 FRAGILE — [`research/hypotheses/README.md`](research/hypotheses/README.md) |
+| Intraday / tick microstructure | Frozen research branches | Not production-qualified |
+
+**Frozen does not mean proven profitable.** Shadow selectors and research experiments observe or diagnose; they do not alter frozen R4.
 
 ### Research Philosophy
 
@@ -332,13 +347,30 @@ Coverage is tracked via [Codecov](https://codecov.io/github/manuelhorvey/EigenCa
 
 ## Limitations
 
-- **$5K qualification only** — not certified for larger capital
-- **24 symbols** — 7 JPY crosses excluded (broker contract constraint)
-- **19 max concurrent** — governance decision, not technical limit
-- **Linux only** — Windows architecturally supported but not certified
-- **R4 edge is slow** — requires 20-40+ day holding periods for evidence
+- **Phase 2 only** — capital promotion locked until evidence gates pass
+- **26 tradeable listed symbols** — 7 JPY crosses marked `forex_excluded` (broker min-lot constraint)
+- **20 max concurrent** — governance/config decision, not a technical ceiling
+- **Linux certified for production** — Windows/macOS documented for development; not production-certified
+- **R4 edge is slow** — evidence collection expects multi-week holding periods
 - **No guaranteed stop-loss** — catastrophic SL subject to gap/slippage risk
-- **No live profitability evidence yet** — currently collecting evidence
+- **No live profitability claim** — Phase 2 is collecting evidence; expectancy gates not yet satisfied by documentation alone
+
+## Documentation Map
+
+| Need | Document |
+|---|---|
+| Phase / production status | [`docs/production/PHASE_STATUS.md`](docs/production/PHASE_STATUS.md) |
+| Architecture & concept authority | [`docs/architecture/SYSTEM_TRUTH.md`](docs/architecture/SYSTEM_TRUTH.md) |
+| Doc source-of-truth map | [`docs/DOCUMENTATION_SOURCE_OF_TRUTH.md`](docs/DOCUMENTATION_SOURCE_OF_TRUTH.md) |
+| Risk architecture | [`docs/production/RISK_ARCHITECTURE.md`](docs/production/RISK_ARCHITECTURE.md) |
+| Live operations | [`docs/production/LIVE_TRADING.md`](docs/production/LIVE_TRADING.md), [`docs/production/OPERATIONS_RUNBOOK.md`](docs/production/OPERATIONS_RUNBOOK.md) |
+| Deployment | [`docs/production/DEPLOYMENT.md`](docs/production/DEPLOYMENT.md) |
+| Capital scaling | [`docs/production/CAPITAL_SCALING.md`](docs/production/CAPITAL_SCALING.md) |
+| Testing | [`docs/production/TESTING.md`](docs/production/TESTING.md) |
+| Research program status | [`docs/research/RESEARCH_PROGRAM_STATUS.md`](docs/research/RESEARCH_PROGRAM_STATUS.md) |
+| Literature roadmap (governing review) | [`docs/research/RESEARCH_LITERATURE_AUDIT_REVIEW.md`](docs/research/RESEARCH_LITERATURE_AUDIT_REVIEW.md) |
+| Data invariants | [`docs/architecture/DATA_INVARIANTS.md`](docs/architecture/DATA_INVARIANTS.md) |
+| Historical audits | [`docs/audits/`](docs/audits/) (dated; not current status) |
 
 ## Licensing
 
@@ -346,9 +378,7 @@ Coverage is tracked via [Codecov](https://codecov.io/github/manuelhorvey/EigenCa
 
 ## Versioning
 
-This project follows [Semantic Versioning](https://semver.org/) principles. The current version is `0.1.0` (Pre-Alpha). Breaking changes will be documented in the changelog.
-
-Changelog entries will be tracked in `CHANGELOG.md` starting at v1.0.
+Follows [Semantic Versioning](https://semver.org/). Package version is declared in [`pyproject.toml`](pyproject.toml) (currently `0.5.0`). Release history: [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Contributing
 

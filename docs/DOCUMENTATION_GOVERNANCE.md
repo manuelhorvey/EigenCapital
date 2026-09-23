@@ -14,6 +14,8 @@ Each subject has exactly one authoritative source. All other documents referenci
 | **Technical debt** | Debt register | `docs/architecture/TECHNICAL_DEBT_REGISTER.md` |
 | **Live qualification state** | Latest qualification artifacts | `reports/r4_qualification/T0_*.json`, `reports/r4_qualification/attestation_*.json` |
 | **Phase 2 status** | Phase status doc | `docs/production/PHASE_STATUS.md` |
+| **Research program status** | Frozen program status | `docs/research/RESEARCH_PROGRAM_STATUS.md` |
+| **Literature roadmap** | Governing review (supersedes integration audit) | `docs/research/RESEARCH_LITERATURE_AUDIT_REVIEW.md` |
 | **Phase alignment** | Phase alignment doc | `docs/architecture/PHASE_ALIGNMENT.md` |
 | **Capital semantics** | Capital scaling doc | `docs/production/CAPITAL_SCALING.md` |
 | **Operations runbook** | Operations runbook | `docs/production/OPERATIONS_RUNBOOK.md` |

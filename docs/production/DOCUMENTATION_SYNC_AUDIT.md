@@ -1,5 +1,7 @@
 # Documentation Synchronization Audit
 
+> **Status: HISTORICAL (2026-09-23).** Dated campaign record from 2026-08-26. Counts and "verified" rows below reflect that campaign, not the current tree. Do not treat as current status. Current authority: [`docs/DOCUMENTATION_SOURCE_OF_TRUTH.md`](../DOCUMENTATION_SOURCE_OF_TRUTH.md).
+
 This document records the results of the documentation synchronization campaign.
 
 Date: 2026-08-26

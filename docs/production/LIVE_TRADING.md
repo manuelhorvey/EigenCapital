@@ -70,7 +70,7 @@ The rebalance loop runs every hour:
 
 1. **Signal computation:** 12-1 month momentum, cross-sectional ranks, regime conditioning, vol scaling
 2. **Portfolio comparison:** Current positions vs target weights
-3. **Order generation:** Close positions no longer in top-19, open new positions that entered top-19
+3. **Order generation:** Close positions no longer in top-20, open new positions that entered top-20
 4. **Execution:** Ticket-scoped closes (hedging-safe), market orders for new entries
 5. **Audit:** Every decision recorded to JSONL
 
@@ -134,7 +134,7 @@ FINGERPRINT FAILED → BLOCKED → no trading until resolved
 | Drawdown > 10% | Block all new entries |
 | Equity < $4,000 | Block all new entries |
 | Foreign position detected | Block new entries, allow self-rotation |
-| Position count > 19 | Force rotation |
+| Position count > 20 | Force rotation |
 
 ### Emergency Flatten
 
@@ -183,10 +183,10 @@ Single source of truth: `configs/production/config.toml`
 
 | Parameter | Value | Location |
 |---|---|---|
-| MAX_CONCURRENT | 19 | `[capital].max_concurrent_positions` |
+| MAX_CONCURRENT | 20 | `[capital].max_concurrent_positions` and `[live_risk].max_concurrent_positions` (must match) |
 | MAX_POSITION_USD | $5,000 | `[capital].max_position_size` |
-| MAX_EQUITY | $5,100 | `[capital].max_equity` |
-| MAX_DAILY_LOSS | $250 | `[capital].max_daily_loss` |
+| MAX_EQUITY | $20,000 | `[capital].max_equity` |
+| MAX_DAILY_LOSS | $250 | `[capital].max_daily_loss` / `[live_risk].max_daily_loss` |
 | MIN_EQUITY | $4,000 | `[live_risk].min_equity` |
 | MAX_DD | 10% | `[live_risk].max_account_drawdown_pct` |
 | MAGIC | 20260825 | Hardcoded in order requests |

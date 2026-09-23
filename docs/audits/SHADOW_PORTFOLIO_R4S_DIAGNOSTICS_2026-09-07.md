@@ -1,5 +1,7 @@
 # R4-S Diagnostics — Where Does the 48% Lost Edge Go?
 
+> **Status: HISTORICAL research record (2026-09-23).** Diagnostic analysis of a fixed observation window (Jan 1 – Aug 24, 2026). No selector behavior was changed by this document. Shadow observation does not modify frozen R4.
+
 **Date:** 2026-09-07 · **Selector version:** `r4s-shadow-selector-0.2.0`
 **Window:** Jan 1 – Aug 24, 2026 (136 regime-on decision days)
 **Method:** diagnostic only — no selector behavior changed, no hyperparameters

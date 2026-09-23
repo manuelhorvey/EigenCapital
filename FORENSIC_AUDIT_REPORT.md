@@ -1,5 +1,7 @@
 # R4 Forensic Audit Report — Account-Size-Aware Position Sizing
 
+> **Status: HISTORICAL forensic report** (min-lot distortion investigation). Findings and fix description are retained as evidence of that investigation. Not a statement of current phase status. Current ops: `docs/production/PHASE_STATUS.md`, `docs/production/LIVE_TRADING.md`.
+
 ## 1. Executive Verdict
 
 **CORRECT** — Dynamic account sizing already exists in R4. The problem was not "R4 doesn't scale lots with account size." The problem was that the execution layer forced unrepresentable targets up to the broker's minimum lot, then silently accepted the resulting oversized exposure.

@@ -3,13 +3,14 @@
 This document defines which file is the **authoritative source** for each subject area.
 When documentation and code disagree, trace back to the authoritative source listed here.
 
-Last updated: 2026-08-26
+Last updated: 2026-09-23
 
 ## Core System
 
 | Domain | Authoritative Source | Location |
 |---|---|---|
 | R4 identity (frozen) | R4 manifest | `src/eigencapital/fidelity/r4_manifest.py` |
+| R4 **live signal math** | Rebalance loop signal | `scripts/r4_rebalance_loop.py::compute_r4_signal` |
 | Strategy parameters | Config production | `configs/production/config.toml` |
 | Risk policy | RiskPolicy class | `src/eigencapital/risk/policy.py` |
 | Capital limits | CapitalConfig | `src/eigencapital/config.py` → `CapitalConfig` |
@@ -53,10 +54,13 @@ Last updated: 2026-08-26
 
 | Domain | Authoritative Source | Location |
 |---|---|---|
+| Research program status / stage verdicts | Program status (frozen record) | `docs/research/RESEARCH_PROGRAM_STATUS.md` |
+| Literature roadmap (governing) | Audit review (supersedes integration audit) | `docs/research/RESEARCH_LITERATURE_AUDIT_REVIEW.md` |
 | Research hypotheses | Hypotheses README | `research/hypotheses/README.md` |
 | Alpha research map | Research map | `docs/research/ALPHA_RESEARCH_MAP_1Q_FULL.md` |
-| Trial ledger | Trial ledger | `reports/r4_economics_audit/trial_ledger.json` |
-| R4 economics | Economics audit | `reports/r4_economics_audit/` |
+| Trial ledger | Trial ledger | `reports/r4_economics_audit/trial_ledger.json` (**may be absent from tree — gitignored/removed**) |
+| R4 economics | Economics audit | `reports/r4_economics_audit/` (**may be absent**) |
+| R4 rebalance-frequency experiment | Experiment record | `docs/research/R4_REBALANCE_FREQUENCY.md` + `research/experiments/registry/EXP-000002.json` |
 
 ## Configuration
 
@@ -88,7 +92,9 @@ Last updated: 2026-08-26
 | Capital scaling | Tier definitions and promotion criteria | `docs/production/CAPITAL_SCALING.md` |
 | Platform portability | Linux vs Windows support status | `docs/production/PLATFORM_PORTABILITY.md` |
 | Testing | Test architecture and categories | `docs/production/TESTING.md` |
-| Sync audit | Documentation synchronization results | `docs/production/DOCUMENTATION_SYNC_AUDIT.md` |
+| Sync audit (historical) | 2026-08-26 campaign only | `docs/production/DOCUMENTATION_SYNC_AUDIT.md` |
+| Phase status | Phase 0–5 current status | `docs/production/PHASE_STATUS.md` |
+| System truth map | Concept → authority map | `docs/architecture/SYSTEM_TRUTH.md` |
 
 ## Documentation Gaps
 

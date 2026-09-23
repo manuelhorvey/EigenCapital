@@ -81,7 +81,7 @@ Requirements:
 
 1. Conformance test suite running on Windows
 2. MT5 native connection verified
-3. All 2,301 tests passing
+3. Full test suite green on Windows (re-collect: `pytest --co -q`)
 4. Live trading test (even small)
 5. Process supervision verified
 6. Emergency flatten tested

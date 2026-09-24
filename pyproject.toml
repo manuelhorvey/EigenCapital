@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eigencapital"
-version = "0.5.0"
+version = "0.6.0"
 description = "Asset-agnostic quantitative research and execution platform"
 readme = "README.md"
 license = {text = "MIT"}

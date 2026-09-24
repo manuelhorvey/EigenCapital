@@ -219,7 +219,7 @@ MarketSchedule → DataQuality → DataTruth → MarketDataBridge
 
 | Component | Purpose |
 |---|---|
-| **MarketSchedule** | Authoritative trading calendar per instrument (26 instruments in `configs/market_schedules/default.toml`: FX, metals, indices, energy, crypto) |
+| **MarketSchedule** | Authoritative trading calendar per instrument (28 instruments in `configs/market_schedules/default.toml`: FX, metals, indices, energy, crypto) |
 | **DataQuality** | Freshness, completeness, spread, plausibility, timestamp integrity assessment |
 | **DataTruth** | Provenance tracking: AUTHORITATIVE / DERIVED / ESTIMATED / STALE / UNAVAILABLE / CORRUPT |
 | **MarketDataBridge** | Connects schedule → quality → truth; distinguishes expected vs unexpected data absence |
@@ -233,7 +233,7 @@ See [`docs/architecture/DATA_INVARIANTS.md`](docs/architecture/DATA_INVARIANTS.m
 
 | Tier | Max Position | Max Concurrent | Universe | Status |
 |---|---|---|---|---|
-| $5K campaign | $5,000 | 20 | 26 tradeable listed symbols | 🟢 Live (Phase 2 evidence collection) |
+| $5K campaign | $5,000 | 20 | 28 tradeable listed symbols | 🟢 Live (Phase 2 evidence collection) |
 | $10K | $10,000 | TBD | TBD | 🔴 Not qualified |
 | $25K | $25,000 | TBD | TBD | 🔴 Not qualified |
 | $50K | $50,000 | TBD | TBD | 🔴 Not qualified |
@@ -245,7 +245,7 @@ See [`docs/production/CAPITAL_SCALING.md`](docs/production/CAPITAL_SCALING.md) f
 ### Position Count Governance
 
 - **`max_concurrent_positions = 20`** (config + tests; risk-policy parameter, not tied to universe size)
-- Universe listing: 33 entries under `[broker.allowed_symbols]`, of which 7 are `forex_excluded` → **26 tradeable**
+- Universe listing: 35 entries under `[broker.allowed_symbols]`, of which 7 are `forex_excluded` → **28 tradeable**
 
 ### Capital Semantics (current config)
 
@@ -348,7 +348,7 @@ Coverage is tracked via [Codecov](https://codecov.io/github/manuelhorvey/EigenCa
 ## Limitations
 
 - **Phase 2 only** — capital promotion locked until evidence gates pass
-- **26 tradeable listed symbols** — 7 JPY crosses marked `forex_excluded` (broker min-lot constraint)
+- **28 tradeable listed symbols** — 7 JPY crosses marked `forex_excluded` (broker min-lot constraint)
 - **20 max concurrent** — governance/config decision, not a technical ceiling
 - **Linux certified for production** — Windows/macOS documented for development; not production-certified
 - **R4 edge is slow** — evidence collection expects multi-week holding periods

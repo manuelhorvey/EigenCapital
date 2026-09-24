@@ -4,7 +4,7 @@
 > This matrix recorded a 2026-08-29 verification snapshot. Several rows are no longer true of the current tree and must not be used as current state:
 > - `strategies/trend/strategy.py` and `TrendConfig` (63/21/±1) **no longer exist**; production R4 signal is `scripts/r4_rebalance_loop.py::compute_r4_signal` (12−1 momentum: lookback 252, skip 21, vol window 60, risk lookback 20, weight clip ±0.20 / BTC ±0.10).
 > - `max_concurrent_positions` is **20**, not 19.
-> - Market schedule instruments: **26** in `configs/market_schedules/default.toml`, not 25.
+> - Market schedule instruments: **28** in `configs/market_schedules/default.toml`, not 25.
 >
 > Current authority: [`docs/DOCUMENTATION_SOURCE_OF_TRUTH.md`](../DOCUMENTATION_SOURCE_OF_TRUTH.md) · [`docs/architecture/SYSTEM_TRUTH.md`](../architecture/SYSTEM_TRUTH.md) · code/config/tests.  
 > Keep this file as a historical audit record only.
@@ -92,7 +92,7 @@ Every claim in documentation traced to its authoritative source. Code is the sou
 | DataTruth | `core/data_truth.py` | ✅ VERIFIED |
 | MarketDataBridge | `core/data_quality.py:MarketDataBridge` | ✅ VERIFIED |
 | NoSilentDegradation | `core/no_silent_degradation.py` | ✅ VERIFIED |
-| 25 instruments configured | `configs/market_schedules/default.toml` | ✅ VERIFIED |
+| 28 instruments configured | `configs/market_schedules/default.toml` | ✅ VERIFIED |
 | BTCUSD = CONTINUOUS_24_7 | `default.toml` | ✅ VERIFIED |
 | FX = WEEKDAY | `default.toml` | ✅ VERIFIED |
 

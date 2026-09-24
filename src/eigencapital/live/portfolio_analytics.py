@@ -113,6 +113,7 @@ ASSET_CLASS_MAP: Dict[str, str] = {
     "BTCUSD": "crypto",
     "ETHUSD": "crypto",
     "USOIL": "energy",
+    "XNGUSD": "energy",
 }
 
 

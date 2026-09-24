@@ -73,6 +73,8 @@ R4_SYMBOLS = [
     "USDJPY",
     "CADJPY",
     "XAUUSD",
+    "XAGUSD",
+    "XNGUSD",
     "EURUSD",
     "EURCHF",
     "USDCHF",
@@ -307,7 +309,7 @@ def main() -> None:
             max_allowed = 30
         elif sym in ("BTCUSD", "ETHUSD"):
             max_allowed = 500
-        elif sym in ("US500", "US30", "USTEC", "USOIL"):
+        elif sym in ("US500", "US30", "USTEC", "USOIL", "XNGUSD"):
             max_allowed = 50
 
         if spread_pts > max_allowed:

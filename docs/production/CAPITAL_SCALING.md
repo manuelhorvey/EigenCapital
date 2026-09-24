@@ -15,7 +15,7 @@
 | Max concurrent | 20 | `[capital]` / `[live_risk].max_concurrent_positions` |
 | Max order | $5,000 | `[capital].max_order_notional` |
 | Daily loss limit | $250 | `[live_risk].max_daily_loss` |
-| Universe | 26 tradeable listed symbols (7 `forex_excluded`) | `[broker.allowed_symbols]` |
+| Universe | 28 tradeable listed symbols (7 `forex_excluded`) | `[broker.allowed_symbols]` |
 | Status | 🟢 Live, collecting evidence (Phase 2) | `docs/production/PHASE_STATUS.md` |
 
 > **Historical note:** earlier docs listed authorized capital `$5,100`, max position `$1,500`, and max concurrent `19`. Config and tests now enforce the values above (`tests/unit/test_config_consistency.py`, `tests/unit/production_qual/test_phase2_parity.py`).

@@ -2643,7 +2643,7 @@ def _run_shadow_constructor(
                 asset_class_map[sym] = "metals"
             elif prefix == "BTC" or prefix == "ETH":
                 asset_class_map[sym] = "crypto"
-            elif prefix == "USO":
+            elif prefix in ("USO", "XNG"):
                 asset_class_map[sym] = "energy"
             else:
                 asset_class_map[sym] = "forex"

@@ -19,7 +19,7 @@ min_volume = 0.01         # Minimum lot size (forex)
 max_volume = 1.0          # Maximum lot size
 
 # R4 universe — Exness MT5 bare names (no 'm' suffix)
-# 33 entries: eligible symbols tradeable if min lot fits position limit
+# 35 entries: eligible symbols tradeable if min lot fits position limit
 # forex_excluded = min lot exceeds envelope (mostly JPY crosses due to 100K contract × JPY rate)
 [broker.allowed_symbols]
 
@@ -45,6 +45,8 @@ EURJPY = "forex_excluded"  # min lot $186K (JPY)
 USDJPY = "forex_excluded"  # min lot $159K (JPY)
 CADJPY = "forex_excluded"  # min lot $115K (JPY)
 XAUUSD = "metals"         # min lot $4,627 (fits $5K cap)
+XAGUSD = "metals"         # Silver — min lot fits $5K cap
+XNGUSD = "energy"         # Natural gas — min lot fits $5K cap
 EURUSD = "forex"          # min lot $1,167
 EURCHF = "forex"          # min lot $937
 USDCHF = "forex"          # min lot $803
@@ -61,14 +63,14 @@ BTCUSD = "crypto"         # min lot $792
 [capital]
 # Campaign boundaries — calibrated to Exness min-lot constraints
 # Max position / max order = $5,000 (fits XAUUSD $4,627 + US30 $2,687 min-lot cost)
-# Universe: 33 allowed_symbols entries; 7 forex_excluded → 26 tradeable
+# Universe: 35 allowed_symbols entries; 7 forex_excluded → 28 tradeable
 max_equity = 20000.0             # Maximum authorized equity for the expanded $19K account tier
 max_drawdown_pct = 20.0          # 20% max campaign drawdown
 max_daily_loss = 250.0           # $250 max daily loss
 max_total_drawdown = 1000.0      # $1,000 max total drawdown
 max_position_size = 5000.0       # $5,000 max position (fits XAUUSD $4,627 + US30 $2,687)
 max_order_notional = 5000.0      # $5,000 max order
-max_concurrent_positions = 20    # Maximum open positions (26 tradeable listed symbols)
+max_concurrent_positions = 20    # Maximum open positions (28 tradeable listed symbols)
 campaign_duration_days = 30      # 30-day qualification window
 max_spread = 0.0015              # Spread limit for capital checks (forex)
 max_slippage = 0.0008            # Slippage limit for capital checks

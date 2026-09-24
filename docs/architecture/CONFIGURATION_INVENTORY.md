@@ -83,7 +83,7 @@ R4 loop / risk enforcement / dashboard / fingerprint verifier
 
 | Setting | Source | Consumer | Authority | Fingerprint |
 |---------|--------|----------|-----------|-------------|
-| allowed_symbols (33 entries; 7 `forex_excluded` → 26 tradeable) | config.toml → BrokerConfig | r4_rebalance_loop (R4_SYMBOLS, ELIGIBLE_SYMBOLS) | BrokerConfig | ✅ symbol_fp |
+| allowed_symbols (35 entries; 7 `forex_excluded` → 28 tradeable) | config.toml → BrokerConfig | r4_rebalance_loop (R4_SYMBOLS, ELIGIBLE_SYMBOLS) | BrokerConfig | ✅ symbol_fp |
 | max_spread (0.0015) | config.toml → BrokerConfig | execution code | BrokerConfig | — |
 | account_id (from config; not printed here) | config.toml → BrokerConfig | MT5 connection | BrokerConfig | ✅ config_fp |
 
@@ -92,7 +92,7 @@ R4 loop / risk enforcement / dashboard / fingerprint verifier
 | Setting | Source | Consumer | Authority | Fingerprint |
 |---------|--------|----------|-----------|-------------|
 | freshness thresholds (30s/120s) | code (DataQualityPresets) | DataQualityAssessor | DataQualityPresets | — |
-| market schedules (26 instruments) | configs/market_schedules/default.toml | MarketSchedule | TOML file | — |
+| market schedules (28 instruments) | configs/market_schedules/default.toml | MarketSchedule | TOML file | — |
 | staleness thresholds | code defaults | RiskObserver | RiskObserver | — |
 | fetch_bars (300) | config.toml → DataConfig | r4_rebalance_loop | DataConfig | — |
 

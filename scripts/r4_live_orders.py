@@ -59,6 +59,8 @@ R4_SYMBOLS = [
     "USDJPY",
     "CADJPY",
     "XAUUSD",
+    "XAGUSD",
+    "XNGUSD",
     "EURUSD",
     "EURCHF",
     "USDCHF",
@@ -90,6 +92,8 @@ ELIGIBLE_SYMBOLS = [
     "USDCAD",
     "CADCHF",
     "EURGBP",
+    "XAGUSD",
+    "XNGUSD",
     "BTCUSD",
 ]
 

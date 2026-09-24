@@ -89,7 +89,7 @@ Metrics:
 | `crypto` | BTCUSD, ETHUSD |
 | `metals` | XAUUSD, XAGUSD |
 | `indices` | US30, USTEC |
-| `energy` | USOIL |
+| `energy` | USOIL, XNGUSD |
 
 Metrics:
 - `asset_class_exposure` — notional per asset class

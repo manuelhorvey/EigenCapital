@@ -34,6 +34,7 @@ SINGLE_LEG_ASSET_CLASS: Dict[str, str] = {
     "BTCUSD": "crypto",
     "ETHUSD": "crypto",
     "USOIL": "energy",
+    "XNGUSD": "energy",
 }
 
 # Derived macro/factor group per instrument. Lightweight, evidence-oriented;
@@ -47,6 +48,7 @@ FACTOR_GROUP: Dict[str, str] = {
     "XAUUSD": "safe_haven",
     "XAGUSD": "commodity",
     "USOIL": "commodity",
+    "XNGUSD": "commodity",
 }
 
 _CURRENCY_SET = set(CURRENCIES)

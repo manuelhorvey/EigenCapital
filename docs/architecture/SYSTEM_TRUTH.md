@@ -183,7 +183,7 @@ Env select: EIGENCAPITAL_ENV via .env → picks configs/<env>/config.toml
 ```
 Authority:  configs/market_schedules/default.toml
 Loaded by:  core/market_schedule.py → load_schedules_from_file()
-26 instruments: 21 FX, 1 metals, 2 indices, 1 energy, 1 crypto
+28 instruments: 21 FX, 2 metals, 2 indices, 2 energy, 1 crypto
 ```
 
 ### Environment Variables

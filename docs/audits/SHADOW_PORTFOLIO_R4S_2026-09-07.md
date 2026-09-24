@@ -241,7 +241,7 @@ outcomes files, timestamps excepted).
 
 1. The screenshot universe (BTCUSD, XAUUSD, USOIL, USTEC, US30) is the
    **current production universe** — `[broker.allowed_symbols]` in
-   `configs/production/config.toml` (33 entries), filtered by the loop's own
+   `configs/production/config.toml` (35 entries), filtered by the loop's own
    eligibility rule (`not endswith("_excluded")`). It is the production R4
    universe, not a research-only one.
 2. **BTCUSD IS reachable from the production R4 path**: it is

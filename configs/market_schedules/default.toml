@@ -256,6 +256,18 @@ description = "Gold vs USD"
 open = "22:00"
 close = "22:00"
 
+[instruments.XAGUSD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "metals"
+description = "Silver vs USD"
+
+[instruments.XAGUSD.sessions]
+open = "22:00"
+close = "22:00"
+
 # ═══════════════════════════════════════════════════════════════════
 # Indices — WEEKDAY, extended hours
 # ═══════════════════════════════════════════════════════════════════
@@ -297,6 +309,18 @@ asset_class = "energy"
 description = "WTI Crude Oil CFD"
 
 [instruments.USOIL.sessions]
+open = "01:00"
+close = "23:00"
+
+[instruments.XNGUSD]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "energy"
+description = "Natural Gas CFD"
+
+[instruments.XNGUSD.sessions]
 open = "01:00"
 close = "23:00"
 

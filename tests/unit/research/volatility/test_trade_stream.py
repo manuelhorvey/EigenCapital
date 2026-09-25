@@ -11,7 +11,15 @@ from research.volatility import trade_stream as TS
 
 @pytest.fixture(scope="module")
 def population():
-    return TS.replay_pit_population()
+    # CI checkouts have no data/ snapshot; the frozen exporter exits with
+    # SystemExit when fewer than 2 symbols have local history. Skip there —
+    # with the snapshot present, replay failures are real test failures.
+    if not C.FROZEN_MANIFEST.exists():
+        pytest.skip(f"local D1 snapshot not present (CI): {C.FROZEN_MANIFEST}")
+    try:
+        return TS.replay_pit_population()
+    except SystemExit as exc:
+        pytest.skip(f"insufficient local D1 history for replay: {exc}")
 
 
 def test_population_count_and_symbols(population):

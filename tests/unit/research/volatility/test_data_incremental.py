@@ -3,8 +3,11 @@ vocabulary is closed; LOO/insertion counters behave."""
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
+import pytest
 
 from research.volatility import config as C
 from research.volatility import data as DATA
@@ -12,21 +15,33 @@ from research.volatility import evidence as E
 from research.volatility import incremental as INC
 
 
+def _require_local_data(*paths: Path) -> None:
+    """Skip (never fail) when the local D1 snapshot is absent — CI checkouts
+    do not contain data/ (untracked frozen snapshot + supplements)."""
+    missing = [str(p) for p in paths if not p.exists()]
+    if missing:
+        pytest.skip(f"local data snapshot not present (CI): {', '.join(missing)}")
+
+
 def test_supplement_manifest_verifies():
+    _require_local_data(C.SUPPLEMENT_MANIFEST)
     m = DATA.verify_manifest(C.SUPPLEMENT_MANIFEST)
     assert "combined_sha256" in m
 
 
 def test_candidate_manifest_verifies():
+    _require_local_data(C.CANDIDATE_MANIFEST)
     m = DATA.verify_manifest(C.CANDIDATE_MANIFEST)
     assert "combined_sha256" in m
 
 
 def test_r5_frozen_snapshot_verifies():
+    _require_local_data(C.FROZEN_MANIFEST)
     DATA.verify_r5_frozen_snapshot()  # raises on any drift
 
 
 def test_no_new_files_in_frozen_dir():
+    _require_local_data(C.FROZEN_DIR, C.FROZEN_MANIFEST)
     names = [p.name for p in C.FROZEN_DIR.iterdir() if p.name.endswith("_D1.csv")]
     with open(C.FROZEN_MANIFEST) as fh:
         import json
@@ -75,6 +90,7 @@ def test_candidate_report_nearest_neighbors_listed():
 
 
 def test_dataset_loads_all_baseline_assets():
+    _require_local_data(C.FROZEN_DIR, C.SUPPLEMENT_DIR, C.CANDIDATE_DIR)
     bundle = DATA.load_dataset(verify=False)
     assert len(bundle.baseline) == 34
     assert set(C.CANDIDATE_ASSETS) <= set(bundle.candidates) | {"USOIL"}

@@ -54,6 +54,9 @@ dashboard = [
 ]
 research = [
     "yfinance>=0.2.0",
+    # Volatility taxonomy: clustering/stability (k-means, silhouette, ARI).
+    # >=1.6 is the first release supporting Python 3.13 (CI matrix).
+    "scikit-learn>=1.6",
 ]
 mt5 = [
     "mt5linux>=1.0",

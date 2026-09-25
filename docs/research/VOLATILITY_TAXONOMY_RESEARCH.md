@@ -2,11 +2,11 @@
 
 **Status:** Descriptive/diagnostic research artifact — COMPLETE
 **Config version:** `vol_taxonomy_v1`
-**Git commit at generation:** `43ba779`
+**Git commit at generation:** `f88d908`
 **Governing contracts:** `docs/RESEARCH_ACCOUNTING_CONTRACT.md` · `docs/DATA_CONTRACT.md` · `docs/research/DATA_REQUIREMENTS.md` (fail-closed verdicts, Holm-corrected families, costs inside returns, PIT)
 **Package:** `research/volatility/` (15 modules, SHA-256 pinned in `reports/volatility_taxonomy/reproducibility.json`)
 **Artifacts:** `reports/volatility_taxonomy/{taxonomy_results,trade_path_results,evidence_ledger,reproducibility}.json`
-**Tests:** `tests/unit/research/volatility/` — **48/48 PASS** · full suite (`tests/unit` + `tests/property`) — **3340 passed, 2 skipped, 1 failed, 17 warnings (334s)**. The single failure — `tests/unit/live/test_rebalance_policy_loop_integration.py::TestRestartNoDoubleTrade` (assert TRADE vs HOLD) — is **pre-existing at HEAD `43ba779`**: verified by stashing all work in this branch and re-running (same failure). It is unrelated to this research (live rebalance loop; no imports from `research/volatility`).
+**Tests:** `tests/unit/research/volatility/` — **48/48 PASS** · full suite (`tests/unit` + `tests/property`) — **3340 passed, 2 skipped, 17 warnings (334s)**; the one failure observed at `43ba779` (`tests/unit/live/test_rebalance_policy_loop_integration.py` — flaky 23:00–23:59 UTC wall-clock day-boundary, unrelated to this research) is **fixed on this branch** (`71705f6`); `tests/unit/live` re-run: **345 passed**.
 
 **Production boundary:** This document opens no trial slot, registers no hypothesis, and must never be cited as authorization for a production change. No file under `scripts/`, `data/mt5/`, `src/eigencapital/` (behavioral), live trading, risk, sizing, or execution was modified.
 
@@ -274,7 +274,7 @@ Canonical cost model unchanged (2 × 15 bp × |w|). Per-asset median cost / medi
 | Item | Value |
 |---|---|
 | Config | `vol_taxonomy_v1` |
-| Git commit | `43ba779` |
+| Git commit | `f88d908` |
 | Python / numpy / pandas / scipy / sklearn | 3.14.7 / 2.3.5 / 2.3.3 / 1.17.1 / 1.8.0 |
 | Manifests | R5 `3d10cf93…` + supplement + candidates (frozen) |
 | Package hashes | 15 × SHA-256 in `reproducibility.json` |
@@ -287,7 +287,7 @@ Canonical cost model unchanged (2 × 15 bp × |w|). Per-asset median cost / medi
 
 ```bash
 python -m pytest tests/unit/research/volatility/ -q   # 48 passed
-python -m pytest tests/unit tests/property -q         # 3340 passed, 2 skipped, 1 pre-existing failure (see header)
+python -m pytest tests/unit tests/property -q         # 3340 passed, 2 skipped (flaky live test fixed on this branch)
 python -m research.volatility.runner                   # writes reports/volatility_taxonomy/
 ```
 

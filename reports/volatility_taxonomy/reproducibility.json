@@ -69,8 +69,8 @@
       1.6448536269514722
     ]
   },
-  "generated_at_utc": "2026-09-25T04:12:08.895720+00:00",
-  "git_commit": "71705f6",
+  "generated_at_utc": "2026-09-25T04:20:52.781911+00:00",
+  "git_commit": "f88d908",
   "governance": "descriptive/diagnostic only; no trial slot, no experiment registration, no production authorization",
   "h_families": {
     "F_regime_definition_checks": 4,

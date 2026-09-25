@@ -4,29 +4,6 @@ All notable changes to EigenCapital will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [v0.6.0] - 2026-09-24
-
-### Added
-- **R4-S shadow portfolio constructor**: Selector, exposure model, and evidence recorder with no-lookahead guarantees; wired into the rebalance cycle as a shadow-only path (never mutates R4 behavior)
-- **Shadow diagnostics**: D3c efficiency, D4 realized-outcome evaluation, comparative evidence tables, risk-contribution metrics, rejection reasons against the final portfolio, `--last` decision flag
-- **Research program R0–R6**: Requirement docs, source modules, unit-test infrastructure, report generation, and program status record (mean reversion, factor lab, parameter stability, triple barriers, meta-labeling; none alter frozen R4)
-- **Core rebalance module**: Research/live boundary migration — `replay.py` moved out of research into shared core; rebalance policy split with clear ownership
-- **Universe expansion**: `XAGUSD` (metals) and `XNGUSD` (energy) added to production `[broker.allowed_symbols]` — 35 entries, 28 tradeable; asset-class maps, market schedules, and eligibility scripts updated
-- **Dashboard auth**: Auth and rate limiting; CRITICAL→BLOCKED contract vocabulary for daily-loss gates
-
-### Fixed
-- **MT5 session reliability**: Self-heal dead bridge at startup, rebuild wedged sessions, verify reconnect with live account read, stop regime check from killing the shared session
-- **Fail-closed execution**: Execution and market-data risks fail closed; corrupted daily-loss baseline fails closed
-- **Sizing / risk envelope**: Restore min-lot rounding and intent drift recording; align risk envelope and record sizing evidence; expose canonical concentration threshold
-- **T0 MT5 scalar test**: Independent of `mt5linux` import
-- **Portfolio accounting**: Net exposure, realized P&L on closes, parameterized commission; paper orders keyed by `order_id`, position reset on full close
-
-### Changed
-- Dependency: `statsmodels` added for research streams
-- Research report artifacts and generated qualification outputs untracked (gitignore + CI guard for tracked-file/gitignore mismatches)
-- mypy driven to zero across `src`; research shipped as separate package layout
-- Strategy version remains R4.0 (frozen); campaign evidence trail unmodified
-
 ## [v0.5.0] - 2026-09-01
 
 ### Added

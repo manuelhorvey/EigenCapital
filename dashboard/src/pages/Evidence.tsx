@@ -5,11 +5,12 @@ import Panel, { PanelHeader, PanelContent } from "../components/ui/Panel";
 import StatusDot from "../components/ui/StatusDot";
 import StatusBadge from "../components/ui/StatusBadge";
 import Skeleton from "../components/ui/Skeleton";
+import PageError from "../components/ui/PageError";
 import FreshnessIndicator from "../components/ui/FreshnessIndicator";
 import { AlertTriangle, CheckCircle, FlaskConical, AlertOctagon } from "lucide-react";
 
 export default function Evidence() {
-  const { data: qual, isLoading } = useQuery({ queryKey: ["qualification"], queryFn: getQualification, refetchInterval: 30000 });
+  const { data: qual, isLoading, isError, refetch } = useQuery({ queryKey: ["qualification"], queryFn: getQualification, refetchInterval: 30000 });
   const { data: shadow } = useQuery({ queryKey: ["shadowReduced"], queryFn: getShadowReduced, refetchInterval: 30000 });
 
   if (isLoading) {
@@ -20,6 +21,10 @@ export default function Evidence() {
         <Skeleton className="h-48 rounded-lg" />
       </div>
     );
+  }
+
+  if (isError && !qual) {
+    return <PageError title="Evidence" subsystem="GET /evidence/qualification" onRetry={() => refetch()} />;
   }
 
   const maturity = qual?.evidence_maturity;
@@ -46,7 +51,7 @@ export default function Evidence() {
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold text-text-primary">{qual?.overall_status || "No data"}</h2>
               <StatusBadge variant={qual?.evidence_insufficient ? "warning" : "success"} size="sm">
-                {qual?.evidence_insufficient ? "COLLECTING" : "SUFFICIENT"}
+                {qual?.overall_status || (qual?.evidence_insufficient ? "COLLECTING" : "SUFFICIENT")}
               </StatusBadge>
             </div>
             <p className="text-xs text-text-muted mt-0.5">
@@ -117,7 +122,20 @@ export default function Evidence() {
           <PanelContent noPadding>
             <div className="divide-y divide-border-subtle">
               {qual.gates.map((gate) => {
-                const level = gate.status === "PASS" ? "green" : gate.status === "FAIL" ? "red" : "yellow";
+                // Gate status vocabulary: SUFFICIENT (terminal pass) /
+                // COLLECTING (accumulating) / FAIL — rendered per its actual
+                // meaning, never as a fake PASS/FAIL (contract T2, audit F-08).
+                const status = gate.status?.toUpperCase() ?? "UNKNOWN";
+                const dotLevel =
+                  status === "SUFFICIENT" || status === "PASS"
+                    ? ("green" as const)
+                    : status === "FAIL"
+                    ? ("red" as const)
+                    : status === "COLLECTING"
+                    ? ("yellow" as const)
+                    : ("gray" as const);
+                const isTerminal = status === "SUFFICIENT" || status === "PASS" || status === "FAIL";
+                const isFailing = status === "FAIL";
                 return (
                   <div key={gate.gate_id} className="px-3 lg:px-4 py-2.5 lg:py-3 hover:bg-surface-hover transition-colors">
                     <div className="flex items-center justify-between mb-2">
@@ -126,12 +144,18 @@ export default function Evidence() {
                         <span className="text-xs text-text-muted">—</span>
                         <span className="text-xs text-text-secondary truncate">{gate.name}</span>
                       </div>
-                      <div className="shrink-0"><StatusDot level={level} label={gate.status} size="xs" /></div>
+                      <div className="shrink-0"><StatusDot level={dotLevel} label={gate.status} size="xs" /></div>
                     </div>
-                    <div className="h-1 rounded-full bg-surface-overlay overflow-hidden">
+                    {/* Decorative status rule (full width for every state) —
+                        a partial width would fabricate a "halfway" progress
+                        ratio no backend reports (contract T3). Status truth
+                        is the StatusDot + label above. */}
+                    <div className="h-1 rounded-full bg-surface-overlay overflow-hidden" aria-hidden="true">
                       <div
-                        className={cn("h-full rounded-full transition-all duration-700", gate.status === "PASS" ? "bg-success" : gate.status === "FAIL" ? "bg-danger" : "bg-warning")}
-                        style={{ width: gate.status === "PASS" || gate.status === "FAIL" ? "100%" : "50%" }}
+                        className={cn(
+                          "h-full w-full rounded-full",
+                          isFailing ? "bg-danger" : isTerminal ? "bg-success" : "bg-warning"
+                        )}
                       />
                     </div>
                   </div>

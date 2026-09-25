@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
@@ -53,6 +54,17 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+const ROUTE_TITLES: Record<string, string> = {
+  "/": "Overview",
+  "/positions": "Positions",
+  "/risk": "Risk",
+  "/reconciliation": "Reconciliation",
+  "/alerts": "Alerts",
+  "/evidence": "Qualification",
+  "/events": "Events",
+  "/system": "System",
+};
+
 export default function Layout() {
   const location = useLocation();
   const { data: systemHealth } = useQuery({
@@ -60,6 +72,13 @@ export default function Layout() {
     queryFn: getSystemHealth,
     refetchInterval: 10000,
   });
+
+  useEffect(() => {
+    const path = Object.keys(ROUTE_TITLES).find((p) =>
+      p === "/" ? location.pathname === "/" : location.pathname.startsWith(p),
+    );
+    document.title = `${path ? ROUTE_TITLES[path] : "Dashboard"} — EigenCapital`;
+  }, [location.pathname]);
 
   const isAuthorized = systemHealth?.trading_authorization === "TRADING_AUTHORIZED";
 
@@ -71,7 +90,6 @@ export default function Layout() {
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
-      <CommandPalette />
 
       {/* ═══ Desktop Sidebar ═══ */}
       <aside className="hidden lg:flex w-[220px] shrink-0 flex-col bg-surface-base border-r border-border-primary">
@@ -82,7 +100,7 @@ export default function Layout() {
               <Shield className="w-3.5 h-3.5 text-success" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-xs font-bold text-text-primary tracking-tight truncate">EigenCapital</h1>
+              <span className="text-xs font-bold text-text-primary tracking-tight truncate block">EigenCapital</span>
               <p className="text-[9px] text-text-muted uppercase tracking-wider">Operations</p>
             </div>
           </div>
@@ -133,7 +151,6 @@ export default function Layout() {
         {/* Footer */}
         <div className="px-4 py-3 border-t border-border-subtle">
           <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-success" />
             <span className="text-[9px] text-text-muted uppercase tracking-wider">Read-only</span>
           </div>
           <LiveConnectionIndicator compact showLabel={false} className="mt-2" />

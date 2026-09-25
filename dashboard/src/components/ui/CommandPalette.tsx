@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { cn } from "../../lib/utils";
+import { cn, formatNumber } from "../../lib/utils";
 import { LayoutDashboard, Briefcase, Shield, Activity, FileText, Layers, AlertTriangle, Settings, Search, X, DollarSign, GitBranch, Hash } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getPositions, getEvents } from "../../lib/api";
@@ -52,7 +52,7 @@ export default function CommandPalette() {
           label: p.symbol,
           group: "Positions",
           icon: DollarSign,
-          subtitle: `${p.direction === "BUY" ? "LONG" : "SHORT"} · ${p.unrealized_pnl >= 0 ? "+" : ""}${p.unrealized_pnl.toFixed(2)}`,
+          subtitle: `${p.direction === "BUY" ? "LONG" : "SHORT"} · ${p.unrealized_pnl >= 0 ? "+" : ""}${formatNumber(p.unrealized_pnl)}`,
         }))
     : [];
 

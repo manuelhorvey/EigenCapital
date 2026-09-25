@@ -10,18 +10,19 @@ import {
   getHealth,
   getReconciliation,
 } from "../lib/api";
-import { formatCurrency, formatPercent, cn } from "../lib/utils";
+import { formatCurrency, formatPercent, formatNumber, cn } from "../lib/utils";
 import Panel, { PanelHeader, PanelContent } from "../components/ui/Panel";
 import StatusDot from "../components/ui/StatusDot";
 import StatusBadge from "../components/ui/StatusBadge";
 import Metric from "../components/ui/Metric";
 import HealthMatrix from "../components/ui/HealthMatrix";
 import Skeleton from "../components/ui/Skeleton";
+import PageError from "../components/ui/PageError";
 import FreshnessIndicator from "../components/ui/FreshnessIndicator";
 import { ShieldCheck, ShieldAlert, ShieldX, TrendingUp, TrendingDown, Activity, Zap, Clock } from "lucide-react";
 
 export default function Overview() {
-  const { data: health, isLoading: healthLoading } = useQuery({ queryKey: ["systemHealth"], queryFn: getSystemHealth, refetchInterval: 10000 });
+  const { data: health, isLoading: healthLoading, isError: healthError, refetch: refetchHealth } = useQuery({ queryKey: ["systemHealth"], queryFn: getSystemHealth, refetchInterval: 10000 });
   const { data: fullHealth } = useQuery({ queryKey: ["health"], queryFn: getHealth, refetchInterval: 10000 });
   const { data: build } = useQuery({ queryKey: ["buildIdentity"], queryFn: getBuildIdentity, refetchInterval: 60000 });
   const { data: account } = useQuery({ queryKey: ["account"], queryFn: getAccount, refetchInterval: 5000 });
@@ -49,6 +50,10 @@ export default function Overview() {
         </div>
       </div>
     );
+  }
+
+  if (healthError && !health) {
+    return <PageError title="Overview" subsystem="GET /system/health" onRetry={() => refetchHealth()} />;
   }
 
   return (
@@ -128,29 +133,40 @@ export default function Overview() {
           </div>
         </div>
 
-        {/* Gate strip */}
+        {/* Gate strip — each gate reflects its actual health dimension
+            (contract T2: no proxy checks). Source: GET /health dimensions. */}
         <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border-subtle/50">
           {[
-            { label: "Build", ok: build?.verified },
-            { label: "Watchdog", ok: health?.status === "ok" },
-            { label: "Risk", ok: !risk?.any_critical },
-            { label: "Recon", ok: account?.freshness === "LIVE" },
-            { label: "Broker", ok: account?.freshness === "LIVE" },
-            { label: "Data", ok: risk?.freshness === "LIVE" || risk?.freshness === "STALE" },
-          ].map((g) => (
-            <span
-              key={g.label}
-              className={cn(
-                "ec-badge text-[10px]",
-                g.ok
-                  ? "bg-success-subtle text-success border border-success/10"
-                  : "bg-danger-subtle text-danger border border-danger/10"
-              )}
-            >
-              <span className={cn("w-1 h-1 rounded-full", g.ok ? "bg-success" : "bg-danger")} />
-              {g.label}
-            </span>
-          ))}
+            { label: "Build", dim: "build" },
+            { label: "Supervisor", dim: "supervisor" },
+            { label: "Broker", dim: "broker" },
+            { label: "Risk", dim: "risk_envelope" },
+            { label: "Recon", dim: "reconciliation" },
+            { label: "Evidence", dim: "evidence" },
+          ].map((g) => {
+            const dim = fullHealth?.dimensions?.find((d) => d.dimension === g.dim);
+            const state = dim?.state;
+            // Unknown data is not a passing gate (contract T3)
+            const ok = state === "HEALTHY";
+            const known = state != null;
+            return (
+              <span
+                key={g.label}
+                className={cn(
+                  "ec-badge text-[10px]",
+                  !known
+                    ? "bg-surface-overlay text-text-muted border border-border-primary"
+                    : ok
+                    ? "bg-success-subtle text-success border border-success/10"
+                    : "bg-danger-subtle text-danger border border-danger/10"
+                )}
+                title={dim?.message || "Dimension data unavailable"}
+              >
+                <span className={cn("w-1 h-1 rounded-full", !known ? "bg-text-muted" : ok ? "bg-success" : "bg-danger")} />
+                {g.label}
+              </span>
+            );
+          })}
         </div>
       </div>
 
@@ -203,11 +219,12 @@ export default function Overview() {
             value: `${totalCount}`,
             sub: `${protectedCount} protected`,
             status: protectedCount === totalCount ? ("positive" as const) : ("warning" as const),
+            ts: recon?.timestamp,
           },
           {
-            label: "Exposure",
+            label: "Margin Used",
             value: account ? formatCurrency(account.margin_used) : "No data",
-            sub: account ? `Util: ${(account.margin_utilization * 100).toFixed(1)}%` : "—",
+            sub: account ? `Util: ${formatNumber(account.margin_utilization * 100, 1)}%` : "—",
             status: account ? (account.margin_utilization > 0.8 ? ("warning" as const) : ("neutral" as const)) : ("neutral" as const),
             freshness: account?.freshness,
           },
@@ -217,6 +234,7 @@ export default function Overview() {
             sub: risk?.any_critical ? "Critical detected" : "Nominal",
             status: risk?.overall_level === "NORMAL" ? ("positive" as const) : risk?.any_critical ? ("negative" as const) : ("warning" as const),
             freshness: risk?.freshness,
+            ts: risk?.timestamp,
           },
         ].map((m) => (
           <div key={m.label} className="bg-surface-raised px-3 lg:px-4 py-2.5 lg:py-3">
@@ -232,7 +250,7 @@ export default function Overview() {
               status={m.status}
             />
             {m.freshness && (
-              <FreshnessIndicator level={m.freshness === "LIVE" ? "live" : "stale"} timestamp={account?.timestamp} compact className="mt-1" />
+              <FreshnessIndicator level={m.freshness === "LIVE" ? "live" : "stale"} timestamp={m.ts} compact className="mt-1" />
             )}
           </div>
         ))}
@@ -254,13 +272,15 @@ export default function Overview() {
                 { label: "SL Coverage", value: `${protectedCount} / ${totalCount} positions`, level: protectedCount === totalCount ? ("green" as const) : ("yellow" as const) },
                 { label: "Risk Envelope", value: risk?.overall_level === "NORMAL" ? "Within limits" : risk?.overall_level || "No data", level: risk?.overall_level === "NORMAL" ? ("green" as const) : ("red" as const) },
                 { label: "Reconciliation", value: recon?.overall_status || "No data", level: recon?.overall_status === "CLEAN" ? ("green" as const) : recon?.overall_status ? ("yellow" as const) : ("gray" as const) },
-                { label: "Shadow REDUCED", value: "Simulation only", level: "purple" as const },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between py-1">
                   <span className="text-xs text-text-secondary">{item.label}</span>
                   <StatusDot level={item.level} label={item.value} size="xs" />
                 </div>
               ))}
+              <p className="text-[10px] text-text-muted pt-1 border-t border-border-subtle">
+                Mode: shadow — simulation only (system policy, not a measured status)
+              </p>
             </div>
           </PanelContent>
         </Panel>
@@ -282,8 +302,8 @@ export default function Overview() {
                 </StatusBadge>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-xs text-text-secondary">Closed Trades</span>
-                <span className="text-xs font-medium ec-num text-text-primary">{qual?.evidence_maturity?.e0_count || 0}</span>
+                <span className="text-xs text-text-secondary">Completed Lifecycles</span>
+                <span className="text-xs font-medium ec-num text-text-primary">{qual?.evidence_maturity?.completed_lifecycles || 0}</span>
               </div>
               <div className="flex items-center justify-between py-1">
                 <span className="text-xs text-text-secondary">Open Trades</span>
@@ -306,7 +326,7 @@ export default function Overview() {
               <Clock className="w-3.5 h-3.5 text-text-muted" />
               <h3>Recent Alerts</h3>
             </div>
-            <span className="text-[10px] text-text-muted">{alerts.length} total</span>
+            <span className="text-[10px] text-text-muted">showing {Math.min(alerts.length, 4)} of {alerts.length}</span>
           </PanelHeader>
           <PanelContent noPadding>
             <div>

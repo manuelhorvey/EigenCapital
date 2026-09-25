@@ -46,7 +46,7 @@ export default function StatusDot({ level, label, pulse = false, size = "sm", cl
       <span
         className={cn("shrink-0 rounded-full", dotStyles[level], pulse && "ec-pulse")}
         style={{ width: px, height: px }}
-        role="status"
+        role="img"
         aria-label={levelAriaLabels[level]}
       />
       {label && <span className="text-xs font-medium">{label}</span>}

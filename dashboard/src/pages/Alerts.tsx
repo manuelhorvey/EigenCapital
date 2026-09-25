@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { getAlerts } from "../lib/api";
-import { cn } from "../lib/utils";
+import { cn, formatDateTime } from "../lib/utils";
 import Panel, { PanelHeader, PanelContent } from "../components/ui/Panel";
 import StatusDot from "../components/ui/StatusDot";
 import StatusBadge from "../components/ui/StatusBadge";
 import EmptyState from "../components/ui/EmptyState";
+import PageError from "../components/ui/PageError";
 import Skeleton from "../components/ui/Skeleton";
-import { AlertTriangle, AlertOctagon, Info } from "lucide-react";
+import { AlertTriangle, AlertOctagon, Info, ArrowLeftRight } from "lucide-react";
 
 export default function Alerts() {
-  const { data: alerts, isLoading } = useQuery({
+  const { data: alerts, isLoading, isError, isSuccess, refetch } = useQuery({
     queryKey: ["alerts"],
     queryFn: () => getAlerts(100),
     refetchInterval: 15000,
@@ -25,9 +26,15 @@ export default function Alerts() {
     );
   }
 
+  if (isError && !alerts) {
+    return <PageError title="Alerts" subsystem="GET /alerts" onRetry={() => refetch()} />;
+  }
+
   const critical = alerts?.filter((a) => a.severity === "CRITICAL") || [];
   const warnings = alerts?.filter((a) => a.severity === "WARNING") || [];
-  const infos = alerts?.filter((a) => a.severity !== "CRITICAL" && a.severity !== "WARNING") || [];
+  const trades = alerts?.filter((a) => a.severity === "TRADE") || [];
+  const infos =
+    alerts?.filter((a) => a.severity !== "CRITICAL" && a.severity !== "WARNING" && a.severity !== "TRADE") || [];
 
   const renderAlertList = (items: NonNullable<typeof alerts>, variant: "danger" | "warning" | "info" | "neutral") => (
     <div className="divide-y divide-border-subtle">
@@ -59,7 +66,9 @@ export default function Alerts() {
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-[10px] text-text-muted font-mono">{new Date(alert.timestamp).toLocaleTimeString()}</p>
+            <p className="text-[10px] text-text-muted font-mono" title={alert.timestamp}>
+              {formatDateTime(alert.timestamp)}
+            </p>
             {alert.consecutive_count > 1 && (
               <p className="text-[9px] text-text-muted">×{alert.consecutive_count}</p>
             )}
@@ -80,20 +89,22 @@ export default function Alerts() {
             {warnings.length > 0 && <StatusBadge variant="warning" size="sm">{warnings.length} warning</StatusBadge>}
           </div>
         </div>
-        <span className="text-xs text-text-muted font-mono">{alerts?.length || 0} total</span>
+        <span className="text-xs text-text-muted font-mono">showing {alerts?.length ?? 0}</span>
       </div>
 
       {critical.length > 0 && (
-        <Panel accent="danger">
-          <PanelHeader>
-            <div className="flex items-center gap-2">
-              <AlertOctagon className="w-3.5 h-3.5 text-danger" />
-              <h3 className="!text-danger">Critical</h3>
-            </div>
-            <StatusBadge variant="danger" size="sm" pulse>{critical.length}</StatusBadge>
-          </PanelHeader>
-          <PanelContent noPadding>{renderAlertList(critical, "danger")}</PanelContent>
-        </Panel>
+        <div role="alert">
+          <Panel accent="danger">
+            <PanelHeader>
+              <div className="flex items-center gap-2">
+                <AlertOctagon className="w-3.5 h-3.5 text-danger" />
+                <h3 className="!text-danger">Critical</h3>
+              </div>
+              <StatusBadge variant="danger" size="sm" pulse>{critical.length}</StatusBadge>
+            </PanelHeader>
+            <PanelContent noPadding>{renderAlertList(critical, "danger")}</PanelContent>
+          </Panel>
+        </div>
       )}
 
       {warnings.length > 0 && (
@@ -106,6 +117,19 @@ export default function Alerts() {
             <StatusBadge variant="warning" size="sm">{warnings.length}</StatusBadge>
           </PanelHeader>
           <PanelContent noPadding>{renderAlertList(warnings, "warning")}</PanelContent>
+        </Panel>
+      )}
+
+      {trades.length > 0 && (
+        <Panel>
+          <PanelHeader>
+            <div className="flex items-center gap-2">
+              <ArrowLeftRight className="w-3.5 h-3.5 text-text-muted" />
+              <h3>Trades</h3>
+            </div>
+            <span className="text-[10px] text-text-muted">{trades.length}</span>
+          </PanelHeader>
+          <PanelContent noPadding>{renderAlertList(trades, "info")}</PanelContent>
         </Panel>
       )}
 
@@ -122,11 +146,11 @@ export default function Alerts() {
         </Panel>
       )}
 
-      {(!alerts || alerts.length === 0) && (
+      {isSuccess && (!alerts || alerts.length === 0) && (
         <EmptyState
           icon={<AlertTriangle className="w-5 h-5" />}
           title="No alerts"
-          description="All systems operating normally — no alerts have been raised"
+          description="The alert API returned no alerts in the current window"
         />
       )}
     </div>

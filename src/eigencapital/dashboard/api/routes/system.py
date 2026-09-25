@@ -23,8 +23,10 @@ async def get_system_health(
 ) -> dict:
     """Get overall system health summary."""
     health = state.get_system_health()
+    # HEALTHY is the only passing health state; NORMAL is risk vocabulary,
+    # not a health state (audit F-15).
     return {
-        "status": "ok" if health["overall_state"] in ("HEALTHY", "NORMAL") else "degraded",
+        "status": "ok" if health["overall_state"] == "HEALTHY" else "degraded",
         "overall_state": health["overall_state"],
         "trading_authorization": health["trading_authorization"],
         "timestamp": datetime.now(UTC).isoformat(),
@@ -43,8 +45,10 @@ async def get_build_identity(
 @router.get("/info")
 async def get_system_info() -> dict:
     """Get dashboard system information."""
+    from eigencapital import __version__
+
     return {
-        "dashboard_version": "0.1.0",
+        "dashboard_version": __version__,
         "read_only": True,
         "can_submit_orders": False,
         "can_modify_r4": False,

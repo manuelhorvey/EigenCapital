@@ -98,7 +98,7 @@ class AlertDTO(BaseModel):
 
     alert_id: str = Field(description="Alert ID")
     timestamp: datetime = Field(description="Alert timestamp")
-    severity: str = Field(description="CRITICAL, WARNING, INFO")
+    severity: str = Field(description="CRITICAL, WARNING, INFO, TRADE")
     category: str = Field(description="Alert category")
     event_type: str = Field(description="Event type")
     message: str = Field(description="Alert message")

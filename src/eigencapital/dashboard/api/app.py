@@ -12,6 +12,7 @@ local development against localhost.
 from __future__ import annotations
 
 import os
+import secrets
 import time
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -21,6 +22,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from eigencapital import __version__
 from eigencapital.dashboard.api.routes import (
     alerts,
     evidence,
@@ -35,7 +37,7 @@ from eigencapital.dashboard.streaming.events import router as streaming_router
 app = FastAPI(
     title="EigenCapital Operations & Risk Dashboard",
     description="Read-only observability layer for EigenCapital trading system",
-    version="0.1.0",
+    version=__version__,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
@@ -109,7 +111,9 @@ async def require_api_key_and_rate_limit(request: Request, call_next: Any) -> An
     _RATE_LIMITS[client_ip].append(now)
 
     auth = request.headers.get("Authorization", "")
-    if auth != f"Bearer {_api_key()}":
+    # Constant-time comparison (bytes) — avoids timing side channels and
+    # tolerates non-ASCII header input that would raise in str compare_digest.
+    if not secrets.compare_digest(auth.encode("utf-8"), f"Bearer {_api_key()}".encode()):
         return JSONResponse(
             status_code=401,
             content={"error": "Unauthorized", "detail": "Missing or invalid API key"},
@@ -141,7 +145,7 @@ async def root() -> dict[str, Any]:
     """Dashboard API root."""
     return {
         "name": "EigenCapital Operations & Risk Dashboard",
-        "version": "0.1.0",
+        "version": __version__,
         "read_only": True,
         "docs": "/api/docs",
         "timestamp": datetime.now(UTC).isoformat(),
@@ -169,6 +173,8 @@ async def api_v1_root() -> dict[str, Any]:
             "/api/v1/evidence/qualification",
             "/api/v1/evidence/shadow-reduced",
             "/api/v1/alerts",
+            "/api/v1/reconciliation",
+            "/api/v1/events/stream",
         ],
         "read_only": True,
     }

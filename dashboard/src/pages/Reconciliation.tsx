@@ -7,11 +7,12 @@ import StatusBadge from "../components/ui/StatusBadge";
 import Metric from "../components/ui/Metric";
 import Skeleton, { SkeletonTable } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
+import PageError from "../components/ui/PageError";
 import FreshnessIndicator from "../components/ui/FreshnessIndicator";
-import { Activity, CheckCircle, ArrowLeftRight, AlertTriangle } from "lucide-react";
+import { Activity, ArrowLeftRight } from "lucide-react";
 
 export default function Reconciliation() {
-  const { data: recon, isLoading: reconLoading } = useQuery({ queryKey: ["reconciliation"], queryFn: getReconciliation, refetchInterval: 10000 });
+  const { data: recon, isLoading: reconLoading, isError, refetch } = useQuery({ queryKey: ["reconciliation"], queryFn: getReconciliation, refetchInterval: 10000 });
   const { data: positions } = useQuery({ queryKey: ["positions"], queryFn: getPositions, refetchInterval: 10000 });
 
   if (reconLoading) {
@@ -21,6 +22,10 @@ export default function Reconciliation() {
         <SkeletonTable rows={5} />
       </div>
     );
+  }
+
+  if (isError && !recon) {
+    return <PageError title="Reconciliation" subsystem="GET /reconciliation" onRetry={() => refetch()} />;
   }
 
   const protectedCount = positions?.filter((p) => p.protected).length || 0;
@@ -108,7 +113,10 @@ export default function Reconciliation() {
                       <th>Direction</th>
                       <th className="text-right">Size</th>
                       <th className="text-center">Stop Loss</th>
-                      <th className="text-center">Reconciled</th>
+                      {/* Column removed: the old "Reconciled" column rendered
+                          PositionDTO.protected (= MT5 sl > 0), which duplicates
+                          the Stop Loss SET/MISSING column above and claimed
+                          reconciliation state it never observed (contract T4). */}
                     </tr>
                   </thead>
                   <tbody>
@@ -118,9 +126,6 @@ export default function Reconciliation() {
                         <td><StatusBadge variant={pos.direction === "BUY" ? "success" : "warning"} size="sm">{pos.direction === "BUY" ? "LONG" : "SHORT"}</StatusBadge></td>
                         <td className="text-right"><span className="font-mono text-text-primary">{pos.size}</span></td>
                         <td className="text-center"><StatusDot level={pos.stop_loss != null ? "green" : "red"} label={pos.stop_loss != null ? "SET" : "MISSING"} size="xs" /></td>
-                        <td className="text-center">
-                          {pos.protected ? <CheckCircle className="w-3.5 h-3.5 text-success mx-auto" /> : <span className="text-[10px] text-text-muted font-mono">—</span>}
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -135,8 +140,9 @@ export default function Reconciliation() {
                       <StatusBadge variant={pos.direction === "BUY" ? "success" : "warning"} size="sm">{pos.direction === "BUY" ? "L" : "S"}</StatusBadge>
                     </div>
                     <div className="flex items-center gap-3">
-                      <StatusDot level={pos.protected ? "green" : "red"} size="xs" />
-                      {pos.protected ? <CheckCircle className="w-3 h-3 text-success" /> : <AlertTriangle className="w-3 h-3 text-danger" />}
+                      {/* Single indicator: StatusDot + icon both showed
+                          PositionDTO.protected (same fact, duplicated). */}
+                      <StatusDot level={pos.protected ? "green" : "red"} label={pos.protected ? "SL" : "NO SL"} size="xs" />
                     </div>
                   </div>
                 ))}

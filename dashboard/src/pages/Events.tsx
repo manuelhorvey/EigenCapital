@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getEvents } from "../lib/api";
-import { cn } from "../lib/utils";
+import { cn, formatDateTime } from "../lib/utils";
 import Panel, { PanelContent } from "../components/ui/Panel";
 import StatusDot from "../components/ui/StatusDot";
 import StatusBadge from "../components/ui/StatusBadge";
 import EmptyState from "../components/ui/EmptyState";
+import PageError from "../components/ui/PageError";
 import Skeleton from "../components/ui/Skeleton";
 import { ChevronLeft, ChevronRight, Layers, Copy, Check } from "lucide-react";
 
@@ -49,7 +50,7 @@ function CopyableId({ value }: { value: string }) {
 export default function Events() {
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const { data: events, isLoading } = useQuery({
+  const { data: events, isLoading, isError, refetch } = useQuery({
     queryKey: ["events", page],
     queryFn: () => getEvents(page, 50),
     refetchInterval: 10000,
@@ -62,6 +63,10 @@ export default function Events() {
         <Skeleton className="h-64 rounded-lg" />
       </div>
     );
+  }
+
+  if (isError && !events) {
+    return <PageError title="Events" subsystem="GET /evidence/events" onRetry={() => refetch()} />;
   }
 
   return (
@@ -117,7 +122,9 @@ export default function Events() {
                       </div>
 
                       <div className="text-right shrink-0">
-                        <p className="text-[10px] text-text-muted font-mono">{new Date(event.timestamp).toLocaleTimeString()}</p>
+                        <p className="text-[10px] text-text-muted font-mono" title={event.timestamp}>
+                          {formatDateTime(event.timestamp)}
+                        </p>
                         {event.correlation_id && (
                           <div className="hidden sm:block">
                             <CopyableId value={event.correlation_id} />

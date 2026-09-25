@@ -22,39 +22,14 @@ export function formatNumber(value: number, decimals = 2): string {
   return value.toFixed(decimals);
 }
 
-export function getStateColor(state: string): string {
-  const upper = state.toUpperCase();
-  if (upper.includes("HEALTHY") || upper.includes("NORMAL") || upper.includes("AUTHORIZED") || upper === "PASS") {
-    return "text-success";
-  }
-  if (upper.includes("DEGRADED") || upper.includes("WARNING") || upper.includes("ELEVATED")) {
-    return "text-warning";
-  }
-  if (upper.includes("BLOCKED") || upper.includes("CRITICAL") || upper.includes("HALT")) {
-    return "text-danger";
-  }
-  if (upper.includes("CONTAINED")) {
-    return "text-warning";
-  }
-  return "text-text-muted";
+/** "gross_exposure" → "Gross Exposure" — shared dimension-name formatter. */
+export function formatDimName(dim: string): string {
+  return dim.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function getStateBg(state: string): string {
-  const upper = state.toUpperCase();
-  if (upper.includes("HEALTHY") || upper.includes("NORMAL") || upper.includes("AUTHORIZED") || upper === "PASS") {
-    return "bg-success-subtle border-success/15";
-  }
-  if (upper.includes("DEGRADED") || upper.includes("WARNING") || upper.includes("ELEVATED")) {
-    return "bg-warning-subtle border-warning/15";
-  }
-  if (upper.includes("BLOCKED") || upper.includes("CRITICAL") || upper.includes("HALT")) {
-    return "bg-danger-subtle border-danger/15";
-  }
-  if (upper.includes("CONTAINED")) {
-    return "bg-warning-subtle border-warning/15";
-  }
-  return "bg-surface-overlay border-border-primary";
-}
+// Status → visual mappings are centralized in ./status.ts (contract §8.1).
+// These wrappers are kept for existing call sites.
+export { stateTextColor as getStateColor, stateBg as getStateBg, stateToDotLevel as getDotLevel } from "./status";
 
 export function getSeverityColor(severity: string): string {
   const upper = severity.toUpperCase();
@@ -66,12 +41,31 @@ export function getSeverityColor(severity: string): string {
 export function formatTimestamp(iso: string): string {
   try {
     const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return iso;
     return date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
       hour12: false,
     });
+  } catch {
+    return iso;
+  }
+}
+
+/** Date + time — use where the DATE matters (alerts, events, audit rows). */
+export function formatDateTime(iso: string): string {
+  try {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return iso;
+    const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const time = date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    return `${day} ${time}`;
   } catch {
     return iso;
   }

@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { getRiskState, getRiskEnvelope } from "../lib/api";
-import { cn, formatNumber } from "../lib/utils";
+import { cn, formatNumber, formatPercent, formatDimName } from "../lib/utils";
+import { stateToDotLevel, stateToBadgeVariant } from "../lib/status";
 import Panel, { PanelHeader, PanelContent } from "../components/ui/Panel";
 import StatusDot from "../components/ui/StatusDot";
 import StatusBadge from "../components/ui/StatusBadge";
 import Metric from "../components/ui/Metric";
 import Skeleton from "../components/ui/Skeleton";
+import PageError from "../components/ui/PageError";
 import FreshnessIndicator from "../components/ui/FreshnessIndicator";
 import { RiskUtilizationChart, DrawdownGauge, ExposurePieChart, RiskHeatmap } from "../components/ui/RiskCharts";
 import { Shield, TrendingUp, AlertTriangle, BarChart3 } from "lucide-react";
@@ -23,7 +25,7 @@ const DIMENSION_GROUPS: DimensionGroup[] = [
 ];
 
 export default function Risk() {
-  const { data: risk, isLoading } = useQuery({ queryKey: ["riskState"], queryFn: getRiskState, refetchInterval: 10000 });
+  const { data: risk, isLoading, isError, refetch } = useQuery({ queryKey: ["riskState"], queryFn: getRiskState, refetchInterval: 10000 });
   const { data: envelope } = useQuery({ queryKey: ["riskEnvelope"], queryFn: getRiskEnvelope, refetchInterval: 60000 });
 
   if (isLoading) {
@@ -36,17 +38,47 @@ export default function Risk() {
     );
   }
 
+  if (isError && !risk) {
+    return <PageError title="Risk" subsystem="GET /risk" onRetry={() => refetch()} />;
+  }
+
+  // Status → color mapping is centralized in lib/status.ts (contract §8.1)
   const getLevel = (level: string): "green" | "yellow" | "red" | "gray" => {
-    switch (level.toUpperCase()) {
-      case "NORMAL": return "green";
-      case "WARNING": case "ELEVATED": return "yellow";
-      case "CRITICAL": case "HALT": return "red";
-      default: return "gray";
-    }
+    const dot = stateToDotLevel(level);
+    return dot === "blue" || dot === "purple" ? "gray" : dot;
   };
 
   const getObsForDim = (dimName: string) => risk?.observations?.find((o) => o.dimension === dimName);
-  const formatDimName = (dim: string) => dim.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // Unit-aware value formatting for risk observation rows. RiskObserver emits
+  // mixed units: fractions (drawdown/concentration/utilization), USD
+  // (daily_loss/equity_floor/notionals), and counts.
+  const RISK_DIM_UNITS: Record<string, "pct" | "usd" | "count"> = {
+    drawdown: "pct",
+    daily_loss: "usd",
+    equity_floor: "usd",
+    gross_exposure: "usd",
+    net_exposure: "usd",
+    concentration: "pct",
+    position_count: "count",
+    margin_utilization: "pct",
+    sl_protection: "pct",
+    loss_velocity: "usd",
+    var_estimate: "pct",
+  };
+
+  const formatObsValue = (dim: string, value: number): string => {
+    switch (RISK_DIM_UNITS[dim]) {
+      case "pct":
+        return formatPercent(value);
+      case "usd":
+        return `$${formatNumber(value, 2)}`;
+      case "count":
+        return formatNumber(value, 0);
+      default:
+        return formatNumber(value, 2);
+    }
+  };
 
   // Prepare chart data from observations
   const allObs = risk?.observations || [];
@@ -63,11 +95,15 @@ export default function Risk() {
   const longExposure = netObs ? Math.max(0, netObs.value) : 0;
   const shortExposure = netObs ? Math.abs(Math.min(0, netObs.value)) : 0;
 
-  // Drawdown data
+  // Drawdown data. RiskObserver emits drawdown as a fraction (0–1) with the
+  // limit in the same unit; the envelope limit is also a fraction. The gauge
+  // works in percent, so scale both by 100. Missing data renders as unknown,
+  // never as 0% (contract T3: unknown ≠ zero).
   const drawdownObs = getObsForDim("drawdown");
-  const drawdownLimit = envelope?.max_account_drawdown_pct
+  const drawdownLimitPct = envelope?.max_account_drawdown_pct
     ? envelope.max_account_drawdown_pct * 100
-    : 10;
+    : null;
+  const drawdownCurrentPct = drawdownObs?.value != null ? drawdownObs.value * 100 : null;
 
   return (
     <div className="space-y-3 lg:space-y-4 ec-animate-in">
@@ -158,28 +194,34 @@ export default function Risk() {
             </div>
           </PanelHeader>
           <PanelContent>
-            <DrawdownGauge
-              current={drawdownObs?.value ?? 0}
-              max={drawdownLimit}
-              label="Account Drawdown"
-            />
+            {drawdownCurrentPct != null && drawdownLimitPct != null ? (
+              <DrawdownGauge
+                current={drawdownCurrentPct}
+                max={drawdownLimitPct}
+                label="Account Drawdown"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-16 text-xs text-text-muted">
+                Drawdown data not available
+              </div>
+            )}
             <div className="mt-4 pt-3 border-t border-border-subtle space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-text-muted">Daily Loss</span>
                 <span className="text-xs font-mono text-text-primary">
-                  {getObsForDim("daily_loss") ? formatNumber(getObsForDim("daily_loss")!.value, 2) : "No data"}
+                  {getObsForDim("daily_loss") ? formatObsValue("daily_loss", getObsForDim("daily_loss")!.value) : "No data"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-text-muted">Loss Velocity</span>
                 <span className="text-xs font-mono text-text-primary">
-                  {getObsForDim("loss_velocity") ? formatNumber(getObsForDim("loss_velocity")!.value, 2) : "No data"}
+                  {getObsForDim("loss_velocity") ? formatObsValue("loss_velocity", getObsForDim("loss_velocity")!.value) : "No data"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-text-muted">Equity Floor</span>
                 <span className="text-xs font-mono text-text-primary">
-                  {getObsForDim("equity_floor") ? `$${formatNumber(getObsForDim("equity_floor")!.value, 0)}` : "No data"}
+                  {getObsForDim("equity_floor") ? formatObsValue("equity_floor", getObsForDim("equity_floor")!.value) : "No data"}
                 </span>
               </div>
             </div>
@@ -230,12 +272,12 @@ export default function Risk() {
                             </div>
                           </div>
                         )}
-                        <span className="text-xs font-mono font-medium text-text-primary w-16 text-right">
-                          {formatNumber(obs.value, 2)}
-                          {obs.limit && <span className="text-text-muted"> / {formatNumber(obs.limit, 2)}</span>}
+                        <span className="text-xs font-mono font-medium text-text-primary w-24 text-right">
+                          {formatObsValue(obs.dimension, obs.value)}
+                          {obs.limit != null && <span className="text-text-muted"> / {formatObsValue(obs.dimension, obs.limit)}</span>}
                         </span>
                         <StatusBadge
-                          variant={level === "green" ? "success" : level === "yellow" ? "warning" : level === "red" ? "danger" : "neutral"}
+                          variant={stateToBadgeVariant(obs.level)}
                           size="sm"
                         >
                           {obs.level}
@@ -265,10 +307,10 @@ export default function Risk() {
                 { label: "Max Positions", value: String(envelope.max_concurrent_positions) },
                 { label: "Max Daily Loss", value: `$${envelope.max_daily_loss}` },
                 { label: "Min Equity", value: `$${envelope.min_equity}` },
-                { label: "Max Drawdown", value: `${(envelope.max_account_drawdown_pct * 100).toFixed(0)}%` },
+                { label: "Max Drawdown", value: `${formatNumber(envelope.max_account_drawdown_pct * 100, 0)}%` },
                 { label: "Max Position Notional", value: `$${envelope.max_position_notional}` },
                 { label: "Max Order Notional", value: `$${envelope.max_order_notional}` },
-                { label: "Per-Position Loss", value: `${(envelope.max_per_position_loss_pct * 100).toFixed(0)}%` },
+                { label: "Per-Position Loss", value: `${formatNumber(envelope.max_per_position_loss_pct * 100, 0)}%` },
                 { label: "SL Required", value: envelope.require_sl_on_positions ? "YES" : "NO" },
               ].map((item) => (
                 <div key={item.label} className="bg-surface-overlay rounded-md px-3 py-2">

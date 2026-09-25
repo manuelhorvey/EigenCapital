@@ -1,14 +1,16 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, ReferenceLine } from "recharts";
-import { cn } from "../../lib/utils";
+import { cn, formatNumber, formatDimName } from "../../lib/utils";
+import { stateToChartColor, CHART_COLORS } from "../../lib/status";
 
 // ─── Theme colors for charts (color-blind safe palette) ──────────────
+// Single source for level→color semantics lives in lib/status.ts.
 const COLORS = {
-  success: "#009B77",     // Deuteranopia-safe green
-  warning: "#F08A00",     // Deuteranopia-safe amber
-  danger: "#D33F49",      // Deuteranopia-safe red
-  purple: "#8C6FE6",      // Deuteranopia-safe purple
-  info: "#0072B5",        // Deuteranopia-safe blue
-  muted: "#52525b",
+  success: CHART_COLORS.positive,   // Deuteranopia-safe green
+  warning: CHART_COLORS.warning,    // Deuteranopia-safe amber
+  danger: CHART_COLORS.danger,      // Deuteranopia-safe red
+  purple: "#8C6FE6",                // Deuteranopia-safe purple (diagnostic)
+  info: CHART_COLORS.info,          // Deuteranopia-safe blue
+  muted: CHART_COLORS.neutral,
   surface: "#18181b",
   border: "#27272a",
   textPrimary: "#fafafa",
@@ -17,11 +19,7 @@ const COLORS = {
 };
 
 function getLevelColor(level: string): string {
-  const upper = level.toUpperCase();
-  if (upper === "NORMAL" || upper === "HEALTHY") return COLORS.success;
-  if (upper === "WARNING" || upper === "ELEVATED") return COLORS.warning;
-  if (upper === "CRITICAL" || upper === "HALT") return COLORS.danger;
-  return COLORS.muted;
+  return stateToChartColor(level);
 }
 
 // ─── Custom Tooltip ─────────────────────────────────────────────────
@@ -38,8 +36,8 @@ function ChartTooltip({ active, payload }: CustomTooltipProps) {
     <div className="bg-surface-elevated border border-border-primary rounded-lg px-3 py-2 shadow-xl">
       <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1">{data.name}</p>
       <p className="text-sm font-mono font-medium text-text-primary">
-        {data.value.toFixed(2)}
-        {data.limit ? <span className="text-text-muted"> / {data.limit.toFixed(2)}</span> : null}
+        {formatNumber(data.value)}
+        {data.limit ? <span className="text-text-muted"> / {formatNumber(data.limit)}</span> : null}
       </p>
       <p className="text-[10px] text-text-muted mt-0.5">{data.level}</p>
     </div>
@@ -82,7 +80,7 @@ function ChartSummary({ data, type }: { data: RiskBarData[]; type: "utilization"
   } else if (type === "exposure") {
     const long = items.find((d) => d.name.includes("long"))?.value || 0;
     const short = items.find((d) => d.name.includes("short"))?.value || 0;
-    summary = `Exposure distribution: ${items.length} categories. Long ${long.toFixed(0)}, Short ${short.toFixed(0)}.`;
+    summary = `Exposure distribution: ${items.length} categories. Long ${formatNumber(long, 0)}, Short ${formatNumber(short, 0)}.`;
   } else if (type === "heatmap") {
     summary = `Risk heatmap: ${items.length} dimensions. ${critical.length} critical, ${warning.length} warning, ${normal.length} normal.`;
   }
@@ -166,14 +164,14 @@ export function DrawdownGauge({ current, max, label = "Drawdown", className }: D
   const pct = max > 0 ? Math.min((current / max) * 100, 100) : 0;
   const color = pct > 80 ? COLORS.danger : pct > 60 ? COLORS.warning : COLORS.success;
 
-  const summary = `Drawdown: ${current.toFixed(2)}% of ${max.toFixed(0)}% limit (${pct > 80 ? "critical" : pct > 60 ? "warning" : "normal"}). Warning threshold at 60%, critical at 80%.`;
+  const summary = `Drawdown: ${formatNumber(current)}% of ${formatNumber(max, 0)}% limit (${pct > 80 ? "critical" : pct > 60 ? "warning" : "normal"}). Warning threshold at 60%, critical at 80%.`;
 
   return (
     <div className={cn("w-full", className)}>
       <div className="sr-only" role="status" aria-live="polite">{summary}</div>
       <div className="flex items-center justify-between mb-2">
         <span className="text-[10px] text-text-muted uppercase tracking-wider">{label}</span>
-        <span className="text-xs font-mono text-text-primary">{current.toFixed(2)}% / {max.toFixed(0)}%</span>
+        <span className="text-xs font-mono text-text-primary">{formatNumber(current)}% / {formatNumber(max, 0)}%</span>
       </div>
       <div className="relative h-3 bg-surface-overlay rounded-full overflow-hidden">
         <div
@@ -221,10 +219,10 @@ export function ExposurePieChart({ longExposure, shortExposure, className }: Exp
   }
 
   const total = data.reduce((sum, d) => sum + d.value, 0);
-  const longPct = data.find((d) => d.name === "Long") ? ((data.find((d) => d.name === "Long")!.value / total) * 100).toFixed(1) : "0";
-  const shortPct = data.find((d) => d.name === "Short") ? ((data.find((d) => d.name === "Short")!.value / total) * 100).toFixed(1) : "0";
+  const longPct = data.find((d) => d.name === "Long") ? formatNumber((data.find((d) => d.name === "Long")!.value / total) * 100, 1) : "0";
+  const shortPct = data.find((d) => d.name === "Short") ? formatNumber((data.find((d) => d.name === "Short")!.value / total) * 100, 1) : "0";
 
-  const summary = `Exposure distribution: ${data.length} categories. Long ${longPct}%, Short ${shortPct}%. Total notional ${(total / 1000).toFixed(1)}K.`;
+  const summary = `Exposure distribution: ${data.length} categories. Long ${longPct}%, Short ${shortPct}%. Total notional ${formatNumber(total / 1000, 1)}K.`;
 
   return (
     <div className={cn("flex items-center gap-4", className)}>
@@ -254,7 +252,7 @@ export function ExposurePieChart({ longExposure, shortExposure, className }: Exp
         {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span className="text-[9px] text-text-muted uppercase">Total</span>
-          <span className="text-xs font-mono font-medium text-text-primary">{(total / 1000).toFixed(1)}K</span>
+          <span className="text-xs font-mono font-medium text-text-primary">{formatNumber(total / 1000, 1)}K</span>
         </div>
       </div>
       <div className="space-y-2">
@@ -266,7 +264,7 @@ export function ExposurePieChart({ longExposure, shortExposure, className }: Exp
             />
             <span className="text-xs text-text-secondary">{entry.name}</span>
             <span className="text-xs font-mono text-text-primary ml-auto">
-              {((entry.value / total) * 100).toFixed(1)}%
+              {formatNumber((entry.value / total) * 100, 1)}%
             </span>
           </div>
         ))}
@@ -290,8 +288,6 @@ interface RiskHeatmapProps {
 }
 
 export function RiskHeatmap({ items, columns = 4, className }: RiskHeatmapProps) {
-  const formatDimName = (dim: string) => dim.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
   const critical = items.filter((i) => getLevelColor(i.level) === COLORS.danger).length;
   const warning = items.filter((i) => getLevelColor(i.level) === COLORS.warning).length;
   const normal = items.filter((i) => getLevelColor(i.level) === COLORS.success).length;

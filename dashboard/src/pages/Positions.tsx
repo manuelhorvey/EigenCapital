@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getPositions, getAccount } from "../lib/api";
-import { formatCurrency, formatNumber, cn } from "../lib/utils";
+import { formatCurrency, formatNumber, formatPercent, formatDateTime, cn } from "../lib/utils";
 import Panel, { PanelHeader, PanelContent } from "../components/ui/Panel";
 import StatusDot from "../components/ui/StatusDot";
 import StatusBadge from "../components/ui/StatusBadge";
 import Metric from "../components/ui/Metric";
 import Skeleton from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
+import PageError from "../components/ui/PageError";
 import FreshnessIndicator from "../components/ui/FreshnessIndicator";
-import { Search, Briefcase, ArrowUpDown, X, Clock, MapPin, ShieldCheck } from "lucide-react";
+import { Search, Briefcase, ArrowUpDown, X, MapPin, ShieldCheck } from "lucide-react";
 
 type SortKey = "symbol" | "size" | "entry_price" | "current_price" | "unrealized_pnl" | "holding_time";
 
@@ -20,7 +21,7 @@ export default function Positions() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [selectedTicket, setSelectedTicket] = useState<number | null>(null);
 
-  const { data: positions, isLoading } = useQuery({ queryKey: ["positions"], queryFn: getPositions, refetchInterval: 5000 });
+  const { data: positions, isLoading, isError, refetch } = useQuery({ queryKey: ["positions"], queryFn: getPositions, refetchInterval: 5000 });
   const { data: account } = useQuery({ queryKey: ["account"], queryFn: getAccount, refetchInterval: 5000 });
 
   if (isLoading) {
@@ -30,6 +31,10 @@ export default function Positions() {
         <Skeleton className="h-64 rounded-lg" />
       </div>
     );
+  }
+
+  if (isError && !positions) {
+    return <PageError title="Positions" subsystem="GET /portfolio/positions" onRetry={() => refetch()} />;
   }
 
   const filtered = (positions || [])
@@ -102,7 +107,7 @@ export default function Positions() {
             placeholder="Filter symbols..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 lg:py-2 text-xs bg-surface-overlay border border-border-primary rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-success/50 transition-colors"
+            className="w-full pl-8 pr-3 py-3 lg:py-2 text-xs bg-surface-overlay border border-border-primary rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-success/50 transition-colors"
           />
         </div>
         <div className="flex gap-px bg-border-subtle rounded-md overflow-hidden">
@@ -111,7 +116,7 @@ export default function Positions() {
               key={f}
               onClick={() => setFilter(f)}
               className={cn(
-                "px-2 lg:px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider transition-colors",
+                "min-h-[44px] lg:min-h-0 px-3 lg:px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider transition-colors",
                 filter === f ? "bg-surface-overlay text-text-primary" : "bg-surface-raised text-text-muted hover:text-text-secondary"
               )}
             >
@@ -169,6 +174,13 @@ export default function Positions() {
                     "group cursor-pointer",
                     selectedTicket === pos.ticket && "bg-success/5"
                   )}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedTicket(selectedTicket === pos.ticket ? null : pos.ticket);
+                    }
+                  }}
                   onClick={() => setSelectedTicket(selectedTicket === pos.ticket ? null : pos.ticket)}
                 >
                   <td>
@@ -195,7 +207,7 @@ export default function Positions() {
                   </td>
                   <td className="text-right">
                     <span className={cn("font-mono text-[11px]", pos.unrealized_pnl_pct >= 0 ? "text-success" : "text-danger")}>
-                      {pos.unrealized_pnl_pct >= 0 ? "+" : ""}{(pos.unrealized_pnl_pct * 100).toFixed(2)}%
+                      {pos.unrealized_pnl_pct >= 0 ? "+" : ""}{formatPercent(pos.unrealized_pnl_pct)}
                     </span>
                   </td>
                   <td className="text-center">
@@ -255,7 +267,7 @@ export default function Positions() {
               <Metric label="Mark" value={formatNumber(selectedPos.current_price, 5)} status="neutral" />
               <Metric label="Size" value={formatNumber(Math.abs(selectedPos.size), 2)} status="neutral" />
               <Metric label="P&L" value={formatCurrency(selectedPos.unrealized_pnl)} status={selectedPos.unrealized_pnl >= 0 ? "positive" : "negative"} />
-              <Metric label="P&L %" value={`${selectedPos.unrealized_pnl_pct >= 0 ? "+" : ""}${(selectedPos.unrealized_pnl_pct * 100).toFixed(2)}%`} status={selectedPos.unrealized_pnl_pct >= 0 ? "positive" : "negative"} />
+              <Metric label="P&L %" value={`${selectedPos.unrealized_pnl_pct >= 0 ? "+" : ""}${formatPercent(selectedPos.unrealized_pnl_pct)}`} status={selectedPos.unrealized_pnl_pct >= 0 ? "positive" : "negative"} />
               <Metric label="Holding" value={selectedPos.holding_time || "No data"} status="neutral" />
             </div>
 
@@ -267,33 +279,9 @@ export default function Positions() {
               <Metric label="MFE" value={selectedPos.mfe != null ? formatCurrency(selectedPos.mfe) : "No data"} status="neutral" />
             </div>
 
-            {/* Lifecycle & Provenance */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Lifecycle */}
-              <div>
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Clock className="w-3 h-3 text-text-muted" />
-                  <p className="text-[10px] text-text-muted uppercase tracking-wider font-medium">Lifecycle</p>
-                </div>
-                <div className="space-y-1.5">
-                  {[
-                    { step: "SIGNAL", icon: "→", active: true },
-                    { step: "ORDER", icon: "→", active: true },
-                    { step: "FILL", icon: "→", active: true },
-                    { step: "POSITION", icon: "→", active: true },
-                    { step: "RISK", icon: "→", active: true },
-                    { step: "EXIT", icon: "", active: false },
-                    { step: "P&L", icon: "", active: false },
-                  ].map((s) => (
-                    <div key={s.step} className="flex items-center gap-2">
-                      <span className={cn("w-1.5 h-1.5 rounded-full", s.active ? "bg-success" : "bg-surface-overlay")} />
-                      <span className={cn("text-[10px] font-mono", s.active ? "text-text-primary" : "text-text-muted")}>{s.step}</span>
-                      {s.icon && <span className="text-[8px] text-text-muted">{s.icon}</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
+            {/* Provenance & Risk summary (lifecycle strip removed: per-ticket
+                event correlation is not yet backend-backed — contract T1) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Provenance */}
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
@@ -315,7 +303,7 @@ export default function Positions() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-text-muted">Last Update</span>
-                    <span className="text-[10px] font-mono text-text-muted">{new Date(selectedPos.last_update).toLocaleTimeString()}</span>
+                    <span className="text-[10px] font-mono text-text-muted">{formatDateTime(selectedPos.last_update)}</span>
                   </div>
                 </div>
               </div>
@@ -371,6 +359,14 @@ export default function Positions() {
                 "ec-panel p-3 cursor-pointer transition-colors",
                 selectedTicket === pos.ticket ? "border-success/30 bg-success/5" : "hover:bg-surface-hover"
               )}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelectedTicket(selectedTicket === pos.ticket ? null : pos.ticket);
+                }
+              }}
               onClick={() => setSelectedTicket(selectedTicket === pos.ticket ? null : pos.ticket)}
             >
               {/* Header row */}
@@ -389,7 +385,7 @@ export default function Positions() {
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-text-muted">Qty {formatNumber(Math.abs(pos.size), 2)}</span>
                 <span className={cn("font-mono", pos.unrealized_pnl_pct >= 0 ? "text-success" : "text-danger")}>
-                  {pos.unrealized_pnl_pct >= 0 ? "+" : ""}{(pos.unrealized_pnl_pct * 100).toFixed(2)}%
+                  {pos.unrealized_pnl_pct >= 0 ? "+" : ""}{formatPercent(pos.unrealized_pnl_pct)}
                 </span>
               </div>
               {/* Status row */}
@@ -416,19 +412,10 @@ export default function Positions() {
                     <Metric label="MAE" value={pos.mae != null ? formatCurrency(pos.mae) : "No data"} status="neutral" />
                     <Metric label="MFE" value={pos.mfe != null ? formatCurrency(pos.mfe) : "No data"} status="neutral" />
                   </div>
-                  {/* Lifecycle */}
-                  <div className="pt-2 border-t border-border-subtle">
-                    <p className="text-[9px] text-text-muted uppercase tracking-wider mb-1.5">Lifecycle</p>
-                    <div className="flex items-center gap-1">
-                      {["SIGNAL", "ORDER", "FILL", "POSITION", "RISK"].map((step, i) => (
-                        <span key={step} className="inline-flex items-center gap-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                          <span className="text-[8px] font-mono text-text-muted">{step}</span>
-                          {i < 4 && <span className="text-[7px] text-text-muted/50">→</span>}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                  {/* Per-ticket event correlation (Signal → Order → Fill) is
+                      not yet implemented in the backend; per the dashboard
+                      truthfulness contract (T1) no lifecycle chain is shown
+                      until it is backed by real per-event data. */}
                 </div>
               )}
             </div>

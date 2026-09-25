@@ -23,7 +23,7 @@
   /* — Text hierarchy — */
   --color-text-primary: #fafafa;
   --color-text-secondary: #a1a1aa;
-  --color-text-muted: #52525b;
+  --color-text-muted: #8b8b95;
   --color-text-inverse: #09090b;
 
   /* — Semantic colors — */
@@ -45,8 +45,8 @@
   --color-accent: #10b981;
 
   /* — Typography — */
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'SF Mono', 'Fira Code', ui-monospace, monospace;
 
   /* — Spacing scale (4px base) — */
   --spacing-px: 1px;
@@ -269,15 +269,6 @@
   letter-spacing: -0.01em;
 }
 
-/* Focus visible utility for custom focus states */
-.focus-visible-ring {
-  outline: none;
-  ring: 2px;
-  ring-color: var(--color-border-focus);
-  ring-offset: 2px;
-  ring-offset-color: var(--color-surface-base);
-}
-
 /* Visually hidden utility for screen readers */
 .sr-only {
   position: absolute;
@@ -307,26 +298,4 @@
 }
 .skip-link:focus {
   top: 16px;
-}
-
-/* Tooltip */
-[data-ec-tooltip] {
-  position: relative;
-  cursor: help;
-}
-[data-ec-tooltip]:hover::after {
-  content: attr(data-ec-tooltip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 4px 8px;
-  font-size: 11px;
-  background: var(--color-surface-elevated);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-  z-index: 50;
-  pointer-events: none;
 }

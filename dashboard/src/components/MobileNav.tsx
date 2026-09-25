@@ -9,6 +9,7 @@ import {
   Layers,
   AlertTriangle,
   Settings,
+  MoreHorizontal,
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
@@ -87,7 +88,7 @@ export default function MobileNav() {
               aria-haspopup="true"
               aria-label="More navigation options"
             >
-              <Settings className="w-5 h-5" aria-hidden="true" />
+              <MoreHorizontal className="w-5 h-5" aria-hidden="true" />
               <span className="text-[9px] font-medium leading-tight">More</span>
               {moreOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </button>

@@ -1,17 +1,32 @@
 import { useQuery } from "@tanstack/react-query";
-import { getBuildIdentity, getSystemInfo, getSystemHealth } from "../lib/api";
+import { getBuildIdentity, getSystemInfo, getSystemHealth, getHealth } from "../lib/api";
 import { cn } from "../lib/utils";
 import Panel, { PanelHeader, PanelContent } from "../components/ui/Panel";
 import StatusDot from "../components/ui/StatusDot";
 import StatusBadge from "../components/ui/StatusBadge";
 import Skeleton from "../components/ui/Skeleton";
+import PageError from "../components/ui/PageError";
 import FreshnessIndicator from "../components/ui/FreshnessIndicator";
-import { Settings, Shield, CheckCircle, XCircle, Fingerprint, Lock } from "lucide-react";
+import { Settings, Shield, CheckCircle, XCircle, HelpCircle, Fingerprint, Lock } from "lucide-react";
 
 export default function System() {
-  const { data: build, isLoading } = useQuery({ queryKey: ["buildIdentity"], queryFn: getBuildIdentity, refetchInterval: 60000 });
+  const { data: build, isLoading, isError, refetch } = useQuery({ queryKey: ["buildIdentity"], queryFn: getBuildIdentity, refetchInterval: 60000 });
   const { data: info } = useQuery({ queryKey: ["systemInfo"], queryFn: getSystemInfo });
   const { data: health } = useQuery({ queryKey: ["systemHealth"], queryFn: getSystemHealth, refetchInterval: 10000 });
+  // Lineage (contract §8.2): GET /health → HealthState.dimensions →
+  // guarantee cards below read their own dimension (truth-matrix: system health).
+  const { data: healthState } = useQuery({ queryKey: ["healthState"], queryFn: getHealth, refetchInterval: 10000 });
+
+  // A guarantee is ok only when its OWN named dimension says so; ok: null
+  // means "not observed" and must render as UNKNOWN — never as pass or fail
+  // (contract T3/T4, audit: hardcoded `ok: true` guarantees).
+  const dimOk = (name: string): boolean | null => {
+    const dim = healthState?.dimensions?.find((d) => d.dimension === name);
+    if (!dim) return null;
+    return dim.state === "HEALTHY";
+  };
+  const dimMessage = (name: string): string =>
+    healthState?.dimensions?.find((d) => d.dimension === name)?.message || "";
 
   if (isLoading) {
     return (
@@ -21,6 +36,10 @@ export default function System() {
         <Skeleton className="h-48 rounded-lg" />
       </div>
     );
+  }
+
+  if (isError && !build) {
+    return <PageError title="System" subsystem="GET /system/build" onRetry={() => refetch()} />;
   }
 
   return (
@@ -94,21 +113,71 @@ export default function System() {
         <PanelContent>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
             {[
-              { label: "Read-Only", ok: info?.read_only ?? true, desc: "No mutations" },
-              { label: "R4 Frozen", ok: true, desc: "Policy immutable" },
-              { label: "Fingerprint", ok: build?.verified ?? false, desc: "Build verified" },
-              { label: "Fail-Closed", ok: true, desc: "Risk enforced" },
-              { label: "Reconciliation", ok: true, desc: "Active monitoring" },
-              { label: "Evidence Ledger", ok: true, desc: "Immutable record" },
+              {
+                label: "Read-Only",
+                ok: info ? info.read_only : null,
+                desc: info ? "No mutations" : "Not observed yet",
+              },
+              {
+                label: "R4 Frozen",
+                ok: info ? info.can_modify_r4 === false : null,
+                desc: info ? "Not modifiable via UI" : "Not observed yet",
+              },
+              {
+                label: "Fingerprint",
+                ok: build ? build.verified : null,
+                desc: build ? "Build verified" : "Not observed yet",
+              },
+              {
+                label: "Fail-Closed",
+                ok: dimOk("risk_envelope"),
+                desc:
+                  dimOk("risk_envelope") === false
+                    ? dimMessage("risk_envelope")
+                    : healthState
+                      ? "Risk envelope enforced"
+                      : "Not observed yet",
+              },
+              {
+                label: "Reconciliation",
+                ok: dimOk("reconciliation"),
+                desc:
+                  dimOk("reconciliation") === false
+                    ? dimMessage("reconciliation")
+                    : healthState
+                      ? "Broker checks running"
+                      : "Not observed yet",
+              },
+              {
+                label: "Evidence Ledger",
+                ok: dimOk("evidence"),
+                desc:
+                  dimOk("evidence") === false
+                    ? dimMessage("evidence")
+                    : healthState
+                      ? "Ledger recording"
+                      : "Not observed yet",
+              },
             ].map((item) => (
               <div
                 key={item.label}
                 className={cn(
                   "flex items-start gap-2 p-2 rounded-md border",
-                  item.ok ? "bg-success-subtle border-success/10" : "bg-danger-subtle border-danger/10"
+                  item.ok === true
+                    ? "bg-success-subtle border-success/10"
+                    : item.ok === false
+                      ? "bg-danger-subtle border-danger/10"
+                      : "bg-surface-overlay border-border-subtle"
                 )}
+                data-testid={`guarantee-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
               >
-                {item.ok ? <CheckCircle className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" /> : <XCircle className="w-3.5 h-3.5 text-danger shrink-0 mt-0.5" />}
+                {item.ok === true ? (
+                  <CheckCircle className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
+                ) : item.ok === false ? (
+                  <XCircle className="w-3.5 h-3.5 text-danger shrink-0 mt-0.5" />
+                ) : (
+                  <HelpCircle className="w-3.5 h-3.5 text-text-muted shrink-0 mt-0.5" />
+                )}
                 <div>
                   <span className="text-[11px] lg:text-xs font-medium text-text-primary">{item.label}</span>
                   <p className="text-[9px] lg:text-[10px] text-text-muted mt-0.5">{item.desc}</p>
@@ -132,7 +201,7 @@ export default function System() {
             <div>
               <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1">System Health</p>
               <StatusDot
-                level={health?.status === "ok" ? "green" : "red"}
+                level={health ? (health.status === "ok" ? "green" : "red") : "gray"}
                 label={health?.status?.toUpperCase() || "No data"}
                 size="xs"
               />
@@ -140,7 +209,13 @@ export default function System() {
             <div>
               <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Authorization</p>
               <StatusDot
-                level={health?.trading_authorization === "TRADING_AUTHORIZED" ? "green" : "red"}
+                level={
+                  health
+                    ? health.trading_authorization === "TRADING_AUTHORIZED"
+                      ? "green"
+                      : "red"
+                    : "gray"
+                }
                 label={health?.trading_authorization?.replace("TRADING_", "") || "No data"}
                 size="xs"
               />

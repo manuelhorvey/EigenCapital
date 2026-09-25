@@ -209,7 +209,12 @@ class TestRestartNoDoubleTrade:
             save_policy_state,
         )
 
-        now = datetime.now(UTC)
+        # Fixed mid-day timestamp (same convention as test_rebalance_policy.NOW):
+        # datetime.now(UTC) + 1h crosses the UTC midnight boundary when this test
+        # runs between 23:00-23:59 UTC, and DailyPolicy would (correctly) allow a
+        # next-day intervention — flaky false failure. A fixed clock makes the
+        # restart-idempotency check deterministic at any wall-clock time.
+        now = datetime(2026, 9, 16, 12, 0, 0, tzinfo=UTC)
         policy = build_policy(PolicyConfig(policy_type=PolicyType.DAILY))
         d1 = policy.should_rebalance(current_weights={}, target_weights={"A": 0.05}, signal_timestamp=None, now=now)
         assert d1.action.value == "TRADE"

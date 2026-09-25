@@ -58,7 +58,7 @@ def _is_authorized(websocket: WebSocket) -> bool:
     if not token:
         auth_header = websocket.headers.get("authorization", "")
         if auth_header.startswith("Bearer "):
-            token = auth_header[len("Bearer "):]
+            token = auth_header[len("Bearer ") :]
     # Constant-time comparison, mirroring the HTTP middleware.
     return bool(token) and secrets.compare_digest(token.encode("utf-8"), _api_key().encode("utf-8"))
 

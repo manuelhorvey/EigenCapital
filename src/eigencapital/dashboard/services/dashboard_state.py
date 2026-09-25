@@ -1250,9 +1250,7 @@ class DashboardStateService:
             "freshness": DataFreshness.LIVE.value,  # snapshot of on-disk state
         }
 
-    def _build_universe_view(
-        self, freshness_by_symbol: dict[str, list[dict[str, Any]]]
-    ) -> list[dict[str, Any]]:
+    def _build_universe_view(self, freshness_by_symbol: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
         """Merge production-universe classification with observed data freshness.
 
         Authority chain: [broker.allowed_symbols] classifies the production

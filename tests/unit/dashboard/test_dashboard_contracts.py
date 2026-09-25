@@ -563,9 +563,7 @@ class TestReadOnlyGuarantee:
         service = DashboardStateService()
         # Inspect callables only — class-level constants (e.g. DATA_SOURCES
         # lineage specs) are not methods and cannot mutate state.
-        public_methods = [
-            m for m in dir(service) if not m.startswith("_") and callable(getattr(service, m, None))
-        ]
+        public_methods = [m for m in dir(service) if not m.startswith("_") and callable(getattr(service, m, None))]
         # All public methods should be getters
         for method in public_methods:
             assert method.startswith("get_") or method == "_ensure_dirs" or method.startswith("_"), (

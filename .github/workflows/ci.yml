@@ -55,6 +55,15 @@ jobs:
             --cov-report=term-missing \
             -q
 
+      # Suites outside tests/unit/ (all verified green in-tree, no live
+      # services required). Gated to one interpreter to keep matrix runtime
+      # bounded — unit tests above still run on every Python version.
+      - name: Run property / integration / dashboard suites
+        if: matrix.python-version == '3.13'
+        run: |
+          pytest tests/property tests/integration tests/failure_injection \
+            tests/simulation src/eigencapital/dashboard/tests -q
+
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v5
@@ -64,3 +73,28 @@ jobs:
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      - name: Lint (oxlint)
+        working-directory: dashboard
+        run: npm run lint
+
+      # `npm run build` = `tsc -b && vite build` (typecheck + bundle)
+      - name: Typecheck and build
+        working-directory: dashboard
+        run: npm run build

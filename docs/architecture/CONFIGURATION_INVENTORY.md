@@ -47,7 +47,7 @@ R4 loop / risk enforcement / dashboard / fingerprint verifier
 | LiveRiskConfig.max_order_notional (5000) | config.toml → LiveRiskConfig | RiskEnvelope → RiskEnforcer | LiveRiskConfig | ✅ live_risk_fp |
 | LiveRiskConfig.max_account_drawdown_pct (0.10) | config.toml → LiveRiskConfig | RiskEnvelope → RiskEnforcer | LiveRiskConfig | ✅ live_risk_fp |
 | LiveRiskConfig.require_sl_on_positions (false) | config.toml | RiskEnforcer position-protection gate | LiveRiskConfig | ✅ live_risk_fp |
-| RiskPolicy (various) | config.toml → RiskConfig → RiskPolicy | risk/engine.py, health.py, checks | RiskPolicy | ✅ risk_fp |
+| RiskPolicy (various) | config.toml `[risk]` is parsed into `RiskConfig`, but `RiskPolicy` is constructed with **code defaults** at consumer sites — the config path is not wired (known gap, full-system audit 2026-09-25; remediation deferred as trading-adjacent) | risk/engine.py, health.py, checks | RiskPolicy (code defaults until wiring lands) | ✅ risk_fp |
 
 ### Capital
 
@@ -101,7 +101,7 @@ R4 loop / risk enforcement / dashboard / fingerprint verifier
 | Config | Location | Status | Evidence |
 |--------|----------|--------|----------|
 | MicroLiveLimits | live/risk.py | **LEGACY** — only used as fallback in live/risk.py | Production uses LiveRiskConfig → RiskEnvelope |
-| RiskConfig | config.py | **DEAD** — constructed but never consumed | RiskPolicy is the actual risk consumer |
+| RiskConfig | config.py | **DEAD** — constructed but never consumed | RiskPolicy (its intended consumer) is constructed with code defaults instead — see Risk table gap note |
 | rebalance_frequency | StrategyConfig | **MISLEADING** — says "weekly" but loop runs hourly | Not consumed by any code |
 | configs/base.toml | Referenced in config.py | **MISSING** — silently ignored | Loader handles gracefully |
 | TrendConfig / strategies/trend | *(removed from tree)* | **GONE** — was dead vs production R4 (`CFG-001`) | Production signal is `r4_rebalance_loop::compute_r4_signal` |

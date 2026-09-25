@@ -1,6 +1,6 @@
 # EigenCapital Phase Status
 
-Last updated: 2026-08-27
+Last updated: 2026-09-25 (phase table re-verified against the full-system audit — `docs/audits/FULL_SYNC_DASHBOARD_AUDIT_2026-09-25.md`; Phase 2 evidence collection still active, no phase transitions)
 
 ## Official Status
 

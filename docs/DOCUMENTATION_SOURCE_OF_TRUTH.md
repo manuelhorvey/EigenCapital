@@ -85,6 +85,12 @@ Last updated: 2026-09-23
 
 | Document | Purpose | Location |
 |---|---|---|
+| Dashboard contract (truthfulness, single-writer, lineage) | Governing dashboard contract | `docs/production/DASHBOARD_CONTRACT.md` |
+| Dashboard data lineage | Per-metric source matrix (regenerated 2026-09-25) | `docs/production/DASHBOARD_DATA_TRUTH_MATRIX.md` |
+| Dashboard API reference | All `/api/v1` endpoints, WS + SSE transports, error semantics | `docs/production/DASHBOARD_API.md` |
+| Dashboard security model | Auth, rate limits, CORS, secrets — verified against code 2026-09-25 | `docs/production/DASHBOARD_SECURITY.md` |
+| Dashboard sync audit (current) | Full-system sync findings register F-01…F-16 + fix status | `docs/audits/FULL_SYNC_DASHBOARD_AUDIT_2026-09-25.md` |
+| Production universe — USOIL | USOIL is **production-admitted** (`[broker.allowed_symbols]`, class `energy`); the frozen taxonomy doc's "never production" wording is scoped to the research baseline only | `configs/production/config.toml` + `docs/production/DASHBOARD_CONTRACT.md` §6 |
 | Risk architecture | Complete risk control documentation | `docs/production/RISK_ARCHITECTURE.md` |
 | Live trading | Operational sequence and procedures | `docs/production/LIVE_TRADING.md` |
 | Deployment | Installation and startup procedures | `docs/production/DEPLOYMENT.md` |

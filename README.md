@@ -28,6 +28,7 @@
 | Execution | MT5 loop under safety gates; evidence collection (no capital promotion) | [`docs/production/LIVE_TRADING.md`](docs/production/LIVE_TRADING.md) |
 | Research queue | R0–R8 closed at last review (COMPLETE/FROZEN/PARKED/BLOCKED/DEFERRED per stage) | [`docs/research/RESEARCH_PROGRAM_STATUS.md`](docs/research/RESEARCH_PROGRAM_STATUS.md) |
 | Architecture map | Current concept → authority map | [`docs/architecture/SYSTEM_TRUTH.md`](docs/architecture/SYSTEM_TRUTH.md) |
+| Dashboard | Read-only observability contract + data truth matrix | [`docs/production/DASHBOARD_CONTRACT.md`](docs/production/DASHBOARD_CONTRACT.md) |
 | Doc authority | One source per mutable fact | [`docs/DOCUMENTATION_SOURCE_OF_TRUTH.md`](docs/DOCUMENTATION_SOURCE_OF_TRUTH.md) |
 
 ## Overview
@@ -95,6 +96,26 @@ python scripts/r4_monitor.py --loop --interval 60
 # Supervisor dry-run
 python scripts/r4_supervisor_dryrun.py
 ```
+
+### Run the Dashboard (read-only observer)
+
+The operations dashboard is a **read-only window** into EigenCapital — it
+cannot place orders or modify trading state
+([contract](docs/production/DASHBOARD_CONTRACT.md),
+[security model](docs/production/DASHBOARD_SECURITY.md)).
+
+```bash
+# Backend API — port 8080 (API key auth; see .env.example → DASHBOARD_API_KEY)
+python scripts/dashboard_server.py --port 8080 --reload
+
+# Frontend — Vite dev server on port 5173
+cd dashboard && npm install && npm run dev
+```
+
+Open <http://localhost:5173>. REST (`/api/v1/*`) and the `/ws/live` WebSocket
+require the bearer key; the frontend reads it from `VITE_API_KEY` (set it
+before `npm run build` for production bundles — dev builds fall back to the
+local-dev key).
 
 ### Pre-Flight Checks (mandatory before live trading)
 

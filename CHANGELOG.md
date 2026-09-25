@@ -4,6 +4,34 @@ All notable changes to EigenCapital will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+- **Universe**: XAGUSD and XNGUSD admitted to the eligible tradeable universe
+- **Research**: volatility taxonomy & trade-path analysis (descriptive/diagnostic only — explicitly not for production citation) with hash-pinned artifacts; research program status registry (R0–R6) guarded by a consistency test
+- **Dashboard API**: `/portfolio/summary`, `/health/authorization`, `/health/watchdog`, `/risk/envelope`, `/evidence/shadow-reduced` endpoints; full endpoint reference in `docs/production/DASHBOARD_API.md`
+- **Dashboard governance docs**: `DASHBOARD_CONTRACT.md` (truthfulness criteria T1–T5), regenerated `DASHBOARD_DATA_TRUTH_MATRIX.md`, `FULL_SYNC_DASHBOARD_AUDIT_2026-09-25.md`, truthful `DASHBOARD_SECURITY.md`
+
+### Fixed
+- Alert ordering returned the oldest of the recent alert set instead of the newest (F-03)
+- Evidence maturity counters (`e0_count` … `observation_days`) always rendered 0 — nested `evidence_maturity` payload now read (with regression tests)
+- Qualification gates emitted `SUFFICIENT`/`COLLECTING` but the UI rendered only `PASS`/`FAIL`, so gates never reached a terminal visual state (F-08)
+- `AccountDTO.daily_loss_remaining` fabricated a default budget of `250` when unobserved (F-13)
+- `NORMAL` (risk vocabulary) accepted as a health overall-state (F-15); events route newest/oldest timestamp labels swapped (F-07)
+- Dashboard persisted loop-owned `risk_state.json` — duplicate writer removed; dashboard-owned risk constants dropped from the RiskObserver fallback (F-11/F-12)
+- Execution/risk hardening: fail-closed on execution and market-data risks, risk-envelope alignment, minimum-lot rounding restored, canonical concentration threshold exposed, hedging-safe order generation
+- Research/live boundary: replay logic migrated out of research code into the core rebalance module
+- Dashboard truthfulness pass: phantom sidebar search rail removed, System page guarantees now read live health dimensions instead of hardcoded `true`, duplicated "Reconciled" column (actually SL presence) removed, gate bars no longer imply fake progress, per-page error states wired
+
+### Security
+- Bearer API key + per-IP rate limit on `/api/v1/*`; constant-time key comparison on HTTP and WebSocket handshakes
+- WebSocket `/ws/live` authenticated (`?token=`), single shared broadcaster instead of per-connection poll loops
+- Frontend API-key fallback is dev-only — production builds fail closed (401 → explicit error state) instead of embedding a shared default key
+
+### Changed
+- `eigencapital.__version__` aligned with `pyproject.toml` (0.5.0); `/system/info` serves it dynamically
+- README: dashboard quick-start section and dashboard contract row in Status at a Glance
+
 ## [v0.5.0] - 2026-09-01
 
 ### Added

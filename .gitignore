@@ -77,6 +77,12 @@ reports/prefunding_gate_*
 reports/r5_swing_breadth.json
 reports/r5_swing_breadth.md
 
+# Volatility taxonomy: generated result matrices (regenerate via
+# `python -m research.volatility.runner`); evidence_ledger.json +
+# reproducibility.json stay tracked as audit pins.
+reports/volatility_taxonomy/taxonomy_results.json
+reports/volatility_taxonomy/trade_path_results.json
+
 # MT5 runtime
 nohup.out
 *.log

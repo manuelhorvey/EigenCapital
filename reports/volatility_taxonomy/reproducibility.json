@@ -1,0 +1,129 @@
+{
+  "baseline_assets": [
+    "AUDCAD",
+    "AUDCHF",
+    "AUDJPY",
+    "AUDNZD",
+    "AUDUSD",
+    "BTCUSD",
+    "CADCHF",
+    "CADJPY",
+    "CHFJPY",
+    "EURAUD",
+    "EURCAD",
+    "EURCHF",
+    "EURGBP",
+    "EURJPY",
+    "EURNZD",
+    "EURUSD",
+    "GBPAUD",
+    "GBPCAD",
+    "GBPCHF",
+    "GBPJPY",
+    "GBPNZD",
+    "GBPUSD",
+    "NZDCAD",
+    "NZDCHF",
+    "NZDJPY",
+    "NZDUSD",
+    "US30",
+    "USDCAD",
+    "USDCHF",
+    "USDJPY",
+    "USTEC",
+    "XAGUSD",
+    "XAUUSD",
+    "XNGUSD"
+  ],
+  "candidates": {
+    "COPPER": "metals",
+    "USOIL": "energy"
+  },
+  "config_version": "vol_taxonomy_v1",
+  "constants": {
+    "annualization": 252,
+    "cluster_k_candidates": [
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "initial_phase_bars": 3,
+    "large_move_k_sigma": 3.0,
+    "min_cell_trades": 20,
+    "primary_distance": "euclidean",
+    "primary_linkage": "average",
+    "primary_rv": 20,
+    "r4_cost_one_way": 0.0015,
+    "r4_rebalance_every": 5,
+    "random_seed": 42,
+    "regime_cuts_pctile": [
+      0.25,
+      0.75,
+      0.95
+    ],
+    "regime_cuts_z": [
+      -0.6744897501960817,
+      0.6744897501960817,
+      1.6448536269514722
+    ]
+  },
+  "generated_at_utc": "2026-09-25T04:12:08.895720+00:00",
+  "git_commit": "71705f6",
+  "governance": "descriptive/diagnostic only; no trial slot, no experiment registration, no production authorization",
+  "h_families": {
+    "F_regime_definition_checks": 4,
+    "H1_H4_pooled_spearman": 4,
+    "H_within_asset_spearman": 32
+  },
+  "manifest_hashes": {
+    "candidates": "5a15cd9474d20b235f50a258aa78bef25df882f31e507dc3d88a1f05dcaf0e4c",
+    "r5": "3d10cf9322bda6cd9f5d4966a53e4d8d3a6563a748cb25e685bdf54157b898f1",
+    "supplement": "671f393b84bad681335db83e03a965f26eb61985f3e5a81c66e067b156da3318"
+  },
+  "package_file_sha256": {
+    "__init__.py": "6b7316488ab2998756c8aac51fffafb3251b670bf81ce339c691c6141573313d",
+    "clustering.py": "f67c4bb84e6c9d3515f183d2350ed9c5936fdcbf60bae7c2805974dcabe395a4",
+    "config.py": "b668fcb3fc3e55b3e09deda07813eb1166815c6b4008edabeb20c493947da6b8",
+    "data.py": "5c85bfccab6658d258f348dee22a40e68f29da3090add9648a1c2e96368a65ca",
+    "evidence.py": "a581aece2978e38996f53655f2fb1fc27f375af99405156731ebc809f3960cb0",
+    "features.py": "0d0bfc13b112e3f3a4778a20653a77dee48b74fa8a17017f108bcf5a7f1a28bb",
+    "hypotheses.py": "336d747bf2f12b88a6a99b6b8aeff80cce88136b22cb9c692337d55141650e32",
+    "incremental.py": "3657f4023df81294321a4508cbfa8ee174b101ca72bfd1eaffe7546f92af1981",
+    "path_tables.py": "c6c18e8e867e9c110b41b2e672c32e90b5b485f9ecbc0803050c5b62400e700d",
+    "regimes.py": "e3eeed831a89825969b78396c00da6e37605ea6fcc95ed79410c77ef95fc3522",
+    "runner.py": "a289e07e5081b205fb259e37aaebf72f8e0670c6b20d24ef6834c1e52c048732",
+    "similarity.py": "10cf7c2cfbc7e256c70e97da4a0291d234d51781428899c199d9c04655b541eb",
+    "stability.py": "fd8b9abdf8351aab77a2d54aff2fe16459e26acec659acc97bdda23b8eb39319",
+    "trade_path.py": "849bc2f3e89037a3645450cb85984fa4de4a874fd6449f7f78f8157cb7465e06",
+    "trade_stream.py": "d610f03a0d163808ae74772ed2e52c0c870a1157671c6fa753a7b34ad237eadf"
+  },
+  "trade_symbols": [
+    "AUDUSDm",
+    "NZDUSDm",
+    "GBPUSDm",
+    "EURUSDm",
+    "USDCHFm",
+    "USDCADm",
+    "USDJPYm",
+    "XAUUSDm"
+  ],
+  "versions": {
+    "numpy": "2.3.5",
+    "pandas": "2.3.3",
+    "python": "3.14.7",
+    "scikit_learn": "1.8.0",
+    "scipy": "1.17.1"
+  },
+  "windows": {
+    "primary": [
+      "2022-06-01",
+      "2026-08-24"
+    ],
+    "robustness_full": [
+      "2020-06-01",
+      "2026-08-24"
+    ]
+  }
+}

@@ -1,0 +1,354 @@
+{
+  "candidate_evaluations": 2,
+  "clustering_configurations": 4,
+  "comparisons": {
+    "alt_estimator_spearman:H1_underwater": 2,
+    "alt_estimator_spearman:H2_oscillation": 2,
+    "alt_estimator_spearman:H3_time_to_first_profit": 2,
+    "alt_estimator_spearman:H4_time_to_mfe": 2,
+    "cluster_path_link": 2,
+    "cost_analysis:by_regime": 3,
+    "cost_analysis:per_asset": 8,
+    "cost_path_pair": 2,
+    "extreme_trim_pair": 1,
+    "falsification_checks": 12,
+    "holding_bucket_h1": 1,
+    "holm_families:H1_H4_pooled_spearman": 1,
+    "holm_families:H_within_asset_spearman": 1,
+    "large_move_pair": 1,
+    "normalization_pair:mae": 2,
+    "normalization_pair:mfe": 2,
+    "normalization_pair:underwater_fraction": 1,
+    "pairwise_feature_distances": 561,
+    "pairwise_rv_correlations": 561,
+    "partial_spearman_holding:H1_underwater": 1,
+    "partial_spearman_holding:H2_oscillation": 1,
+    "partial_spearman_holding:H3_time_to_first_profit": 1,
+    "partial_spearman_holding:H4_time_to_mfe": 1,
+    "path_table:asset_regime:percentile_pit": 17,
+    "path_table:asset_regime:zscore": 16,
+    "path_table:per_asset": 8,
+    "regime_cell_comparisons:percentile_pit": 4,
+    "regime_cell_comparisons:zscore": 4,
+    "session_subset_pair": 1,
+    "similarity_matrices": 8,
+    "spearman_period:early:H1_underwater": 1,
+    "spearman_period:early:H2_oscillation": 1,
+    "spearman_period:early:H4_time_to_mfe": 1,
+    "spearman_period:middle:H1_underwater": 1,
+    "spearman_period:middle:H2_oscillation": 1,
+    "spearman_period:middle:H4_time_to_mfe": 1,
+    "spearman_period:recent:H1_underwater": 1,
+    "spearman_period:recent:H2_oscillation": 1,
+    "spearman_period:recent:H4_time_to_mfe": 1,
+    "spearman_pooled:H1_underwater": 1,
+    "spearman_pooled:H2_oscillation": 1,
+    "spearman_pooled:H3_time_to_first_profit": 1,
+    "spearman_pooled:H4_time_to_mfe": 1,
+    "spearman_within:H1_underwater": 8,
+    "spearman_within:H2_oscillation": 8,
+    "spearman_within:H3_time_to_first_profit": 8,
+    "spearman_within:H4_time_to_mfe": 8,
+    "survival:by_regime": 3,
+    "trade_path_pairwise_distances": 28,
+    "vol_x_path_matrix:by_regime": 3,
+    "vol_x_path_matrix:by_regime_z": 3
+  },
+  "hypothesis_tests": {
+    "H1_H4_pooled_spearman": {
+      "H1_underwater": {
+        "detail": "n=1290 (p recorded pre-Holm)",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.8558840109409998,
+        "statistic": 0.005061484774874901,
+        "verdict": "INCONCLUSIVE"
+      },
+      "H2_oscillation": {
+        "detail": "n=1290 (p recorded pre-Holm)",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.7447223308837585,
+        "statistic": 0.009074236033482645,
+        "verdict": "INCONCLUSIVE"
+      },
+      "H3_time_to_first_profit": {
+        "detail": "n=977 (p recorded pre-Holm)",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.7804982526343217,
+        "statistic": -0.008926686417565551,
+        "verdict": "INCONCLUSIVE"
+      },
+      "H4_time_to_mfe": {
+        "detail": "n=1288 (p recorded pre-Holm)",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.35846842841705456,
+        "statistic": 0.025607745248330843,
+        "verdict": "INCONCLUSIVE"
+      }
+    },
+    "H_within_asset_spearman": {
+      "AUDUSD:H1_underwater": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.6949738312073057,
+        "statistic": 0.03084763423128093,
+        "verdict": "INCONCLUSIVE"
+      },
+      "AUDUSD:H2_oscillation": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.36272716477496636,
+        "statistic": 0.07152920277102875,
+        "verdict": "INCONCLUSIVE"
+      },
+      "AUDUSD:H3_time_to_first_profit": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.5871694357563827,
+        "statistic": 0.049226647702452296,
+        "verdict": "INCONCLUSIVE"
+      },
+      "AUDUSD:H4_time_to_mfe": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.2781538826352037,
+        "statistic": -0.08518085262105392,
+        "verdict": "INCONCLUSIVE"
+      },
+      "EURUSD:H1_underwater": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.9303567903159033,
+        "statistic": -0.006876997312541563,
+        "verdict": "INCONCLUSIVE"
+      },
+      "EURUSD:H2_oscillation": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.7318992652552191,
+        "statistic": -0.026953883101924633,
+        "verdict": "INCONCLUSIVE"
+      },
+      "EURUSD:H3_time_to_first_profit": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.5279147983195006,
+        "statistic": -0.05745226819813804,
+        "verdict": "INCONCLUSIVE"
+      },
+      "EURUSD:H4_time_to_mfe": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.8796751012843399,
+        "statistic": -0.011948614825895622,
+        "verdict": "INCONCLUSIVE"
+      },
+      "GBPUSD:H1_underwater": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.8860671187883173,
+        "statistic": -0.011797245282751482,
+        "verdict": "INCONCLUSIVE"
+      },
+      "GBPUSD:H2_oscillation": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.24986137645954498,
+        "statistic": -0.09453337657854025,
+        "verdict": "INCONCLUSIVE"
+      },
+      "GBPUSD:H3_time_to_first_profit": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 0.5714424306853852,
+        "p_raw": 0.01785757595891829,
+        "statistic": -0.22151369096751325,
+        "verdict": "INCONCLUSIVE"
+      },
+      "GBPUSD:H4_time_to_mfe": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.2582969766542034,
+        "statistic": 0.09287615268206154,
+        "verdict": "INCONCLUSIVE"
+      },
+      "NZDUSD:H1_underwater": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.8461548844461501,
+        "statistic": 0.015974849448035594,
+        "verdict": "INCONCLUSIVE"
+      },
+      "NZDUSD:H2_oscillation": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.09442815160714473,
+        "statistic": -0.13705940164162367,
+        "verdict": "INCONCLUSIVE"
+      },
+      "NZDUSD:H3_time_to_first_profit": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.7327220090217325,
+        "statistic": -0.033397779940627724,
+        "verdict": "INCONCLUSIVE"
+      },
+      "NZDUSD:H4_time_to_mfe": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.7127341477497091,
+        "statistic": -0.0303089445703377,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDCAD:H1_underwater": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.8038921751488104,
+        "statistic": -0.019537582741030842,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDCAD:H2_oscillation": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.30287316508001483,
+        "statistic": 0.0809392605532971,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDCAD:H3_time_to_first_profit": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.17352401184978153,
+        "statistic": -0.12722631948372387,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDCAD:H4_time_to_mfe": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.5131756814731356,
+        "statistic": 0.05142059062918003,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDCHF:H1_underwater": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.3165377978261795,
+        "statistic": -0.0772742497141915,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDCHF:H2_oscillation": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.9134302926543483,
+        "statistic": -0.008399716454840498,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDCHF:H3_time_to_first_profit": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.2614878369303329,
+        "statistic": 0.10038021564938689,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDCHF:H4_time_to_mfe": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 0.6540876110826691,
+        "p_raw": 0.021099600357505455,
+        "statistic": 0.1767860871518611,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDJPY:H1_underwater": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.13854271281304975,
+        "statistic": 0.11616195766519045,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDJPY:H2_oscillation": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.8509195068440698,
+        "statistic": 0.014788375803253874,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDJPY:H3_time_to_first_profit": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.6422381563884768,
+        "statistic": 0.04096539559095718,
+        "verdict": "INCONCLUSIVE"
+      },
+      "USDJPY:H4_time_to_mfe": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.6799227223200908,
+        "statistic": -0.032556850818651555,
+        "verdict": "INCONCLUSIVE"
+      },
+      "XAUUSD:H1_underwater": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.5695308371845698,
+        "statistic": 0.04473123758681042,
+        "verdict": "INCONCLUSIVE"
+      },
+      "XAUUSD:H2_oscillation": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.11744061895008362,
+        "statistic": 0.12272947793424333,
+        "verdict": "INCONCLUSIVE"
+      },
+      "XAUUSD:H3_time_to_first_profit": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.3991651959782233,
+        "statistic": 0.07314653695269711,
+        "verdict": "INCONCLUSIVE"
+      },
+      "XAUUSD:H4_time_to_mfe": {
+        "detail": "",
+        "holm_threshold": 0.05,
+        "p_holm": 1.0,
+        "p_raw": 0.8599149404927315,
+        "statistic": 0.013886514570026988,
+        "verdict": "INCONCLUSIVE"
+      }
+    }
+  },
+  "loo_evaluations": 34,
+  "notes": [],
+  "total_comparisons": 1311
+}

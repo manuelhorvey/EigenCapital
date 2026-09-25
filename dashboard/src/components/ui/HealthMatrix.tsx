@@ -1,4 +1,4 @@
-import { cn } from "../../lib/utils";
+import { cn, formatDimName } from "../../lib/utils";
 
 interface HealthDimension {
   dimension: string;
@@ -25,10 +25,6 @@ function getStateLabel(state: string): string {
   if (upper.includes("DEGRADED") || upper.includes("WARNING") || upper.includes("ELEVATED")) return "WARN";
   if (upper.includes("BLOCKED") || upper.includes("CRITICAL") || upper.includes("HALT") || upper.includes("FAIL")) return "CRIT";
   return upper.slice(0, 4);
-}
-
-function formatDimName(dim: string): string {
-  return dim.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export default function HealthMatrix({ dimensions, className }: HealthMatrixProps) {

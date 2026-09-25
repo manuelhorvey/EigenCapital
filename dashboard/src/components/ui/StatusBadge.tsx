@@ -2,15 +2,6 @@ import { cn } from "../../lib/utils";
 
 type BadgeVariant = "success" | "warning" | "danger" | "info" | "purple" | "neutral";
 
-const variantAriaLabels: Record<BadgeVariant, string> = {
-  success: "success",
-  warning: "warning",
-  danger: "critical",
-  info: "informational",
-  purple: "diagnostic",
-  neutral: "neutral",
-};
-
 const variantStyles: Record<BadgeVariant, string> = {
   success: "bg-success-subtle text-success border border-success/15",
   warning: "bg-warning-subtle text-warning border border-warning/15",
@@ -37,7 +28,6 @@ export default function StatusBadge({ variant, children, size = "sm", pulse = fa
         pulse && "ec-pulse"
       )}
       role="status"
-      aria-label={variantAriaLabels[variant]}
     >
       {children}
     </span>

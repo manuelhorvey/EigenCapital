@@ -148,8 +148,11 @@ async def get_event_timeline(
         page=page,
         page_size=page_size,
         has_more=end < total,
-        newest_timestamp=parsed[0].timestamp if parsed else None,
-        oldest_timestamp=parsed[-1].timestamp if parsed else None,
+        # decisions.jsonl is chronological (oldest first), so parsed[0] is the
+        # OLDEST event of the page and parsed[-1] the newest (audit F-07 —
+        # the labels were previously swapped).
+        oldest_timestamp=parsed[0].timestamp if parsed else None,
+        newest_timestamp=parsed[-1].timestamp if parsed else None,
     )
 
 
@@ -159,22 +162,31 @@ async def get_qualification(
 ) -> QualificationStatusDTO:
     """Get Phase 2 qualification status."""
     qual = state.get_qualification_status()
+    # qualification_status.json (and the derived fallback) nest all maturity
+    # counters under "evidence_maturity" — a flat qual.get("e0_count") read
+    # silently returns 0 for every counter (audit: e0_count flat-vs-nested).
+    maturity = qual.get("evidence_maturity") or {}
+
+    def _count(key: str) -> int:
+        value = maturity.get(key, qual.get(key, 0))
+        return int(value) if isinstance(value, (int, float)) else 0
+
     return QualificationStatusDTO(
         campaign_id=qual.get("campaign_id", "UNKNOWN"),
         overall_status=qual.get("overall_status", "UNKNOWN"),
         evidence_insufficient=qual.get("evidence_insufficient", True),
         evidence_maturity=EvidenceMaturityDTO(
-            e0_count=qual.get("e0_count", 0),
-            e1_count=qual.get("e1_count", 0),
-            e2_count=qual.get("e2_count", 0),
-            e3_count=qual.get("e3_count", 0),
-            e4_count=qual.get("e4_count", 0),
-            e5_count=qual.get("e5_count", 0),
-            e6_count=qual.get("e6_count", 0),
-            total_trades=qual.get("total_trades", 0),
-            open_trades=qual.get("open_trades", 0),
-            completed_lifecycles=qual.get("completed_lifecycles", 0),
-            observation_days=qual.get("observation_days", 0),
+            e0_count=_count("e0_count"),
+            e1_count=_count("e1_count"),
+            e2_count=_count("e2_count"),
+            e3_count=_count("e3_count"),
+            e4_count=_count("e4_count"),
+            e5_count=_count("e5_count"),
+            e6_count=_count("e6_count"),
+            total_trades=_count("total_trades"),
+            open_trades=_count("open_trades"),
+            completed_lifecycles=_count("completed_lifecycles"),
+            observation_days=_count("observation_days"),
             timestamp=datetime.now(UTC),
         ),
         gates=qual.get("gates", []),

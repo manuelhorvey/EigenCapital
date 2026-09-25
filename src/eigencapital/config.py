@@ -296,8 +296,10 @@ def load_config(environment: str = "production") -> EigenCapitalConfig:
 
     Merge order:
     1. Base defaults (hardcoded in dataclasses)
-    2. configs/base.toml (optional — shared overrides across environments)
-    3. configs/{environment}/config.toml (environment-specific overrides)
+    2. configs/base.toml (optional — NOT present in this repo; the loader skips
+       it gracefully, so configs/{environment}/config.toml is the only TOML
+       layer in practice — see docs/architecture/CONFIGURATION_INVENTORY.md)
+    3. configs/{environment}/config.toml (environment-specific values)
     """
     # Load base config (optional — environment config provides all production values)
     base_path = CONFIGS_DIR / "base.toml"

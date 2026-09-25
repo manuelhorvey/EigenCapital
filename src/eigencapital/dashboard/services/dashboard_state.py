@@ -13,11 +13,13 @@ This service reads from:
 - Authorization
 
 When persisted state files are missing, this service:
-- Computes values live from MT5/domain data
-- Persists computed values to disk for next read
+- Computes fallback values live from MT5/domain data (in memory only)
 - Derives state from available data files
 
-It does NOT modify any production trading state.
+It does NOT modify any production trading state. Per the single-writer rule
+(docs/production/DASHBOARD_CONTRACT.md §4), this service never writes state
+files owned by the live loop (risk_state.json, reconciliation_state.json,
+qualification_status.json) — each has exactly one writer.
 """
 
 from __future__ import annotations
@@ -46,38 +48,6 @@ class DashboardStateService:
         self._alert_path = self._data_dir / "alerts.jsonl"
         self._decisions_path = self._loop_dir / "decisions.jsonl"
         self._monitor_path = self._loop_dir / "monitor.jsonl"
-
-    def _ensure_dirs(self) -> None:
-        """Ensure all data directories exist."""
-        self._data_dir.mkdir(parents=True, exist_ok=True)
-        self._loop_dir.mkdir(parents=True, exist_ok=True)
-        self._evidence_dir.mkdir(parents=True, exist_ok=True)
-
-    def _persist_json(self, path: Path, data: dict[str, Any]) -> None:
-        """Atomically write a JSON file (write tmp + rename)."""
-        try:
-            self._ensure_dirs()
-            tmp = path.with_suffix(".tmp")
-            with open(tmp, "w") as f:
-                json.dump(data, f, indent=2, default=str)
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(tmp, path)
-        except OSError as e:
-            import logging
-
-            logging.getLogger(__name__).warning(f"Failed to persist JSON to {path}: {e}")
-
-    def _append_jsonl(self, path: Path, record: dict[str, Any]) -> None:
-        """Append a JSON line to a JSONL file."""
-        try:
-            self._ensure_dirs()
-            with open(path, "a") as f:
-                f.write(json.dumps(record, sort_keys=True, default=str) + "\n")
-        except OSError as e:
-            import logging
-
-            logging.getLogger(__name__).warning(f"Failed to append JSONL to {path}: {e}")
 
     def _wrap(self, data: dict[str, Any], source: str, freshness: str | None = None) -> dict[str, Any]:
         """Wrap response data with metadata envelope."""
@@ -403,14 +373,15 @@ class DashboardStateService:
             )
 
         # ── Determine overall state ──
+        # Vocabulary: overall_state uses the health vocabulary
+        # (HEALTHY/DEGRADED/HALTED/UNKNOWN — contract-tested); risk-level terms
+        # (NORMAL/CRITICAL) belong to the risk domain and are not valid health
+        # states (audit F-15).
         dim_states = [d["state"] for d in dimensions]
         if "HALTED" in dim_states:
             overall_state = "HALTED"
             auth = "TRADING_HALTED"
         elif "BLOCKED" in dim_states:
-            overall_state = "DEGRADED"
-            auth = "TRADING_BLOCKED"
-        elif "CRITICAL" in dim_states:
             overall_state = "DEGRADED"
             auth = "TRADING_BLOCKED"
         elif overall_alive and "DEGRADED" not in dim_states:
@@ -437,8 +408,8 @@ class DashboardStateService:
     def get_risk_state(self) -> dict[str, Any]:
         """Read current risk state — from persisted file or computed live from MT5.
 
-        When computed live, persists the result to risk_state.json so subsequent
-        reads are fast and consistent.
+        When computed live, the result is returned in memory only — this service
+        never writes risk_state.json (single-writer rule, DASHBOARD_CONTRACT.md §4).
         """
         # 1. Try persisted risk_state.json first
         try:
@@ -468,11 +439,12 @@ class DashboardStateService:
             from eigencapital.live.risk_observation import RiskObserver
 
             env = RiskEnvelope.from_config()
+            # Concentration/margin limits use RiskObserver defaults — the
+            # observer owns these thresholds; the dashboard does not duplicate
+            # constant ownership (DASHBOARD_CONTRACT.md §4).
             observer = RiskObserver(
                 max_daily_loss=env.max_daily_loss,
                 max_drawdown_pct=env.max_account_drawdown_pct,
-                max_concentration_pct=0.30,
-                max_margin_utilization=0.80,
                 min_equity=env.min_equity,
             )
 
@@ -561,9 +533,6 @@ class DashboardStateService:
                         "timestamp": risk_state.timestamp,
                         "freshness": DataFreshness.LIVE.value,
                     }
-
-                    # Persist to disk for faster subsequent reads
-                    self._persist_json(self._loop_dir / "risk_state.json", result)
 
                     return result
 
@@ -998,9 +967,8 @@ class DashboardStateService:
             "freshness": DataFreshness.LIVE.value,
         }
 
-        # Persist for faster reads
-        self._persist_json(self._evidence_dir / "qualification_status.json", data)
-
+        # Single-writer rule: qualification_status.json is owned by the evidence
+        # pipeline; this derived snapshot is returned in memory only.
         return data
 
     # ─── Shadow Reduced ────────────────────────────────────────────
@@ -1080,9 +1048,8 @@ class DashboardStateService:
             "freshness": DataFreshness.LIVE.value if total > 0 else DataFreshness.UNKNOWN.value,
         }
 
-        # Persist for consistency
-        self._persist_json(recon_path, status)
-
+        # Single-writer rule: reconciliation_state.json is owned by the
+        # reconciliation engine; this derived snapshot is in memory only.
         return status
 
     # ─── Events ────────────────────────────────────────────────────
@@ -1106,6 +1073,241 @@ class DashboardStateService:
             pass
 
         return events[-limit:]
+
+    def get_recent_events_window(self, limit: int = 1000) -> list[dict[str, Any]]:
+        """Read the newest `limit` events via a bounded tail scan of the ledger.
+
+        Unlike `get_recent_events` (which parses the entire file on every
+        request — unbounded growth on a live ledger), this reads at most a
+        fixed-size window of bytes from the end of the file and parses only
+        those lines. Page-level ordering is unchanged (oldest → newest).
+        """
+        if not self._decisions_path.exists():
+            return []
+
+        # Generous byte window: ledger records are small JSON lines; 512 KB
+        # covers far more than `limit` typical events, capping scan cost.
+        max_bytes = 512 * 1024
+        lines: list[str] = []
+        try:
+            with open(self._decisions_path, "rb") as f:
+                try:
+                    f.seek(0, os.SEEK_END)
+                    size = f.tell()
+                    start = max(0, size - max_bytes)
+                    f.seek(start)
+                    blob = f.read(max_bytes)
+                except OSError:
+                    return []
+            text = blob.decode("utf-8", errors="replace")
+            raw_lines = text.splitlines()
+            # Drop the first line when we truncated mid-file: it may be partial.
+            if start > 0 and raw_lines:
+                raw_lines = raw_lines[1:]
+            lines = [ln.strip() for ln in raw_lines if ln.strip()]
+        except OSError:
+            return []
+
+        events: list[dict[str, Any]] = []
+        for line in lines:
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+
+        return events[-limit:]
+
+    # ─── Data status (freshness / quality / universe) ─────────────
+
+    # Frozen data sources the platform reads, in trust order
+    # (docs/research/VOLATILITY_TAXONOMY_RESEARCH.md §4). Hashes come from the
+    # manifests; per-asset freshness comes from the last row of each CSV.
+    DATA_SOURCES: tuple[dict[str, Any], ...] = (
+        {
+            "source": "mt5_frozen",
+            "label": "MT5 frozen R5 D1 snapshot",
+            "path": "data/mt5",
+            "manifest": "data/mt5/R5_data_manifest.json",
+            "file_glob": "*_D1.csv",
+        },
+        {
+            "source": "taxonomy_d1",
+            "label": "Taxonomy D1 supplement",
+            "path": "data/taxonomy_d1",
+            "manifest": None,
+            "file_glob": "*_D1.csv",
+        },
+    )
+
+    def get_data_status(self) -> dict[str, Any]:
+        """Read data-layer status: per-source freshness, integrity, universe.
+
+        Reads ONLY what is on disk (file mtimes, manifest hashes, last CSV row
+        timestamps). No MT5 calls, no fabrication: a missing source is reported
+        as UNAVAILABLE, not as zero (contract T3).
+        """
+        sources: list[dict[str, Any]] = []
+        universe_symbols: dict[str, list[dict[str, Any]]] = {}
+        corrupt_count = 0
+
+        for spec in self.DATA_SOURCES:
+            source_dir = Path(spec["path"])
+            entry: dict[str, Any] = {
+                "source": spec["source"],
+                "label": spec["label"],
+                "path": spec["path"],
+                "status": "UNAVAILABLE",
+                "file_count": 0,
+                "newest_bar": None,
+                "newest_bar_age_days": None,
+                "corrupt_files": 0,
+                "combined_sha256": None,
+                "manifest_created": None,
+            }
+
+            if not source_dir.exists():
+                sources.append(entry)
+                continue
+
+            files = sorted(source_dir.glob(spec["file_glob"]))
+            entry["file_count"] = len(files)
+
+            newest: datetime | None = None
+            for f in files:
+                try:
+                    # Last non-empty line = latest bar; first field = date.
+                    with open(f, "rb") as fh:
+                        fh.seek(0, os.SEEK_END)
+                        size = fh.tell()
+                        fh.seek(max(0, size - 512))
+                        tail = fh.read(512).decode("utf-8", errors="replace")
+                    last_line = [ln for ln in tail.splitlines() if ln.strip()][-1]
+                    bar_date = datetime.fromisoformat(last_line.split(",")[0]).replace(tzinfo=UTC)
+                    if newest is None or bar_date > newest:
+                        newest = bar_date
+                except (OSError, ValueError, IndexError):
+                    entry["corrupt_files"] += 1
+                    corrupt_count += 1
+
+            if newest is not None:
+                now = datetime.now(UTC)
+                entry["newest_bar"] = newest.isoformat()
+                age_days = (now - newest).days
+                entry["newest_bar_age_days"] = age_days
+                # Frozen research snapshots are historical by design — age is
+                # informational, not a freshness failure. The truthfulness rule
+                # is that we report the real bar date, never "live".
+                entry["status"] = "OK" if entry["corrupt_files"] == 0 else "DEGRADED"
+            else:
+                entry["status"] = "UNAVAILABLE" if len(files) == 0 else "DEGRADED"
+
+            # Manifest hash (mt5 source pins combined SHA-256)
+            if spec["manifest"]:
+                manifest = self._read_json(Path(spec["manifest"]))
+                if manifest is not None:
+                    entry["combined_sha256"] = manifest.get("combined_sha256")
+                    entry["manifest_created"] = manifest.get("created")
+
+            sources.append(entry)
+
+            # Collect per-symbol freshness for the universe view (D1 files only)
+            for f in files:
+                symbol = f.name.replace("_D1.csv", "").rstrip("m")
+                # Symbol freshness mirrors the per-source newest-bar logic
+                try:
+                    with open(f, "rb") as fh:
+                        fh.seek(0, os.SEEK_END)
+                        size = fh.tell()
+                        fh.seek(max(0, size - 512))
+                        tail = fh.read(512).decode("utf-8", errors="replace")
+                    last_line = [ln for ln in tail.splitlines() if ln.strip()][-1]
+                    bar_date = datetime.fromisoformat(last_line.split(",")[0]).replace(tzinfo=UTC)
+                except (OSError, ValueError, IndexError):
+                    continue
+                age_days = (datetime.now(UTC) - bar_date).days
+                # First source wins (trust order)
+                if symbol not in universe_symbols:
+                    universe_symbols[symbol] = []
+                universe_symbols[symbol].append(
+                    {
+                        "symbol": symbol,
+                        "source": spec["source"],
+                        "asset_class": None,
+                        "newest_bar": bar_date.isoformat(),
+                        "age_days": age_days,
+                        "status": "OK",
+                    }
+                )
+
+        # Overlay the production universe classification from config authority
+        universe = self._build_universe_view(universe_symbols)
+
+        return {
+            "sources": sources,
+            "universe": universe,
+            "corrupt_files_total": corrupt_count,
+            "timestamp": datetime.now(UTC).isoformat(),
+            "freshness": DataFreshness.LIVE.value,  # snapshot of on-disk state
+        }
+
+    def _build_universe_view(
+        self, freshness_by_symbol: dict[str, list[dict[str, Any]]]
+    ) -> list[dict[str, Any]]:
+        """Merge production-universe classification with observed data freshness.
+
+        Authority chain: [broker.allowed_symbols] classifies the production
+        universe (admitted vs forex_excluded); observed CSVs contribute real
+        bar-freshness. Symbols with data but no config entry are flagged
+        NON_PRODUCTION (e.g. frozen research data for external candidates).
+        """
+        config_classes: dict[str, str] = {}
+        try:
+            from eigencapital.config import load_config
+
+            config = load_config("production") if self._config is None else self._config
+            config_classes = dict(getattr(config.broker, "allowed_symbols", {}) or {})
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(f"Universe config unavailable: {e}")
+
+        rows: dict[str, dict[str, Any]] = {}
+
+        # Config-authoritative rows (may have no local data → data_status OK/missing)
+        for symbol, asset_class in sorted(config_classes.items()):
+            admitted = asset_class != "forex_excluded"
+            obs_list = freshness_by_symbol.get(symbol, [])
+            best = min(obs_list, key=lambda o: o["age_days"], default=None)
+            rows[symbol] = {
+                "symbol": symbol,
+                "asset_class": asset_class,
+                "in_production_universe": admitted,
+                "exclusion_reason": None if admitted else "min-lot exceeds campaign envelope",
+                "sources": obs_list,
+                "newest_bar": best["newest_bar"] if best else None,
+                "age_days": best["age_days"] if best else None,
+                # Missing local data is informational for admitted symbols,
+                # not a failure — data lives broker-side.
+                "data_status": ("OK" if best else "NO_LOCAL_DATA") if admitted else ("OK" if best else "NO_LOCAL_DATA"),
+            }
+
+        # Data present but not in the production config → research-only symbols
+        for symbol, obs_list in sorted(freshness_by_symbol.items()):
+            if symbol in rows:
+                continue
+            best = min(obs_list, key=lambda o: o["age_days"])
+            rows[symbol] = {
+                "symbol": symbol,
+                "asset_class": None,
+                "in_production_universe": False,
+                "exclusion_reason": "not in production config — research/frozen data only",
+                "sources": obs_list,
+                "newest_bar": best["newest_bar"],
+                "age_days": best["age_days"],
+                "data_status": "OK",
+            }
+
+        return sorted(rows.values(), key=lambda r: r["symbol"])
 
     # ─── Alerts ────────────────────────────────────────────────────
 
@@ -1165,10 +1367,12 @@ class DashboardStateService:
             except OSError:
                 pass
 
-        # Sort by timestamp descending (newest first)
+        # Sort by timestamp descending (newest first), then take the newest
+        # `limit` items. [-limit:] after a descending sort returned the OLDEST
+        # slice (audit F-03); the newest items must come first.
         alerts.sort(key=lambda a: a.get("timestamp", ""), reverse=True)
 
-        return alerts[-limit:]
+        return alerts[:limit]
 
     # ─── Helpers ───────────────────────────────────────────────────
 

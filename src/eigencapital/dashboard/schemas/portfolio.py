@@ -20,7 +20,11 @@ class AccountDTO(BaseModel):
     drawdown: float = Field(default=0, description="Current drawdown from high-water mark")
     drawdown_pct: float = Field(default=0, description="Drawdown percentage")
     daily_pnl: float = Field(default=0, description="Today's realized + unrealized P&L")
-    daily_loss_remaining: float = Field(default=250, description="Remaining daily loss budget")
+    daily_loss_remaining: float = Field(
+        default=0,
+        description="Remaining daily loss budget (USD, from RiskEnvelope.max_daily_loss; "
+        "0 = unavailable — never fabricate a budget that was not observed)",
+    )
     unrealized_pnl: float = Field(default=0, description="Total unrealized P&L")
     currency: str = Field(default="USD", description="Account currency")
     timestamp: datetime = Field(description="Snapshot timestamp")

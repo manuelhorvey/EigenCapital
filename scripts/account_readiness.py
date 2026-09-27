@@ -6,7 +6,7 @@ and runs every validator in the pipeline:
   1. Broker connection          (MT5 bridge alive?)
   2. Account identity           (correct login, server, environment?)
   3. Capital boundary           (equity within $5K MINIMAL envelope?)
-  4. Symbol universe            (all 15 R4 instruments available?)
+  4. Symbol universe            (all configured R4 instruments available?)
   5. Symbol specs               (volume limits, digits, trade permissions?)
   6. Spread / execution         (current spreads within configured bounds?)
   7. Position reconciliation    (classify every open position)
@@ -26,8 +26,16 @@ import time
 from typing import Any, Dict, List
 
 sys.path.insert(0, "src")
+sys.path.insert(0, "scripts")
 
+from _universe import R4_SYMBOLS  # config-derived — no inline universe
 from mt5linux import MetaTrader5
+
+from eigencapital.live.portfolio_analytics import classify_asset_class
+
+# ── R4 Universe ────────────────────────────────────────────────────
+# R4_SYMBOLS / ASSET_CLASSES derive from [broker.allowed_symbols]
+# (scripts/_universe.py → configs/production/config.toml).
 
 # ── Helpers ────────────────────────────────────────────────────────
 
@@ -51,49 +59,19 @@ def tick_price(mt5, symbol: str) -> Dict[str, float] | None:
     return {"bid": tick.bid, "ask": tick.ask}
 
 
-# ── R4 Universe ────────────────────────────────────────────────────
-
-R4_SYMBOLS = [
-    "US30",
-    "AUDJPY",
-    "AUDUSD",
-    "AUDCHF",
-    "AUDCAD",
-    "NZDJPY",
-    "GBPJPY",
-    "AUDNZD",
-    "NZDUSD",
-    "NZDCHF",
-    "NZDCAD",
-    "GBPUSD",
-    "GBPCHF",
-    "GBPCAD",
-    "CHFJPY",
-    "EURJPY",
-    "USDJPY",
-    "CADJPY",
-    "XAUUSD",
-    "XAGUSD",
-    "XNGUSD",
-    "EURUSD",
-    "EURCHF",
-    "USDCHF",
-    "EURCAD",
-    "USDCAD",
-    "CADCHF",
-    "GBPNZD",
-    "EURGBP",
-    "EURNZD",
-    "GBPAUD",
-    "EURAUD",
-    "BTCUSD",
-]
-
 EXPECTED_ACCOUNT_ID = "436921728"
 EXPECTED_SERVER = "Exness-MT5Trial9"
 EXPECTED_ENVIRONMENT = "demo"  # trial/demo
 MAX_EQUITY = 5_100.0  # $5K + 2% buffer for P&L drift
 MAX_SPREAD_POINTS = 15  # for forex; metals/crypto/indexes higher
+# Per-class spread tolerance (points) — keyed by canonical
+# classify_asset_class, so no inline symbol tuples to keep in sync.
+_SPREAD_MAX_BY_CLASS: Dict[str, int] = {
+    "metals": 30,
+    "crypto": 500,
+    "indices": 50,
+    "energy": 50,
+}
 
 
 # ── Main ───────────────────────────────────────────────────────────
@@ -303,14 +281,8 @@ def main() -> None:
         spread_pts = info.spread
         spread_data[sym] = spread_pts
 
-        # Check spread (varies by asset class)
-        max_allowed = MAX_SPREAD_POINTS
-        if sym in ("XAUUSD", "XAGUSD"):
-            max_allowed = 30
-        elif sym in ("BTCUSD", "ETHUSD"):
-            max_allowed = 500
-        elif sym in ("US500", "US30", "USTEC", "USOIL", "XNGUSD"):
-            max_allowed = 50
+        # Check spread (varies by asset class — canonical classification)
+        max_allowed = _SPREAD_MAX_BY_CLASS.get(classify_asset_class(sym), MAX_SPREAD_POINTS)
 
         if spread_pts > max_allowed:
             spread_issues.append(f"{sym}: {spread_pts} pts (max {max_allowed})")

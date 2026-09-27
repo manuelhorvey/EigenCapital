@@ -34,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - README: dashboard quick-start section and dashboard contract row in Status at a Glance
 - Universe counts synchronized across config comments, README, and current-state docs (35→37 allowed, 28→30 tradeable); risk-observation index classifier fixed to recognize USTEC (previously misfiled under OTHER)
 - Shadow exposure layer derives classification from the canonical asset-class map instead of maintaining parallel symbol lists (`SINGLE_LEG_ASSET_CLASS`/`FACTOR_GROUP` removed; `US500` added to the canonical map, where it was previously only shadow-side); new canonical universe entries now propagate to the shadow layer automatically
+- Operational scripts (`instrument_eligibility.py`, `account_readiness.py`, `capture_t0.py`) derive their universe from the authoritative config via shared helper `scripts/_universe.py`; inline symbol lists deleted (fail-closed on an empty config universe)
 - Asset-class classification unified on canonical `classify_asset_class` (`live/portfolio_analytics.py`): shadow exposure, live risk observation (sector + correlation), and evidence class buckets all derive from it — substring heuristics deleted; fixes XAUUSD/XNGUSD/BTCUSD being bucketed as FX ("USD" in symbol) and USTEC/US500/HK50/JP225 falling out of exposure buckets
 
 ## [v0.5.0] - 2026-09-01

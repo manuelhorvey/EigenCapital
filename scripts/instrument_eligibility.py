@@ -5,7 +5,7 @@ from live MT5 contract specifications, then classifies each as
 ELIGIBLE or INELIGIBLE against the campaign position limit.
 
 This makes the distinction explicit:
-  Research universe (15 symbols) ≠ Executable universe (broker-constrained)
+  Research universe (frozen R4 manifest) ≠ Executable universe (broker-constrained)
 
 The exclusion is mechanical, not hand-picked:
   min_tradable_notional = volume_min × current_ask × trade_contract_size
@@ -24,82 +24,13 @@ import sys
 from typing import Any, Dict
 
 sys.path.insert(0, "src")
+sys.path.insert(0, "scripts")
 
+# Universe derives from [broker.allowed_symbols] (scripts/_universe.py →
+# configs/production/config.toml) — no inline symbol copies.
+from _universe import ASSET_CLASSES
+from _universe import R4_SYMBOLS as R4_UNIVERSE
 from mt5linux import MetaTrader5
-
-R4_UNIVERSE = [
-    "US30",
-    "USTEC",
-    "AUDJPY",
-    "AUDUSD",
-    "AUDCHF",
-    "AUDCAD",
-    "NZDJPY",
-    "GBPJPY",
-    "AUDNZD",
-    "NZDUSD",
-    "NZDCHF",
-    "NZDCAD",
-    "GBPUSD",
-    "GBPCHF",
-    "GBPCAD",
-    "CHFJPY",
-    "EURJPY",
-    "USDJPY",
-    "CADJPY",
-    "XAUUSD",
-    "XAGUSD",
-    "XNGUSD",
-    "EURUSD",
-    "EURCHF",
-    "USDCHF",
-    "EURCAD",
-    "USDCAD",
-    "CADCHF",
-    "GBPNZD",
-    "EURGBP",
-    "EURNZD",
-    "GBPAUD",
-    "EURAUD",
-    "BTCUSD",
-]
-
-ASSET_CLASSES = {
-    "US30": "indices",
-    "USTEC": "indices",
-    "AUDJPY": "forex",
-    "AUDUSD": "forex",
-    "AUDCHF": "forex",
-    "AUDCAD": "forex",
-    "NZDJPY": "forex",
-    "GBPJPY": "forex",
-    "AUDNZD": "forex",
-    "NZDUSD": "forex",
-    "NZDCHF": "forex",
-    "NZDCAD": "forex",
-    "GBPUSD": "forex",
-    "GBPCHF": "forex",
-    "GBPCAD": "forex",
-    "CHFJPY": "forex",
-    "EURJPY": "forex",
-    "USDJPY": "forex",
-    "CADJPY": "forex",
-    "XAUUSD": "metals",
-    "XAGUSD": "metals",
-    "XNGUSD": "energy",
-    "EURUSD": "forex",
-    "EURCHF": "forex",
-    "USDCHF": "forex",
-    "EURCAD": "forex",
-    "USDCAD": "forex",
-    "CADCHF": "forex",
-    "GBPNZD": "forex",
-    "EURGBP": "forex",
-    "EURNZD": "forex",
-    "GBPAUD": "forex",
-    "EURAUD": "forex",
-    "BTCUSD": "crypto",
-}
 
 
 def check_eligibility(mt5, position_limit: float) -> Dict[str, Any]:

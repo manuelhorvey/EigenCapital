@@ -26,7 +26,11 @@ from datetime import UTC, datetime
 from typing import Any, Dict
 
 sys.path.insert(0, "src")
+sys.path.insert(0, "scripts")
 
+# Universe derives from [broker.allowed_symbols] (scripts/_universe.py →
+# configs/production/config.toml) — no inline symbol copies.
+from _universe import ASSET_CLASSES, R4_SYMBOLS
 from mt5linux import MetaTrader5
 
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
@@ -39,43 +43,6 @@ from eigencapital.production_qual.pre_trading import (
     PreTradingValidator,
 )
 from eigencapital.risk.policy import RiskPolicy
-
-# Instrument eligibility inlined to avoid module import issues
-ASSET_CLASSES = {
-    "US30": "indices",
-    "AUDJPY": "forex",
-    "AUDUSD": "forex",
-    "AUDCHF": "forex",
-    "AUDCAD": "forex",
-    "NZDJPY": "forex",
-    "GBPJPY": "forex",
-    "AUDNZD": "forex",
-    "NZDUSD": "forex",
-    "NZDCHF": "forex",
-    "NZDCAD": "forex",
-    "GBPUSD": "forex",
-    "GBPCHF": "forex",
-    "GBPCAD": "forex",
-    "CHFJPY": "forex",
-    "EURJPY": "forex",
-    "USDJPY": "forex",
-    "CADJPY": "forex",
-    "XAUUSD": "metals",
-    "XAGUSD": "metals",
-    "XNGUSD": "energy",
-    "EURUSD": "forex",
-    "EURCHF": "forex",
-    "USDCHF": "forex",
-    "EURCAD": "forex",
-    "USDCAD": "forex",
-    "CADCHF": "forex",
-    "GBPNZD": "forex",
-    "EURGBP": "forex",
-    "EURNZD": "forex",
-    "GBPAUD": "forex",
-    "EURAUD": "forex",
-    "BTCUSD": "crypto",
-}
 
 
 def check_eligibility_inline(mt5, position_limit: float) -> Dict[str, Any]:
@@ -130,42 +97,6 @@ def check_eligibility_inline(mt5, position_limit: float) -> Dict[str, Any]:
 
 
 # ── Config ─────────────────────────────────────────────────────────
-
-R4_SYMBOLS = [
-    "US30",
-    "AUDJPY",
-    "AUDUSD",
-    "AUDCHF",
-    "AUDCAD",
-    "NZDJPY",
-    "GBPJPY",
-    "AUDNZD",
-    "NZDUSD",
-    "NZDCHF",
-    "NZDCAD",
-    "GBPUSD",
-    "GBPCHF",
-    "GBPCAD",
-    "CHFJPY",
-    "EURJPY",
-    "USDJPY",
-    "CADJPY",
-    "XAUUSD",
-    "XAGUSD",
-    "XNGUSD",
-    "EURUSD",
-    "EURCHF",
-    "USDCHF",
-    "EURCAD",
-    "USDCAD",
-    "CADCHF",
-    "GBPNZD",
-    "EURGBP",
-    "EURNZD",
-    "GBPAUD",
-    "EURAUD",
-    "BTCUSD",
-]
 
 REPORT_DIR = "reports"
 

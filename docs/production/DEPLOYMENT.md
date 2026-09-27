@@ -126,6 +126,10 @@ python scripts/r4_monitor.py --loop --interval 60
 ./scripts/start_trading.sh --stop        # graceful shutdown
 ```
 
+The rebalance loop claims `reports/r4_loop/supervisor.pid` before touching any
+ledger — a second live instance is refused with exit 75 (single-instance
+guard, EC-REL-001).
+
 ### MT5 bridge helper
 
 `start_trading.sh --bridge-only` starts the RPyC bridge (port 8001). An external `mt5-bridge` binary may exist on the host PATH but is **not tracked in this repository** — do not assume it is installed.

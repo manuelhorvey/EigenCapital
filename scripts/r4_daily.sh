@@ -33,4 +33,13 @@ LOG="$RUN_DIR/$(date +%F).log"
 rc=$?
 
 echo "=== exit $rc ===" >> "$LOG"
+
+# EC-REL-001: exit 75 = a live rebalance instance already owns reports/r4_loop.
+# Expected whenever the 24/7 loop is running — the daily run must not be an
+# error (it did not run at all), and the holder must stay untouched.
+if [ "$rc" -eq 75 ]; then
+    echo "$(date -Is) skipped: single-instance guard — live loop owns the ledgers" >> "$LOG"
+    exit 0
+fi
+
 exit $rc

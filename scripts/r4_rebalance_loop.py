@@ -20,6 +20,7 @@ Safety controls:
   - Spread check: skip symbols with excessive spread
   - Envelope enforcement: max position, max order, max concurrent
   - Max orders per cycle: configurable (default: 8)
+  - Single instance: a second live process is refused with exit 75 (EC-REL-001)
   - Graceful shutdown: SIGINT stops cleanly
   - Audit log: every decision and order recorded to JSONL
 
@@ -33,6 +34,7 @@ Usage:
 
 from __future__ import annotations
 
+import atexit
 import json
 import math
 import os
@@ -76,6 +78,7 @@ from eigencapital.live.rebalance_policy import (  # noqa: E402
 )
 from eigencapital.live.risk import DisconnectRecovery, RecoveryState  # noqa: E402
 from eigencapital.live.risk_enforcement import GateResult, RiskEnforcer, RiskEnvelope  # noqa: E402
+from eigencapital.live.supervisor import ProcessSupervisor  # noqa: E402
 from eigencapital.live.watchdog import ProbeResult, Watchdog, WatchState, trail_age_seconds  # noqa: E402
 from eigencapital.production_qual.evidence_orchestrator import (  # noqa: E402
     EvidenceOrchestrator,
@@ -2742,6 +2745,61 @@ def _run_shadow_constructor(
     return decision
 
 
+# ── Single-instance guard (EC-REL-001) ───────────────────────────────
+# The shared ledgers in AUDIT_DIR (decisions.jsonl, order_intents.jsonl,
+# runtime_state.json, rebalance_policy_state.json, ...) are append-only per
+# process but never concurrent-safe: two live loops interleave records with
+# different cycle counters and can double-submit the same orders. Exactly one
+# rebalance process may hold the claim for the lifetime of a run.
+#
+# --flatten (emergency) and --verify-config (read-only diagnostics) bypass the
+# guard deliberately: an operator must be able to flatten while the loop runs,
+# and neither mode writes a cycle to the ledgers.
+_EXIT_INSTANCE_BUSY = 75  # EX_TEMPFAIL: second instance refused, first unaffected
+
+
+def _instance_guard_bypassed(args: List[str]) -> bool:
+    """True for one-shot operator modes that must stay usable while a loop runs."""
+    return "--flatten" in args or "--verify-config" in args
+
+
+def _claim_single_instance() -> ProcessSupervisor | None:
+    """Claim exclusive ownership of the loop state.
+
+    Returns the claim holder, or None when another live process already owns
+    it (the refusal is printed to stdout — deliberately NOT appended to
+    decisions.jsonl: a fresh mtime there is what the watchdog reads as loop
+    health, so writing it from a refused process would mask a dead loop).
+    """
+    supervisor = ProcessSupervisor(state_dir=AUDIT_DIR)
+    if supervisor.claim_instance():
+        # claim_instance() installs its own SIGINT/SIGTERM handlers, which
+        # would swallow the shutdown flag _handle_signal raises. Restore the
+        # loop's handlers so Ctrl-C still stops a running cycle.
+        signal.signal(signal.SIGINT, _handle_signal)
+        if hasattr(signal, "SIGTERM"):
+            signal.signal(signal.SIGTERM, _handle_signal)
+        # A leftover alive:false from a previous clean stop pins the dashboard
+        # at HALTED (it prefers loop_health.json over the monitor's 60s
+        # snapshot). While this process runs last_health.json is the freshest
+        # source — drop the stale file rather than emit a heartbeat.
+        try:
+            (Path(AUDIT_DIR) / "loop_health.json").unlink(missing_ok=True)
+        except OSError:
+            pass
+        return supervisor
+
+    holder = "?"
+    try:
+        holder = (Path(AUDIT_DIR) / "supervisor.pid").read_text().strip() or "?"
+    except OSError:
+        pass
+    print(f"\n⛔ REFUSED TO START: another rebalance instance is already running (PID {holder}).", flush=True)
+    print("   reports/r4_loop/*.jsonl must have a single writer.", flush=True)
+    print("   Stop it first: scripts/start_trading.sh --stop   (or kill that PID)", flush=True)
+    return None
+
+
 def main() -> None:
     args = sys.argv[1:]
     loop_mode = "--loop" in args
@@ -2758,6 +2816,16 @@ def main() -> None:
         print("   Use --dry-run for diagnostics, or remove --force-regime.", flush=True)
         audit({"event": "force_regime_rejected", "mode": "loop"})
         sys.exit(1)
+
+    # EC-REL-001: single-instance guard — claim before any ledger write or
+    # broker call so a duplicate can never race the live process.
+    if _instance_guard_bypassed(args):
+        log("Single-instance guard: bypassed (--flatten/--verify-config)")
+    else:
+        instance = _claim_single_instance()
+        if instance is None:
+            sys.exit(_EXIT_INSTANCE_BUSY)
+        atexit.register(instance.release)
 
     interval = _config.execution.loop_interval_seconds
     for i, a in enumerate(args):

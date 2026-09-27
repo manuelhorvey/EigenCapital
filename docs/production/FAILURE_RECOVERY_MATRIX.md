@@ -41,7 +41,7 @@ production-readiness remediation, not the current one).
 | 21 | Insufficient margin | ✅ Broker reject + free-margin gate | ✅ Order refused, logged | ✅ System remains up | ✅ Next cycle | risk gates `_check_*` |
 | 22 | Spread explosion / bad pricing | ⚠️ Not gated pre-order | N/A | ⚠️ Current exposure via weekly cadence is low-frequency | — | **OPEN GAP (G4)** — acceptable at $5K weekly cadence |
 | 23 | Unexpected manual trade on account | ⚠️ Position-count/exposure gates catch overflow | ✅ Gates block new orders when limits consumed | ❌ If beyond envelope | ✅ Operator resolves attribution | position-count gate tests |
-| 24 | Duplicate process instance | ✅ PID file liveness check | ✅ Second instance exits | N/A (first unaffected) | N/A | `test_supervisor.py` |
+| 24 | Duplicate process instance | ✅ PID file liveness check in `r4_rebalance_loop.main` (EC-REL-001) | ✅ Second instance exits 75 before any ledger write or broker call | N/A (first unaffected) | N/A | `test_supervisor.py` (13), `test_r4_single_instance.py` (13) |
 | 25 | Symbol spec change (lot/step) | ❌ Not detected at runtime | N/A | ⚠️ Sizing could violate broker min/max | ❌ See Gap G3 | **OPEN GAP** |
 
 ---

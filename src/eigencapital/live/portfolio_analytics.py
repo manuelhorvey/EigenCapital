@@ -108,6 +108,9 @@ SYMBOL_CURRENCY_MAP: Dict[str, Tuple[str, str]] = {
 ASSET_CLASS_MAP: Dict[str, str] = {
     "US30": "indices",
     "USTEC": "indices",
+    "US500": "indices",  # canonical coverage (previously only in shadow copy)
+    "HK50": "indices",  # admitted 2026-09-27
+    "JP225": "indices",  # admitted 2026-09-27
     "XAUUSD": "metals",
     "XAGUSD": "metals",
     "BTCUSD": "crypto",
@@ -117,7 +120,14 @@ ASSET_CLASS_MAP: Dict[str, str] = {
 }
 
 
-def _classify_asset_class(symbol: str) -> str:
+def classify_asset_class(symbol: str) -> str:
+    """Canonical asset-class classification for a symbol.
+
+    Single authority for every downstream consumer (shadow exposure,
+    live risk observation, evidence snapshots). Unknown symbols fall
+    back to currency-pair detection, then "other".
+    """
+    symbol = symbol.upper()
     if symbol in ASSET_CLASS_MAP:
         return ASSET_CLASS_MAP[symbol]
     for c1 in CURRENCIES:
@@ -530,7 +540,7 @@ class PortfolioAnalyzer:
                     currency_exposure[c] += exp
 
             # Asset class
-            ac = _classify_asset_class(sym)
+            ac = classify_asset_class(sym)
             asset_class_exposure[ac] = asset_class_exposure.get(ac, 0) + notional
 
             # Concentration

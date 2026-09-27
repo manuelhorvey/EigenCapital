@@ -754,6 +754,28 @@ class TestRiskObservation:
         )
         assert state is not None
 
+    def test_sector_breakdown_uses_canonical_asset_classes(self):
+        """Sector classification derives from portfolio_analytics'
+        classify_asset_class — gold/BTC must not be misfiled as FX
+        (they contain the substring "USD"), and admitted indices
+        HK50/JP225 must land in INDICES."""
+        from eigencapital.live.risk_observation import RiskObserver
+
+        observer = RiskObserver(min_equity=4000.0)
+        positions = [
+            {"symbol": "XAUUSD", "notional": 10_000.0},  # metals
+            {"symbol": "BTCUSD", "notional": 4_000.0},  # crypto
+            {"symbol": "HK50", "notional": 5_000.0},  # indices (admitted 2026-09-27)
+            {"symbol": "JP225", "notional": 5_000.0},  # indices
+            {"symbol": "EURUSD", "notional": 6_000.0},  # forex
+        ]
+        obs = observer._observe_sector_breakdown(positions, equity=50_000.0)
+        sectors = obs.details["sectors"]
+        assert sectors["METALS"] == pytest.approx(10_000.0 / 50_000.0)
+        assert sectors["CRYPTO"] == pytest.approx(4_000.0 / 50_000.0)
+        assert sectors["INDICES"] == pytest.approx(10_000.0 / 50_000.0)
+        assert sectors["FX"] == pytest.approx(6_000.0 / 50_000.0)
+
 
 # ── Production Qual: Evidence Maturity — Edge Cases ──────────────
 

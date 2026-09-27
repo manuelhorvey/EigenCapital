@@ -21,10 +21,10 @@ import pytest
 
 from eigencapital.live.portfolio_analytics import (
     PortfolioAnalyzer,
-    _classify_asset_class,
     _compute_correlation_adjusted_bets,
     _compute_counterfactuals,
     _compute_currency_exposure,
+    classify_asset_class,
 )
 
 # ── Fixtures ─────────────────────────────────────────────────────
@@ -623,19 +623,29 @@ class TestAssetClass:
     """Verify asset class classification."""
 
     def test_forex_classification(self):
-        assert _classify_asset_class("EURUSD") == "forex"
-        assert _classify_asset_class("GBPJPY") == "forex"
+        assert classify_asset_class("EURUSD") == "forex"
+        assert classify_asset_class("GBPJPY") == "forex"
 
     def test_crypto_classification(self):
-        assert _classify_asset_class("BTCUSD") == "crypto"
-        assert _classify_asset_class("ETHUSD") == "crypto"
+        assert classify_asset_class("BTCUSD") == "crypto"
+        assert classify_asset_class("ETHUSD") == "crypto"
 
     def test_metals_classification(self):
-        assert _classify_asset_class("XAUUSD") == "metals"
+        assert classify_asset_class("XAUUSD") == "metals"
 
     def test_indices_classification(self):
-        assert _classify_asset_class("US30") == "indices"
-        assert _classify_asset_class("USTEC") == "indices"
+        assert classify_asset_class("US30") == "indices"
+        assert classify_asset_class("USTEC") == "indices"
+
+    def test_hk50_jp225_classification(self):
+        """HK50/JP225 (admitted 2026-09-27) classify as indices — never FX.
+
+        Guards the substring-FX fallback: 'HK50'/'JP225' contain no currency
+        stems, but an unclassified symbol would fall through to 'other'; a
+        naive USD-suffix rule would call them FX.
+        """
+        assert classify_asset_class("HK50") == "indices"
+        assert classify_asset_class("JP225") == "indices"
 
 
 # ── Concentration Metrics Tests ───────────────────────────────────

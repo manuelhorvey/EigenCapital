@@ -28,6 +28,23 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List
 
+from eigencapital.live.portfolio_analytics import classify_asset_class
+
+# Display labels for canonical asset classes (portfolio_analytics is the
+# single classification authority — this module owns no symbol lists).
+_SECTOR_BY_CLASS: Dict[str, str] = {
+    "forex": "FX",
+    "metals": "METALS",
+    "indices": "INDICES",
+    "crypto": "CRYPTO",
+    "energy": "ENERGY",
+    "other": "OTHER",
+}
+
+
+def _sector_of(symbol: str) -> str:
+    return _SECTOR_BY_CLASS.get(classify_asset_class(symbol), "OTHER")
+
 
 class RiskObservationLevel(str, Enum):
     """Risk observation levels."""
@@ -646,20 +663,7 @@ class RiskObserver:
         for pos in positions:
             symbol = pos.get("symbol", "")
             notional = abs(pos.get("notional", 0))
-            # Classify
-            sym = symbol.upper()
-            if any(x in sym for x in ["EUR", "GBP", "AUD", "NZD", "USD", "CAD", "CHF", "JPY"]):
-                sector = "FX"
-            elif any(x in sym for x in ["XAU", "XAG"]):
-                sector = "METALS"
-            elif any(x in sym for x in ["US30", "SPX", "NAS"]):
-                sector = "INDICES"
-            elif any(x in sym for x in ["BTC", "ETH"]):
-                sector = "CRYPTO"
-            elif any(x in sym for x in ["OIL", "NGAS"]):
-                sector = "ENERGY"
-            else:
-                sector = "OTHER"
+            sector = _sector_of(symbol)
             sectors[sector] = sectors.get(sector, 0) + notional
 
         total = sum(sectors.values())
@@ -1034,23 +1038,10 @@ class RiskObserver:
                 timestamp=datetime.now(UTC).isoformat(),
             )
 
-        # Group by asset class (simplified)
+        # Group by asset class (canonical classification, no local token lists)
         asset_classes: Dict[str, int] = {}
         for pos in positions:
-            symbol = pos.get("symbol", "")
-            # Simple classification
-            if any(x in symbol.upper() for x in ["EUR", "GBP", "AUD", "NZD", "USD", "CAD", "CHF", "JPY"]):
-                ac = "FX"
-            elif any(x in symbol.upper() for x in ["XAU", "XAG"]):
-                ac = "METALS"
-            elif any(x in symbol.upper() for x in ["US30", "SPX", "NAS"]):
-                ac = "INDICES"
-            elif any(x in symbol.upper() for x in ["BTC", "ETH"]):
-                ac = "CRYPTO"
-            elif any(x in symbol.upper() for x in ["OIL", "NGAS"]):
-                ac = "ENERGY"
-            else:
-                ac = "OTHER"
+            ac = _sector_of(pos.get("symbol", ""))
             asset_classes[ac] = asset_classes.get(ac, 0) + 1
 
         total = len(positions)

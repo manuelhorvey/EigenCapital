@@ -260,6 +260,37 @@ class TestQualificationDataset:
         dataset.record_risk_snapshot(snapshot)
         assert len(dataset._risk_snapshots) == 1
 
+    def test_risk_snapshot_class_buckets_use_canonical_classification(self):
+        """Class-exposure buckets derive from classify_asset_class.
+
+        The previous substring logic ("USD" in symbol) filed XAUUSD as FX;
+        gold must count as commodity, and admitted indices HK50/JP225 must
+        count as index exposure."""
+        from eigencapital.production_qual.evidence_orchestrator import (
+            EvidenceOrchestrator,
+        )
+
+        # _build_risk_snapshot touches no instance state — bypass __init__
+        # side effects (directory creation) for a pure classification check.
+        orchestrator = EvidenceOrchestrator.__new__(EvidenceOrchestrator)
+        positions = [
+            {"symbol": "XAUUSD", "volume": 1.0, "price_open": 100.0, "type": 0},
+            {"symbol": "HK50", "volume": 1.0, "price_open": 100.0, "type": 0},
+            {"symbol": "JP225", "volume": 1.0, "price_open": 100.0, "type": 0},
+            {"symbol": "EURUSD", "volume": 1.0, "price_open": 100.0, "type": 0},
+        ]
+        snap = orchestrator._build_risk_snapshot(
+            positions,
+            equity=1_000_000.0,
+            balance=1_000_000.0,
+            free_margin=900_000.0,
+        )
+        unit = 1.0 * 100.0 * 100_000  # module's notional approximation
+        assert snap.fx_exposure == unit  # EURUSD only
+        assert snap.commodity_exposure == unit  # gold is a commodity, not FX
+        assert snap.index_exposure == 2 * unit  # HK50 + JP225
+        assert snap.gross_exposure == 4 * unit
+
     def test_record_operational_event(self):
         """Must record operational events."""
         dataset = R4LiveQualificationDataset(campaign_id="TEST-001")

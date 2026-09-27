@@ -42,6 +42,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
+from eigencapital.live.portfolio_analytics import classify_asset_class
 from eigencapital.production_qual.evidence_maturity import (
     EvidenceMaturityTracker,
     EvidenceState,
@@ -500,14 +501,18 @@ class EvidenceOrchestrator:
             else:
                 short_exposure += notional
 
-            # Asset class exposure (simplified)
-            symbol = pos.get("symbol", "")
-            if "USD" in symbol or "EUR" in symbol or "GBP" in symbol:
+            # Asset-class exposure (canonical classification — substring
+            # checks previously bucketed XAUUSD/XNGUSD/BTCUSD as FX because
+            # they contain "USD")
+            asset_cls = classify_asset_class(pos.get("symbol", ""))
+            if asset_cls == "forex":
                 fx_exposure += notional
-            elif "XAU" in symbol or "XAG" in symbol:
+            elif asset_cls in ("metals", "energy"):
                 commodity_exposure += notional
-            elif "US30" in symbol or "SPX" in symbol:
+            elif asset_cls == "indices":
                 index_exposure += notional
+            # crypto/other: no dedicated bucket in PortfolioRiskSnapshot;
+            # they still count toward gross/long/short exposure
 
         gross_exposure = long_exposure + short_exposure
         net_exposure = long_exposure - short_exposure

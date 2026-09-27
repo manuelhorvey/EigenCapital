@@ -322,6 +322,25 @@ class TestTOMLConfigLoading:
         assert schedules["BTCUSD"].details.get("asset_class") == "crypto"
         assert schedules["EURUSD"].details.get("asset_class") == "forex"
 
+    def test_hk50_jp225_schedules_loaded(self) -> None:
+        """HK50/JP225 (admitted 2026-09-27) must have schedule entries classified
+        as indices. Their broker sessions are UNVERIFIED — the schedule
+        deliberately asserts no intraday session window (open Mon–Fri only)
+        rather than inventing one."""
+        from eigencapital.core.market_schedule import SessionType, load_schedules_from_file
+
+        config_path = Path("configs/market_schedules/default.toml")
+        if not config_path.exists():
+            pytest.skip("Default config not found")
+
+        schedules = load_schedules_from_file(config_path)
+        for sym in ("HK50", "JP225"):
+            assert sym in schedules, f"{sym} missing from market schedules"
+            sched = schedules[sym]
+            assert sched.session_type == SessionType.WEEKDAY
+            assert sched.details.get("asset_class") == "indices"
+            assert "UNVERIFIED" in str(sched.details.get("description", ""))
+
 
 class TestPredefinedSchedules:
     """Verify predefined schedule factory functions."""

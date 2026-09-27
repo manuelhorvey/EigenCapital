@@ -50,6 +50,10 @@ from eigencapital.config import load_config  # noqa: E402
 COST_PER_SIDE_BPS = 10.0
 SLIPPAGE_SENS_BPS = 5.0
 
+# Data-availability subset: symbols with local native D1 history for audit
+# reconstruction — NOT the eligible universe (config authority:
+# configs/production/config.toml). Admitted symbols without local data
+# (e.g. HK50, JP225) are correctly absent until their D1 CSVs exist.
 NATIVE = {
     "AUDUSD",
     "EURUSD",

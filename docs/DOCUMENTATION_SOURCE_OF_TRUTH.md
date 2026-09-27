@@ -3,7 +3,7 @@
 This document defines which file is the **authoritative source** for each subject area.
 When documentation and code disagree, trace back to the authoritative source listed here.
 
-Last updated: 2026-09-23
+Last updated: 2026-09-27
 
 ## Core System
 
@@ -91,6 +91,7 @@ Last updated: 2026-09-23
 | Dashboard security model | Auth, rate limits, CORS, secrets — verified against code 2026-09-25 | `docs/production/DASHBOARD_SECURITY.md` |
 | Dashboard sync audit (current) | Full-system sync findings register F-01…F-16 + fix status | `docs/audits/FULL_SYNC_DASHBOARD_AUDIT_2026-09-25.md` |
 | Production universe — USOIL | USOIL is **production-admitted** (`[broker.allowed_symbols]`, class `energy`); the frozen taxonomy doc's "never production" wording is scoped to the research baseline only | `configs/production/config.toml` + `docs/production/DASHBOARD_CONTRACT.md` §6 |
+| Production universe — HK50/JP225 | Admitted **2026-09-27** as eligible `[broker.allowed_symbols]` entries (class `indices`). ELIGIBLE ≠ RESEARCH-VALIDATED ≠ LIVE-AUTHORIZED: no volatility evidence, no trial slot, no performance claim. Broker min-lot fit + schedule sessions UNVERIFIED until next T0 regeneration | `configs/production/config.toml` + `docs/production/HK50_JP225_UNIVERSE_ADMISSION.md` + `docs/production/DASHBOARD_CONTRACT.md` §6 |
 | Risk architecture | Complete risk control documentation | `docs/production/RISK_ARCHITECTURE.md` |
 | Live trading | Operational sequence and procedures | `docs/production/LIVE_TRADING.md` |
 | Deployment | Installation and startup procedures | `docs/production/DEPLOYMENT.md` |

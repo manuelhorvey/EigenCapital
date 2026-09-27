@@ -2635,9 +2635,13 @@ def _run_shadow_constructor(
         elif sym in ASSET_CLASS_MAP:
             asset_class_map[sym] = ASSET_CLASS_MAP[sym]
         else:
-            # Derive from prefix
+            # Derive from prefix. Index names are matched in FULL — the
+            # 3-char prefix slice can never equal them (US30 → "US3",
+            # HK50 → "HK5", JP225 → "JP2"), which silently misfiled every
+            # index that was not already in ASSET_CLASS_MAP as "forex".
             prefix = sym.split("_")[0] if "_" in sym else sym[:3]
-            if prefix in ("US30", "USTEC", "US500"):
+            name = sym.split("_")[0] if "_" in sym else sym
+            if name in ("US30", "USTEC", "US500", "HK50", "JP225"):
                 asset_class_map[sym] = "indices"
             elif prefix in ("XAU", "XAG"):
                 asset_class_map[sym] = "metals"

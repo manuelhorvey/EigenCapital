@@ -41,6 +41,9 @@ from mt5linux import MetaTrader5
 R4_SYMBOLS = [
     "US30",
     "USTEC",
+    "HK50",
+    "JP225",
+    "USOIL",
     "AUDJPY",
     "AUDUSD",
     "AUDCHF",
@@ -75,27 +78,10 @@ R4_SYMBOLS = [
     "BTCUSD",
 ]
 
-ELIGIBLE_SYMBOLS = [
-    "USTEC",
-    "AUDUSD",
-    "AUDCHF",
-    "AUDCAD",
-    "AUDNZD",
-    "NZDUSD",
-    "NZDCHF",
-    "NZDCAD",
-    "GBPUSD",
-    "GBPCHF",
-    "EURUSD",
-    "EURCHF",
-    "USDCHF",
-    "USDCAD",
-    "CADCHF",
-    "EURGBP",
-    "XAGUSD",
-    "XNGUSD",
-    "BTCUSD",
-]
+# Eligibility is not decided here: this quarantined script trades every symbol
+# in R4_SYMBOLS, and the authoritative universe lives in
+# configs/production/config.toml ([broker.allowed_symbols]).
+# (A stale, unused ELIGIBLE_SYMBOLS list was removed on 2026-09-27.)
 
 # ── Frozen R4 Signal ───────────────────────────────────────────────
 

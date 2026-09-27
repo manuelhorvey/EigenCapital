@@ -98,6 +98,44 @@ class TestConfigVsScriptConsistency:
         for sym in ["EURUSD", "GBPUSD", "AUDUSD", "USDCHF", "USTEC"]:
             assert sym in eligible, f"{sym} missing from eligible symbols"
 
+    def test_hk50_jp225_eligible_as_indices(self):
+        """HK50/JP225 (admitted 2026-09-27) must be eligible and classified as indices.
+
+        Regression guard: neither symbol may be silently dropped, misclassified
+        as FX/crypto/metals/energy, or routed into an exclusion list.
+        """
+        config = load_config("production")
+        allowed = config.broker.allowed_symbols
+        assert allowed.get("HK50") == "indices", f"HK50 class = {allowed.get('HK50')!r}"
+        assert allowed.get("JP225") == "indices", f"JP225 class = {allowed.get('JP225')!r}"
+        eligible = {sym for sym, cls in allowed.items() if not cls.endswith("_excluded")}
+        assert "HK50" in eligible, "HK50 absent from eligible universe"
+        assert "JP225" in eligible, "JP225 absent from eligible universe"
+
+    def test_allowed_symbols_no_duplicates_and_all_classified(self):
+        """Every allowed symbol must have a non-empty classification (fail closed
+        against unclassified/unparsed universe entries)."""
+        config = load_config("production")
+        allowed = config.broker.allowed_symbols
+        symbols = list(allowed.keys())
+        assert len(symbols) == len(set(symbols)), "duplicate symbols in allowed_symbols"
+        unclassified = [s for s, cls in allowed.items() if not str(cls).strip()]
+        assert unclassified == [], f"symbols without asset class: {unclassified}"
+
+    def test_symbol_mapping_fingerprint_reflects_universe(self):
+        """compute_symbol_mapping_fingerprint must change when the universe changes
+        (EC-AUD-009 drift detection covers the HK50/JP225 admission)."""
+        from eigencapital.config import compute_symbol_mapping_fingerprint
+
+        config = load_config("production")
+        base_fp = compute_symbol_mapping_fingerprint(config)
+        drifted = dict(config.broker.allowed_symbols)
+        drifted.pop("HK50")
+        import dataclasses
+
+        drifted_config = dataclasses.replace(config, broker=dataclasses.replace(config.broker, allowed_symbols=drifted))
+        assert compute_symbol_mapping_fingerprint(drifted_config) != base_fp
+
     def test_risk_envelope_from_config(self):
         """RiskEnvelope values must match live_risk config.
 

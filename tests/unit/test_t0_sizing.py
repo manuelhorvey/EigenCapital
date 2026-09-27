@@ -432,6 +432,24 @@ class TestEnvelopeEnforcement:
         kept, blocked = self._apply(loop, orders, cap=5_000.0, prices={"XAUUSD": 0.0}, symbol_info=lambda s: _Info())
         assert kept == orders and blocked == []
 
+    def test_new_admitted_symbol_fails_closed_on_unreadable_spec(self, loop):
+        """HK50 (admitted 2026-09-27): no readable broker specs → no order.
+        Universe admission does not bypass the execution envelope."""
+        orders = [("HK50", "BUY", 0.1, "LONG 5.0% (5.0% |w|)", None)]
+        kept, blocked = self._apply(loop, orders, cap=5_000.0, prices={"HK50": 0.0})
+        assert kept == [] and len(blocked) == 1
+        assert blocked[0]["symbol"] == "HK50"
+        assert blocked[0]["detail"] == "unreadable_symbol_spec"
+
+    def test_new_admitted_symbol_over_cap_blocked(self, loop):
+        """HK50 notional above the position cap is skipped and reported —
+        the same fail-closed rule every other symbol gets."""
+        orders = [("HK50", "BUY", 1.0, "LONG 5.0% (5.0% |w|)", None)]
+        kept, blocked = self._apply(loop, orders, cap=5_000.0, prices={"HK50": 100.0}, cs={"HK50": 100.0})
+        assert kept == [] and len(blocked) == 1
+        assert blocked[0]["symbol"] == "HK50"
+        assert blocked[0]["detail"] == "notional_over_cap"
+
     def test_disabled_cap_passes_everything(self, loop):
         orders = [("XAUUSD", "SELL", 9999.0, "LONG 99.0% (99.0% |w|)", None)]
         kept, blocked = self._apply(loop, orders, cap=0.0)

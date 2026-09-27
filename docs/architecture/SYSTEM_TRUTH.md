@@ -183,7 +183,8 @@ Env select: EIGENCAPITAL_ENV via .env → picks configs/<env>/config.toml
 ```
 Authority:  configs/market_schedules/default.toml
 Loaded by:  core/market_schedule.py → load_schedules_from_file()
-28 instruments: 21 FX, 2 metals, 2 indices, 2 energy, 1 crypto
+30 instruments: 21 FX, 2 metals, 4 indices, 2 energy, 1 crypto
+(HK50/JP225 schedule sessions UNVERIFIED — see HK50_JP225_UNIVERSE_ADMISSION.md)
 ```
 
 ### Environment Variables

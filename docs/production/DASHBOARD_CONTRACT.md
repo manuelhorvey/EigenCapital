@@ -57,6 +57,8 @@ The frozen research document `docs/research/VOLATILITY_TAXONOMY_RESEARCH.md` §3
 
 Future asset-admission questions follow the same pattern: the production universe is governed by production config + governance docs, the research baseline by frozen research records, and neither silently overrides the other.
 
+**Extended 2026-09-27: HK50 and JP225 are production-admitted** as `[broker.allowed_symbols]` entries (class `indices`) under the same pattern. Dashboard implications (verified against code 2026-09-27): the universe view is derived entirely from the backend config (`DashboardStateService._build_universe_view`, covered by `tests/unit/dashboard/test_universe_view.py`), so both symbols are classified as admitted indices with truthful `NO_LOCAL_DATA` status — no frontend hard-coding exists or is needed. Precision: `get_data_status()` is **not yet wired to any `/api/v1` route**, so today this view is backend-derived state, not a rendered screen; exposing it requires an API route + DTO + lineage row first (optional improvement — see admission record). No volatility, risk-multiplier, or performance claim may ever be rendered for these symbols — they are ELIGIBLE, not research-validated (admission record: `docs/production/HK50_JP225_UNIVERSE_ADMISSION.md`).
+
 ## 7. Master-prompt addendum (for future agent work)
 
 When directing agent work on EigenCapital, use this order and these constraints:

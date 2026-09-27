@@ -60,7 +60,10 @@ MIN_SIGNAL_WEIGHT = 0.005
 # Data for offline replay (same convention as scripts/audit/reconstruct.py).
 DATA_DIR = REPO / "data" / "mt5"
 
-# Native symbols available as CSVs (subset of the 33-symbol production universe).
+# Symbols with local D1 CSVs on disk — a DATA-availability subset of the
+# production universe (config `[broker.allowed_symbols]`), never an eligibility
+# list. Eligible symbols without local history (e.g. HK50/JP225, admitted
+# 2026-09-27) are simply absent from offline replay until data exists.
 NATIVE = {
     "AUDUSD",
     "EURUSD",

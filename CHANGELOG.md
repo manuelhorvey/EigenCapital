@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 - **Universe**: XAGUSD and XNGUSD admitted to the eligible tradeable universe
+- **Universe**: HK50 and JP225 admitted to the eligible tradeable universe (class `indices`) — eligible ≠ research-validated; no volatility classification asserted (UNASSESSED), no trial slot consumed; admission record in `docs/production/HK50_JP225_UNIVERSE_ADMISSION.md`
 - **Research**: volatility taxonomy & trade-path analysis (descriptive/diagnostic only — explicitly not for production citation) with hash-pinned artifacts; research program status registry (R0–R6) guarded by a consistency test
 - **Dashboard API**: `/portfolio/summary`, `/health/authorization`, `/health/watchdog`, `/risk/envelope`, `/evidence/shadow-reduced` endpoints; full endpoint reference in `docs/production/DASHBOARD_API.md`
 - **Dashboard governance docs**: `DASHBOARD_CONTRACT.md` (truthfulness criteria T1–T5), regenerated `DASHBOARD_DATA_TRUTH_MATRIX.md`, `FULL_SYNC_DASHBOARD_AUDIT_2026-09-25.md`, truthful `DASHBOARD_SECURITY.md`
@@ -31,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - `eigencapital.__version__` aligned with `pyproject.toml` (0.5.0); `/system/info` serves it dynamically
 - README: dashboard quick-start section and dashboard contract row in Status at a Glance
+- Universe counts synchronized across config comments, README, and current-state docs (35→37 allowed, 28→30 tradeable); risk-observation index classifier fixed to recognize USTEC (previously misfiled under OTHER)
 - Shadow exposure layer derives classification from the canonical asset-class map instead of maintaining parallel symbol lists (`SINGLE_LEG_ASSET_CLASS`/`FACTOR_GROUP` removed; `US500` added to the canonical map, where it was previously only shadow-side); new canonical universe entries now propagate to the shadow layer automatically
 - Asset-class classification unified on canonical `classify_asset_class` (`live/portfolio_analytics.py`): shadow exposure, live risk observation (sector + correlation), and evidence class buckets all derive from it — substring heuristics deleted; fixes XAUUSD/XNGUSD/BTCUSD being bucketed as FX ("USD" in symbol) and USTEC/US500/HK50/JP225 falling out of exposure buckets
 

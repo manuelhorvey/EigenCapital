@@ -296,6 +296,29 @@ description = "USTEC US Tech 100 index CFD"
 open = "23:00"
 close = "20:00"
 
+# ── Admitted to the production universe 2026-09-27; sessions UNVERIFIED ──
+# HK50/JP225 are config-eligible indices (configs/production/config.toml).
+# EXNESS-SPECIFIC SESSION TIMES COULD NOT BE VERIFIED FROM EXISTING PROJECT
+# SOURCES, so no session window is asserted (empty sessions = schedule
+# reports open Mon–Fri without an intraday window — deliberately
+# conservative; extend only from verified broker specifications).
+
+[instruments.HK50]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "indices"
+description = "HK50 Hang Seng index CFD — sessions UNVERIFIED (added 2026-09-27)"
+
+[instruments.JP225]
+session_type = "WEEKDAY"
+timezone = "UTC"
+trading_days_per_year = 252
+bars_per_trading_day = 24
+asset_class = "indices"
+description = "JP225 Nikkei 225 index CFD — sessions UNVERIFIED (added 2026-09-27)"
+
 # ═══════════════════════════════════════════════════════════════════
 # Energy — WEEKDAY
 # ═══════════════════════════════════════════════════════════════════

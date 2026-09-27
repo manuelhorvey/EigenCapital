@@ -64,3 +64,26 @@ class TestPipelineIntegration:
     def test_clean_state_all_pass(self):
         results = run_all_account_checks(_state({}, {}), RiskPolicy())
         assert all(r.status != "FAIL" for r in results)
+
+
+class TestNewIndexSymbolsRiskBoundary:
+    """HK50/JP225 (admitted 2026-09-27, class `indices`) must pass through the
+    SAME risk boundary as every other instrument — no symbol-specific bypass,
+    no special limit invented for them."""
+
+    def test_indices_class_within_cap(self):
+        r = check_asset_class_exposure(_state(cls={"indices": 20_000}), RiskPolicy())
+        assert r.status == "PASS"
+
+    def test_indices_class_over_cap_fails(self):
+        r = check_asset_class_exposure(_state(cls={"indices": 45_000}), RiskPolicy())
+        assert r.status == "FAIL" and "indices" in r.message
+
+    def test_concentration_applies_per_symbol(self):
+        r = check_max_concentration(_state({"HK50": 30_000, "JP225": 10_000}), RiskPolicy())
+        assert r.status == "FAIL"
+        assert "HK50" in r.message
+
+    def test_signed_positions_use_abs(self):
+        r = check_max_concentration(_state({"HK50": -40_000}), RiskPolicy())
+        assert r.status == "FAIL"

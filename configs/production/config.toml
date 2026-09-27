@@ -19,12 +19,21 @@ min_volume = 0.01         # Minimum lot size (forex)
 max_volume = 1.0          # Maximum lot size
 
 # R4 universe — Exness MT5 bare names (no 'm' suffix)
-# 35 entries: eligible symbols tradeable if min lot fits position limit
+# 37 entries: eligible symbols tradeable if min lot fits position limit
 # forex_excluded = min lot exceeds envelope (mostly JPY crosses due to 100K contract × JPY rate)
+#
+# 2026-09-27 — HK50 / JP225 admitted to the eligible universe (asset class: indices).
+# ELIGIBLE ≠ RESEARCH-VALIDATED ≠ LIVE-AUTHORIZED: no volatility-taxonomy evidence,
+# no research trial, and no performance claim attaches to this admission.
+# Volatility classification: UNASSESSED (see docs/production/HK50_JP225_UNIVERSE_ADMISSION.md).
+# Trading remains gated downstream: broker symbol availability + min-lot fit + data
+# availability (a symbol without D1 data produces no signal weight and no orders).
 [broker.allowed_symbols]
 
 US30 = "indices"          # min lot $2,675 (fits $5K cap)
 USTEC = "indices"         # min lot fits campaign position limit
+HK50 = "indices"          # admitted 2026-09-27 — min-lot fit unverified against live account
+JP225 = "indices"         # admitted 2026-09-27 — min-lot fit unverified against live account
 USOIL = "energy"          # min lot fits $5K cap
 AUDJPY = "forex_excluded"  # min lot $114K (JPY)
 AUDUSD = "forex"          # min lot $716
@@ -63,14 +72,15 @@ BTCUSD = "crypto"         # min lot $792
 [capital]
 # Campaign boundaries — calibrated to Exness min-lot constraints
 # Max position / max order = $5,000 (fits XAUUSD $4,627 + US30 $2,687 min-lot cost)
-# Universe: 35 allowed_symbols entries; 7 forex_excluded → 28 tradeable
+# Universe: 37 allowed_symbols entries; 7 forex_excluded → 30 tradeable
+# (HK50/JP225 admitted 2026-09-27; broker min-lot fit verified at next T0 regeneration)
 max_equity = 20000.0             # Maximum authorized equity for the expanded $19K account tier
 max_drawdown_pct = 20.0          # 20% max campaign drawdown
 max_daily_loss = 250.0           # $250 max daily loss
 max_total_drawdown = 1000.0      # $1,000 max total drawdown
 max_position_size = 5000.0       # $5,000 max position (fits XAUUSD $4,627 + US30 $2,687)
 max_order_notional = 5000.0      # $5,000 max order
-max_concurrent_positions = 20    # Maximum open positions (28 tradeable listed symbols)
+max_concurrent_positions = 20    # Maximum open positions (30 tradeable listed symbols)
 campaign_duration_days = 30      # 30-day qualification window
 max_spread = 0.0015              # Spread limit for capital checks (forex)
 max_slippage = 0.0008            # Slippage limit for capital checks

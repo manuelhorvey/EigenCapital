@@ -119,12 +119,19 @@ python scripts/r4_monitor.py --loop --interval 60
 ### `start_trading.sh` (Linux/macOS)
 
 ```bash
-./scripts/start_trading.sh              # start rebalance loop
-./scripts/start_trading.sh --with-monitor  # rebalance + monitor
-./scripts/start_trading.sh --dry-run     # dry-run mode
+./scripts/start_trading.sh              # rebalance loop + safety supervisor
+./scripts/start_trading.sh --with-monitor  # rebalance + monitor + safety
+./scripts/start_trading.sh --no-safety   # skip the safety supervisor
+./scripts/start_trading.sh --dry-run     # dry-run mode (safety runs without --live)
 ./scripts/start_trading.sh --status      # check health
 ./scripts/start_trading.sh --stop        # graceful shutdown
 ```
+
+The safety supervisor (`scripts/r4_safety_supervisor.py`, `--loop --interval 60
+--live`) is the catastrophic-SL backstop: it places idempotent ≥2×ATR disaster
+stops on R4 positions. Broker mutations additionally require the
+`configs/r4_safety.enabled` flag file; without it the supervisor logs in
+dry-run. It never trades.
 
 The rebalance loop claims `reports/r4_loop/supervisor.pid` before touching any
 ledger — a second live instance is refused with exit 75 (single-instance

@@ -5,6 +5,7 @@
 #   1. MT5 RPyC bridge (if not already running)
 #   2. R4 rebalance loop
 #   3. R4 monitor (optional)
+#   4. R4 safety supervisor (catastrophic-SL backstop; on by default)
 #
 # Handles:
 #   - Automatic bridge restart on failure
@@ -13,9 +14,10 @@
 #   - Process isolation via setsid (Linux) or nohup (macOS)
 #
 # Usage:
-#   ./scripts/start_trading.sh                    # rebalance loop only
-#   ./scripts/start_trading.sh --with-monitor     # rebalance + monitor
+#   ./scripts/start_trading.sh                    # rebalance + safety supervisor
+#   ./scripts/start_trading.sh --with-monitor     # rebalance + monitor + safety
 #   ./scripts/start_trading.sh --dry-run          # rebalance in dry-run mode
+#   ./scripts/start_trading.sh --no-safety        # skip the safety supervisor
 #   ./scripts/start_trading.sh --bridge-only      # just start the bridge
 #   ./scripts/start_trading.sh --status           # check what's running
 #   ./scripts/start_trading.sh --stop             # stop everything
@@ -41,6 +43,7 @@ SERVER_DIR="/tmp/mt5linux"
 BRIDGE_LOG="/tmp/mt5bridge.log"
 LOOP_LOG="reports/r4_loop/loop_stdout.log"
 MONITOR_LOG="reports/r4_loop/monitor_stdout.log"
+SAFETY_LOG="reports/r4_loop/safety_stdout.log"
 # ID-015: Read interval from config (single source of truth)
 # Falls back to 3600 if config unavailable
 REBALANCE_INTERVAL=$(python3 -c "
@@ -55,9 +58,12 @@ except Exception:
     print(3600)
 " 2>/dev/null || echo 3600)
 MONITOR_INTERVAL=60
+# Safety supervisor cadence: watch ticks only — SL placement is idempotent.
+SAFETY_INTERVAL=60
 
 # ── Parse Arguments ───────────────────────────────────────────────
 WITH_MONITOR=false
+WITH_SAFETY=true
 DRY_RUN=false
 BRIDGE_ONLY=false
 STATUS_ONLY=false
@@ -67,6 +73,7 @@ FORCE_REGIME=false
 for arg in "$@"; do
     case "$arg" in
         --with-monitor)   WITH_MONITOR=true ;;
+        --no-safety)      WITH_SAFETY=false ;;
         --dry-run)        DRY_RUN=true ;;
         --bridge-only)    BRIDGE_ONLY=true ;;
         --status)         STATUS_ONLY=true ;;
@@ -74,7 +81,7 @@ for arg in "$@"; do
         --force-regime)   FORCE_REGIME=true ;;
         --interval)       ;; # handled below
         -h|--help)
-            echo "Usage: $0 [--with-monitor] [--dry-run] [--bridge-only] [--status] [--stop]"
+            echo "Usage: $0 [--with-monitor] [--no-safety] [--dry-run] [--bridge-only] [--status] [--stop]"
             exit 0
             ;;
     esac
@@ -203,6 +210,17 @@ show_status() {
         echo "  R4 Monitor:                  ❌ NOT RUNNING"
     fi
 
+    # Safety supervisor (catastrophic-SL backstop)
+    if process_running "r4_safety_supervisor"; then
+        if [[ -f "configs/r4_safety.enabled" ]]; then
+            echo "  Safety Supervisor:           ✅ RUNNING (live SL placement)"
+        else
+            echo "  Safety Supervisor:           ⚠️  RUNNING (dry-run — configs/r4_safety.enabled missing)"
+        fi
+    else
+        echo "  Safety Supervisor:           ❌ NOT RUNNING"
+    fi
+
     # Supervisor
     if process_running "r4_supervisor"; then
         echo "  R4 Supervisor:               ✅ RUNNING"
@@ -218,6 +236,7 @@ stop_all() {
     log "Stopping all trading processes..."
     kill_pattern "r4_rebalance_loop" && log "  Stopped rebalance loop" || true
     kill_pattern "r4_monitor" && log "  Stopped monitor" || true
+    kill_pattern "r4_safety_supervisor" && log "  Stopped safety supervisor" || true
     kill_pattern "r4_supervisor_dryrun" && log "  Stopped supervisor" || true
     # Don't kill the bridge or terminal by default — they're shared
     log "Done. (Bridge and MT5 terminal left running)"
@@ -369,6 +388,37 @@ if $WITH_MONITOR; then
             log "  ⚠️  Monitor failed to start — check $MONITOR_LOG"
         fi
     fi
+fi
+
+# 4. Safety supervisor (catastrophic-SL backstop) — on by default.
+#    It never trades; it places idempotent >=2xATR disaster stops on R4
+#    positions and runs blind-window watchdog detection. Broker mutations
+#    additionally require configs/r4_safety.enabled (checked inside the script).
+if $WITH_SAFETY; then
+    if process_running "r4_safety_supervisor"; then
+        log "Safety supervisor already running"
+    else
+        SAFETY_ARGS="--loop --interval $SAFETY_INTERVAL --live"
+        if $DRY_RUN; then
+            # Dry-run stack: watchdog/audit only, no broker mutation.
+            SAFETY_ARGS="--loop --interval $SAFETY_INTERVAL"
+            log "Dry-run stack: safety supervisor started WITHOUT --live"
+        fi
+        log "Starting safety supervisor (interval: ${SAFETY_INTERVAL}s)..."
+        nohup python3 scripts/r4_safety_supervisor.py $SAFETY_ARGS \
+            >"$SAFETY_LOG" 2>&1 &
+        log "  PID: $! → $SAFETY_LOG"
+        sleep 2
+
+        if process_running "r4_safety_supervisor"; then
+            log "  ✅ Safety supervisor started"
+        else
+            log "  ❌ Safety supervisor failed to start — check $SAFETY_LOG"
+            tail -20 "$SAFETY_LOG" 2>/dev/null
+        fi
+    fi
+else
+    log "Safety supervisor skipped (--no-safety) — no catastrophic-SL backstop"
 fi
 
 log ""

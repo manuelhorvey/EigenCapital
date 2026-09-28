@@ -9,6 +9,8 @@ These tests verify that:
 
 from __future__ import annotations
 
+import importlib.util
+import logging
 import os
 import sys
 
@@ -20,6 +22,7 @@ from eigencapital.execution.trading_provider import (
     AccountInfo,
     BarData,
     LinuxMT5Provider,
+    MT5BaseProvider,
     OrderRequest,
     OrderResult,
     OrderSide,
@@ -181,3 +184,133 @@ class TestFactory:
         except RuntimeError:
             # Acceptable if no MT5 is available in test environment
             pass
+
+
+PROVIDER_LOGGER = "eigencapital.execution.trading_provider"
+
+
+class _FakeMT5:
+    """Minimal stand-in for the platform binding."""
+
+    TIMEFRAME_D1 = 1440
+    TRADE_RETCODE_DONE = 10009
+
+    def __init__(self, initialize_result: bool = True, init_error: BaseException | None = None):
+        self.initialize_result = initialize_result
+        self.init_error = init_error
+
+    def initialize(self) -> bool:
+        if self.init_error is not None:
+            raise self.init_error
+        return self.initialize_result
+
+
+class _FakeMT5WithUnconvertibleConstant(_FakeMT5):
+    """initialize() succeeds but constant resolution blows up (defect path)."""
+
+    TIMEFRAME_D1 = "not-an-int"
+
+
+class _ScriptedProvider(MT5BaseProvider):
+    """MT5BaseProvider with a scripted binding source."""
+
+    def __init__(
+        self,
+        fake: _FakeMT5 | None = None,
+        load_error: BaseException | None = None,
+    ) -> None:
+        super().__init__()
+        self.fake = fake if fake is not None else _FakeMT5()
+        self.load_error = load_error
+
+    def _load_mt5(self, host: str, port: int):
+        if self.load_error is not None:
+            raise self.load_error
+        return self.fake
+
+
+class TestConnectErrorHandling:
+    """H-9 regression: connect() separates environment-absent from defects."""
+
+    def test_binding_unavailable_returns_false(self):
+        """ImportError (binding not on this platform) still returns False."""
+        provider = _ScriptedProvider(load_error=ImportError("No module named 'MetaTrader5'"))
+        assert provider.connect() is False
+        assert provider.is_connected() is False
+
+    def test_windows_provider_missing_binding_returns_false(self):
+        """Real WindowsMT5Provider on a platform without MetaTrader5 → False."""
+        if importlib.util.find_spec("MetaTrader5") is not None:
+            pytest.skip("MetaTrader5 binding installed — nothing to assert")
+        provider = WindowsMT5Provider()
+        assert provider.connect() is False
+        assert provider.is_connected() is False
+
+    def test_bridge_unreachable_returns_false(self):
+        """Connection refused / bridge down is an environment failure → False."""
+        provider = _ScriptedProvider(load_error=ConnectionRefusedError("[Errno 111] Connection refused"))
+        assert provider.connect() is False
+        assert provider.is_connected() is False
+
+    def test_initialize_reports_mt5_unavailable_returns_false(self):
+        """initialize() returning False is the documented unavailable case."""
+        provider = _ScriptedProvider(fake=_FakeMT5(initialize_result=False))
+        assert provider.connect() is False
+        assert provider.is_connected() is False
+
+    def test_successful_connect_sets_connected_flag(self):
+        provider = _ScriptedProvider(fake=_FakeMT5())
+        assert provider.connect() is True
+        assert provider.is_connected() is True
+        assert provider.TIMEFRAME_D1 == 1440
+
+    def test_unexpected_error_in_load_path_propagates(self):
+        """A defect in _load_mt5 must not be reported as "MT5 unavailable"."""
+        provider = _ScriptedProvider(load_error=RuntimeError("defect in load path"))
+        with pytest.raises(RuntimeError):
+            provider.connect()
+        assert provider.is_connected() is False
+
+    def test_unexpected_error_in_initialize_propagates(self):
+        provider = _ScriptedProvider(fake=_FakeMT5(init_error=TypeError("initialize() bad config")))
+        with pytest.raises(TypeError):
+            provider.connect()
+        assert provider.is_connected() is False
+
+    def test_connected_flag_not_left_true_after_failure(self):
+        """A failure after initialize() succeeded must clear _connected."""
+        provider = _ScriptedProvider(fake=_FakeMT5())
+        assert provider.connect() is True
+
+        provider.fake = _FakeMT5WithUnconvertibleConstant()
+        with pytest.raises(ValueError):
+            provider.connect()
+        assert provider.is_connected() is False
+
+    def test_environment_failure_logged_at_error(self, caplog):
+        provider = _ScriptedProvider(load_error=ConnectionRefusedError("refused"))
+        with caplog.at_level(logging.DEBUG, logger=PROVIDER_LOGGER):
+            assert provider.connect() is False
+        records = [r for r in caplog.records if r.name == PROVIDER_LOGGER]
+        assert records
+        assert max(r.levelno for r in records) >= logging.ERROR
+
+    def test_binding_unavailable_logged_at_warning(self, caplog):
+        provider = _ScriptedProvider(load_error=ImportError("no binding"))
+        with caplog.at_level(logging.DEBUG, logger=PROVIDER_LOGGER):
+            assert provider.connect() is False
+        records = [r for r in caplog.records if r.name == PROVIDER_LOGGER]
+        assert records
+        assert max(r.levelno for r in records) >= logging.WARNING
+
+    def test_unexpected_error_logged_with_traceback(self, caplog):
+        provider = _ScriptedProvider(load_error=RuntimeError("defect"))
+        with (
+            caplog.at_level(logging.DEBUG, logger=PROVIDER_LOGGER),
+            pytest.raises(RuntimeError),
+        ):
+            provider.connect()
+        records = [r for r in caplog.records if r.name == PROVIDER_LOGGER]
+        assert records
+        assert any(r.levelno >= logging.ERROR and r.exc_info is not None for r in records)
+

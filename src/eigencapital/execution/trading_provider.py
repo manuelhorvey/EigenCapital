@@ -157,7 +157,11 @@ class TradingProvider(ABC):
 
     @abstractmethod
     def connect(self, host: str = "127.0.0.1", port: int = 8001) -> bool:
-        """Connect to MT5. Returns True on success."""
+        """Connect to MT5. Returns True on success, False when the MT5
+        environment is unavailable (binding missing, bridge unreachable).
+
+        Unexpected defects must propagate rather than being reported as
+        False — see MT5BaseProvider.connect()."""
         raise NotImplementedError
 
     @abstractmethod
@@ -248,10 +252,27 @@ class MT5BaseProvider(TradingProvider):
         """
 
     def connect(self, host: str = "127.0.0.1", port: int = 8001) -> bool:
+        """Connect to MT5.
+
+        Returns True on success. Returns False only for *expected,
+        environmental* failures:
+
+        - ImportError: the platform binding (mt5linux / MetaTrader5) is not
+          installed on this platform.
+        - OSError: the bridge/terminal is unreachable (connection refused,
+          host unreachable, DNS failure, timeout) or ``initialize()``
+          reported that MT5 is not available.
+
+        Everything else (AttributeError, TypeError, config/auth errors
+        surfaced as exceptions, ...) is a defect and is re-raised so it can
+        never be mistaken for "MT5 unavailable". ``_connected`` is never
+        left True when this method returns False or raises.
+        """
+        self._connected = False
         try:
             self._mt5 = self._load_mt5(host, port)
-            self._connected = bool(self._mt5.initialize())
-            if self._connected:
+            connected = bool(self._mt5.initialize())
+            if connected:
                 # Resolve platform-specific constants into instance attributes
                 # (mirrors the read-only property behavior without the
                 # property-overrides-class-attribute conflict).
@@ -259,15 +280,24 @@ class MT5BaseProvider(TradingProvider):
                 self.TRADE_RETCODE_DONE = int(
                     getattr(self._mt5, "TRADE_RETCODE_DONE", TradingProvider.TRADE_RETCODE_DONE)
                 )
-            return self._connected
-        except ImportError:
-            logger.debug("MT5 binding not available on this platform")
+            self._connected = connected
+            return connected
+        except ImportError as e:
+            # Binding genuinely unavailable on this platform — expected.
+            logger.warning("MT5 binding not available on this platform: %s", e)
             self._connected = False
             return False
-        except Exception as e:
-            logger.debug("MT5 connect failed: %s", e)
+        except OSError as e:
+            # Bridge unreachable / connection refused — expected environment
+            # failure (ImportError is not an OSError, so both branches stand).
+            logger.error("MT5 connect failed (environment unavailable): %s", e)
             self._connected = False
             return False
+        except Exception:
+            # Unexpected defect: reset state, log loudly, propagate.
+            self._connected = False
+            logger.exception("Unexpected error during MT5 connect — re-raising as a defect")
+            raise
 
     def disconnect(self) -> None:
         if self._mt5:

@@ -16,6 +16,7 @@ Design rules:
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
@@ -140,39 +141,65 @@ class ProcessSupervisor:
     def claim_instance(self) -> bool:
         """Try to claim this instance. Returns False if another is running.
 
-        Checks:
+        The whole read → liveness-check → write sequence runs inside an
+        exclusive flock on supervisor.lock, so it is atomic across processes
+        (C-4): a racing claimant either acquires the lock first and owns the
+        claim, or acquires it afterwards and sees the winner's live PID. The
+        check and the write can never interleave with another process's.
+
+        Checks (under the lock):
         1. PID file exists
         2. Process with that PID is alive
         3. If dead → stale PID file → claim
         4. If alive → another instance → reject
         """
-        existing_pid = self._read_pid()
+        self._state_dir.mkdir(parents=True, exist_ok=True)
+        lock_file = self._pid_file.with_suffix(".lock")
+        try:
+            lock_fd = open(lock_file, "w")
+        except OSError:
+            return False
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            # Another claimant is inside its critical section right now (or
+            # the filesystem refused the lock). Fail closed instead of
+            # racing an unlocked check-then-write; always drop the fd so a
+            # stream of refused claims cannot leak descriptors.
+            lock_fd.close()
+            return False
 
-        if existing_pid is not None:
-            if existing_pid == os.getpid():
-                # We already own this instance
-                return True
-            if self._is_process_alive(existing_pid):
-                # Another process is running
-                return False
-            # Stale PID file — previous process died
+        try:
+            existing_pid = self._read_pid()
 
-        # Claim: write PID and create state
-        self._write_pid()
-        self._state = SupervisorState(
-            pid=os.getpid(),
-            started_at=self._now_utc(),
-            restart_count=0,
-            last_healthy_at=self._now_utc(),
-            status="running",
-            instance_id=self._generate_instance_id(),
-        )
-        self._save_state(self._state)
+            if existing_pid is not None:
+                if existing_pid == os.getpid():
+                    # We already own this instance
+                    return True
+                if self._is_process_alive(existing_pid):
+                    # Another process is running
+                    return False
+                # Stale PID file — previous process died
 
-        # Set up signal handlers for graceful shutdown
-        self._setup_signals()
+            # Claim: write PID and create state
+            self._write_pid()
+            self._state = SupervisorState(
+                pid=os.getpid(),
+                started_at=self._now_utc(),
+                restart_count=0,
+                last_healthy_at=self._now_utc(),
+                status="running",
+                instance_id=self._generate_instance_id(),
+            )
+            self._save_state(self._state)
 
-        return True
+            # Set up signal handlers for graceful shutdown
+            self._setup_signals()
+
+            return True
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            lock_fd.close()
 
     def _setup_signals(self) -> None:
         """Set up signal handlers for graceful shutdown."""

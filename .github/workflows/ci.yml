@@ -44,8 +44,8 @@ jobs:
           # EC-AUD-010: Gate mypy on critical safety packages (fail on errors)
           mypy src/eigencapital/live/ src/eigencapital/reconciliation/ src/eigencapital/production_qual/ \
             --ignore-missing-imports --no-error-summary
-          # Full codebase check (informational only, does not fail CI)
-          mypy src/eigencapital/ --ignore-missing-imports || true
+          # Full codebase check (M-6: no longer masked — type errors fail the job)
+          mypy src/eigencapital/ --ignore-missing-imports
 
       - name: Run tests with coverage
         run: |

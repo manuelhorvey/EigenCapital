@@ -43,6 +43,26 @@ max_order_notional = 5000.0
 max_concurrent_positions = 20
 campaign_duration_days = 365
 
+# ===========================================================================
+# DEAD / LEGACY TABLE — [risk] IS NEVER PARSED BY ANY CODE (FINDINGS.md H-10)
+# --------------------------------------------------------------------------
+# Nothing reads this section. src/eigencapital/config.py::load_config()
+# builds only broker / capital / live_risk / strategy / health / execution /
+# alerts / watchdog / reconciliation / data — there is no "risk" branch and
+# no RiskConfig dataclass anywhere in the codebase. RiskPolicy.from_dict()
+# is never fed TOML data (its only caller is a to_dict round-trip unit test);
+# RiskPolicy is built from code defaults or from config.live_risk via
+# RiskPolicy.from_live_config().
+# Superseded by: [live_risk] -> LiveRiskConfig -> RiskPolicy.from_live_config()
+# (src/eigencapital/risk/policy.py). This paper file defines no [live_risk]
+# table, so LiveRiskConfig dataclass defaults apply. The enforced
+# account-level limits come from LiveRiskConfig plus code-default RiskPolicy()
+# profiles — NOT from here.
+# EDITING THIS TABLE HAS NO EFFECT on runtime behaviour. Values below are
+# stale documentation/audit trail only (they disagree with the enforced
+# [live_risk] envelope). Keep the table; do not delete it, and do not wire it
+# up without updating the H-10 guard in tests/unit/test_config_consistency.py.
+# ===========================================================================
 [risk]
 max_drawdown_pct = 15.0
 daily_loss_limit = 10000.0

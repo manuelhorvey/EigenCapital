@@ -5,12 +5,15 @@ These tests ensure that:
 2. No hardcoded values in execution scripts disagree with config
 3. The live_risk envelope matches capital boundaries
 4. Fingerprint verification works end-to-end
+5. The dead `[risk]` table stays annotated as dead/legacy and unparsed (H-10)
 """
 
 from __future__ import annotations
 
 import os
+import re
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -22,6 +25,8 @@ from eigencapital.config import (
     normalize_asset_class,
 )
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class TestConfigLoading:
@@ -213,3 +218,96 @@ class TestR4ManifestIntegrity:
         config = load_config("production")
         manifest = R4ConfigManifest()
         assert config.strategy.manifest_fingerprint == manifest.compute_identity()
+
+
+class TestDeadRiskTableAnnotation:
+    """H-10 guard: the `[risk]` TOML table is dead/legacy and must stay that way.
+
+    (a) EVERY config file under configs/ (discovered by glob, not a hardcoded
+        list) either has no `[risk]` table at all, or carries a dead/legacy
+        marker comment directly above it — so a newly added config cannot
+        silently reintroduce an unannotated one.
+    (b) No module under src/eigencapital parses a TOML section named `risk`, so
+        nobody can silently wire it up without updating this guard and the
+        config annotations.
+
+    Human decision (FINDINGS.md, 2026-09-28): annotate only — NO wiring change.
+    """
+
+    # Glob-based discovery: every file under configs/, whatever it is named.
+    CONFIG_FILES = tuple(sorted(path for path in (REPO_ROOT / "configs").rglob("*") if path.is_file()))
+    CONFIG_IDS = tuple(str(path.relative_to(REPO_ROOT)) for path in CONFIG_FILES)
+    # Marker text that must appear in the comment block directly above [risk].
+    DEAD_MARKERS = ("dead", "legacy", "never parsed", "no effect")
+
+    @staticmethod
+    def _comment_block_above(lines: list[str], header: str) -> str:
+        """Contiguous comment block directly above `header` (blank lines allowed)."""
+        try:
+            idx = next(i for i, line in enumerate(lines) if line.strip() == header)
+        except StopIteration:
+            return ""
+        block: list[str] = []
+        i = idx - 1
+        while i >= 0:
+            stripped = lines[i].lstrip()
+            if stripped.startswith("#"):
+                block.append(lines[i])
+            elif stripped:
+                break
+            i -= 1
+        return "\n".join(reversed(block))
+
+    def test_config_glob_discovers_files(self) -> None:
+        """The glob must actually find configs/, else every other check is inert."""
+        assert self.CONFIG_FILES, "configs/ glob found no files — the H-10 guard is inert"
+        files_with_risk = [
+            path for path in self.CONFIG_FILES if any(line.strip() == "[risk]" for line in path.read_text(encoding="utf-8").splitlines())
+        ]
+        assert files_with_risk, (
+            "no config under configs/ defines a [risk] table anymore — if the table "
+            "was deleted rather than annotated, that is an H-10 decision change and "
+            "this guard must be revisited"
+        )
+
+    @pytest.mark.parametrize("config_path", CONFIG_FILES, ids=CONFIG_IDS)
+    def test_risk_table_is_annotated_dead(self, config_path: Path) -> None:
+        """If a config has `[risk]`, it must carry dead/legacy markers above it.
+
+        A file with no `[risk]` table vacuously satisfies the guard.
+        """
+        lines = config_path.read_text(encoding="utf-8").splitlines()
+        if not any(line.strip() == "[risk]" for line in lines):
+            return  # no [risk] table in this config: nothing to annotate (H-10 vacuous here)
+        block = self._comment_block_above(lines, "[risk]").lower()
+        missing = [marker for marker in self.DEAD_MARKERS if marker not in block]
+        assert not missing, (
+            f"{config_path.relative_to(REPO_ROOT)}: the [risk] table is missing "
+            f"dead/legacy marker text {missing} in the comment block directly "
+            "above it (H-10 — this table is parsed by nothing; editing it has no effect)"
+        )
+
+    def test_no_module_parses_toml_risk_section(self) -> None:
+        """No module under src/eigencapital may read a TOML section named `risk`."""
+        # Cheap source scan: (1) a dict fetch of the section key anywhere under
+        # src, (2) a subscript fetch inside a module that actually parses TOML.
+        section_get = re.compile(r"""\.get\(\s*['"]risk['"]""")
+        section_subscript = re.compile(r"""\[\s*['"]risk['"]\s*\]""")
+        toml_parser = re.compile(r"""tomllib|import toml\b""")
+
+        src_root = REPO_ROOT / "src" / "eigencapital"
+        offenders: list[str] = []
+        for path in sorted(src_root.rglob("*.py")):
+            source = path.read_text(encoding="utf-8")
+            rel = path.relative_to(REPO_ROOT)
+            if section_get.search(source):
+                offenders.append(f'{rel}: .get("risk", ...)')
+            if toml_parser.search(source) and section_subscript.search(source):
+                offenders.append(f'{rel}: data["risk"] in a TOML-parsing module')
+
+        assert not offenders, (
+            "H-10: the [risk] TOML table is dead/legacy and must remain unparsed "
+            "(see the DEAD / LEGACY annotation above it in every config under "
+            "configs/). If wiring it up is now intentional, "
+            f"update those annotations AND this guard. Offenders: {offenders}"
+        )

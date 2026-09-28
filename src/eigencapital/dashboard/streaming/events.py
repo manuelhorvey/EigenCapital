@@ -24,6 +24,13 @@ server echoes the selected protocol per RFC 6455. `Authorization: Bearer` is
 also accepted (non-browser clients). Legacy `?token=` query authentication
 remains accepted only during the transition window — the key must not travel
 in the URL (H-11).
+
+Masking (FINDINGS.md M-8): the stream is the broadly shared surface — one
+snapshot fans out to every connected viewer. It is masked in the DTO layer
+(`schemas.masking.mask_live_state`: account IDs keep only their last four
+characters, balances/P&L/notionals are rounded, names are truncated) before
+serialisation. Exact values stay behind the authenticated REST endpoints,
+which are untouched.
 """
 
 from __future__ import annotations
@@ -37,6 +44,8 @@ from datetime import UTC, datetime
 from typing import Any, AsyncGenerator
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+from eigencapital.dashboard.schemas.masking import mask_live_state
 
 router = APIRouter(tags=["streaming"])
 
@@ -145,7 +154,13 @@ _broadcaster_task: asyncio.Task[None] | None = None
 
 
 async def get_live_state() -> dict[str, Any]:
-    """Read current live state for streaming."""
+    """Read current live state for streaming.
+
+    The payload is masked at the DTO layer (M-8) before it is serialised:
+    this snapshot is the one shared by the WebSocket broadcast and the SSE
+    feed, i.e. the broadly distributed view. The authenticated REST endpoints
+    keep exact values for legitimate dashboard use.
+    """
     try:
         from eigencapital.dashboard.services.dashboard_state import DashboardStateService
 
@@ -159,13 +174,15 @@ async def get_live_state() -> dict[str, Any]:
         return {
             "type": "state_update",
             "timestamp": datetime.now(UTC).isoformat(),
-            "data": {
-                "account": account,
-                "positions": positions,
-                "health": health,
-                "risk": risk,
-                "alerts": alerts,
-            },
+            "data": mask_live_state(
+                {
+                    "account": account,
+                    "positions": positions,
+                    "health": health,
+                    "risk": risk,
+                    "alerts": alerts,
+                }
+            ),
         }
     except Exception as e:
         return {

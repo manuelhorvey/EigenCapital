@@ -691,17 +691,31 @@ class ReconciliationEngine:
         Note: Full P&L reconciliation (equity delta vs sum of position P&L) requires
         tracking t0_equity which is maintained by RiskEnforcer. Here we check that
         the broker's position profits are internally consistent with its reported equity.
+
+        Note: MT5 account_equity = balance + unrealized_pnl + swap + commission.
+        All four components are included so overnight/frequent-trading positions
+        do not generate false WARNING alerts.
         """
         # Tolerance: $10 for broker-reported vs expected
         PNL_TOLERANCE = 10.0
 
-        # Sum broker-reported unrealized P&L from all positions
-        broker_unrealized = sum(p.get("profit", 0) for p in broker.positions)
+        # Sum broker-reported unrealized P&L, swap, and commission from all positions.
+        # MT5 equity = balance + unrealized + swap + commission; omitting swap/commission
+        # causes guaranteed false alerts for any overnight or high-frequency position.
+        def _component(key: str) -> float:
+            total = 0.0
+            for pos in broker.positions:
+                value = pos.get(key)
+                if value is not None:
+                    total += float(value)
+            return total
 
-        # Broker equity should be balance + unrealized P&L
-        # If equity < balance, we're losing money; if equity > balance, we're profitable
-        # The discrepancy is: |equity - balance - unrealized_pnl|
-        expected_equity = broker.account_balance + broker_unrealized
+        broker_unrealized = _component("profit")
+        broker_swap = _component("swap")
+        broker_commission = _component("commission")
+
+        # Broker equity should be balance + unrealized P&L + swap + commission
+        expected_equity = broker.account_balance + broker_unrealized + broker_swap + broker_commission
         discrepancy = abs(broker.account_equity - expected_equity)
 
         if discrepancy > PNL_TOLERANCE:
@@ -715,6 +729,8 @@ class ReconciliationEngine:
                     "broker_equity": broker.account_equity,
                     "broker_balance": broker.account_balance,
                     "broker_unrealized_pnl": round(broker_unrealized, 2),
+                    "broker_swap": round(broker_swap, 2),
+                    "broker_commission": round(broker_commission, 2),
                     "expected_equity": round(expected_equity, 2),
                     "discrepancy": round(discrepancy, 2),
                     "tolerance": PNL_TOLERANCE,
@@ -734,6 +750,8 @@ class ReconciliationEngine:
                 "broker_equity": broker.account_equity,
                 "broker_balance": broker.account_balance,
                 "broker_unrealized_pnl": round(broker_unrealized, 2),
+                "broker_swap": round(broker_swap, 2),
+                "broker_commission": round(broker_commission, 2),
                 "discrepancy": round(discrepancy, 2),
                 "tolerance": PNL_TOLERANCE,
             },

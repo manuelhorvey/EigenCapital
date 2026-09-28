@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Account, Position, HealthState, RiskState, Alert } from "../lib/api";
-import { getWsUrl } from "../lib/config";
+import { getWsUrl, getWsProtocols } from "../lib/config";
 
 interface LiveState {
   account: Account | null;
@@ -57,7 +57,9 @@ export function useLiveStream(): UseLiveStreamReturn {
       }
 
       try {
-        const ws = new WebSocket(getWsUrl());
+        // Key travels via subprotocol negotiation (`api-key.<key>`), never in
+        // the URL (H-11); the server echoes the selected protocol on accept.
+        const ws = new WebSocket(getWsUrl(), getWsProtocols());
         wsRef.current = ws;
 
         ws.onopen = () => {

@@ -152,7 +152,11 @@ class TestSingleWriterRule:
 
 
 class TestWebSocketAuth:
-    """/ws/live must require the API key (contract §2 T5)."""
+    """/ws/live must require the API key (contract §2 T5, H-11).
+
+    Credentials: `api-key.<key>` subprotocol (preferred), `Authorization:
+    Bearer`, or the legacy `?token=` query parameter (transition window).
+    """
 
     @pytest.fixture(autouse=True)
     def _clean_env(self, monkeypatch: pytest.MonkeyPatch):
@@ -160,7 +164,12 @@ class TestWebSocketAuth:
         monkeypatch.setenv("DASHBOARD_API_KEY", "test-key-123")
         yield
 
-    def _make_ws(self, token: str | None = None, auth_header: str | None = None):
+    def _make_ws(
+        self,
+        token: str | None = None,
+        auth_header: str | None = None,
+        subprotocol: str | None = None,
+    ):
         from eigencapital.dashboard.streaming.events import _is_authorized
 
         ws = AsyncMock()
@@ -171,6 +180,8 @@ class TestWebSocketAuth:
         headers = {}
         if auth_header is not None:
             headers["authorization"] = auth_header
+        if subprotocol is not None:
+            headers["sec-websocket-protocol"] = subprotocol
         ws.headers = headers
         return ws, _is_authorized(ws)
 
@@ -190,6 +201,25 @@ class TestWebSocketAuth:
         _, ok = self._make_ws(auth_header="Bearer test-key-123")
         assert ok is True
 
+    def test_subprotocol_key_accepted(self) -> None:
+        """Preferred mechanism: Sec-WebSocket-Protocol `api-key.<key>` (H-11)."""
+        _, ok = self._make_ws(subprotocol="api-key.test-key-123")
+        assert ok is True
+
+    def test_subprotocol_wrong_key_rejected(self) -> None:
+        _, ok = self._make_ws(subprotocol="api-key.wrong")
+        assert ok is False
+
+    def test_subprotocol_with_other_offered_protocols_accepted(self) -> None:
+        """The api-key token may be one of several comma-separated offers."""
+        _, ok = self._make_ws(subprotocol="chat, api-key.test-key-123")
+        assert ok is True
+
+    def test_legacy_query_token_still_accepted_in_transition_window(self) -> None:
+        """`?token=` must keep working during the transition window (H-11)."""
+        _, ok = self._make_ws(token="test-key-123")
+        assert ok is True
+
     def test_disable_auth_bypass_is_explicit(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("DASHBOARD_DISABLE_AUTH", "1")
         from eigencapital.dashboard.streaming.events import _is_authorized
@@ -198,6 +228,81 @@ class TestWebSocketAuth:
         ws.query_params = {}
         ws.headers = {}
         assert _is_authorized(ws) is True
+
+
+class TestWebSocketSubprotocolEcho:
+    """The server must echo the offered `api-key.*` protocol on accept (RFC 6455)."""
+
+    @staticmethod
+    def _ws_with_protocol_header(value: str | None):
+        ws = AsyncMock()
+        ws.query_params = {}
+        ws.headers = {} if value is None else {"sec-websocket-protocol": value}
+        return ws
+
+    def test_offered_api_key_protocol_returned_for_echo(self) -> None:
+        from eigencapital.dashboard.streaming.events import _offered_api_key_protocol
+
+        ws = self._ws_with_protocol_header("chat, api-key.test-key-123")
+        assert _offered_api_key_protocol(ws) == "api-key.test-key-123"
+
+    def test_no_api_key_protocol_yields_none(self) -> None:
+        from eigencapital.dashboard.streaming.events import _offered_api_key_protocol
+
+        assert _offered_api_key_protocol(self._ws_with_protocol_header("chat")) is None
+        assert _offered_api_key_protocol(self._ws_with_protocol_header(None)) is None
+
+    def test_connect_forwards_subprotocol_to_accept(self) -> None:
+        from eigencapital.dashboard.streaming.events import ConnectionManager
+
+        ws = AsyncMock()
+        manager = ConnectionManager()
+
+        async def scenario() -> None:
+            await manager.connect(ws, subprotocol="api-key.test-key-123")
+            ws.accept.assert_awaited_once_with(subprotocol="api-key.test-key-123")
+            assert ws in manager.active_connections
+
+        asyncio.run(scenario())
+
+
+class TestHttpApiKeyHeader:
+    """HTTP: X-API-Key is canonical; Bearer stays accepted; key never in URL (H-11)."""
+
+    @pytest.fixture(autouse=True)
+    def _clean_env(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.delenv("DASHBOARD_DISABLE_AUTH", raising=False)
+        monkeypatch.setenv("DASHBOARD_API_KEY", "test-key-123")
+        yield
+
+    @staticmethod
+    def _get(headers: dict[str, str]):
+        from fastapi.testclient import TestClient
+
+        from eigencapital.dashboard.api.app import app
+
+        with TestClient(app) as client:
+            return client.get("/api/v1/risk", headers=headers)
+
+    def test_x_api_key_header_accepted(self) -> None:
+        response = self._get({"X-API-Key": "test-key-123"})
+        assert response.status_code != 401
+
+    def test_x_api_key_wrong_rejected(self) -> None:
+        response = self._get({"X-API-Key": "wrong"})
+        assert response.status_code == 401
+
+    def test_missing_key_rejected(self) -> None:
+        response = self._get({})
+        assert response.status_code == 401
+
+    def test_bearer_header_still_accepted(self) -> None:
+        response = self._get({"Authorization": "Bearer test-key-123"})
+        assert response.status_code != 401
+
+    def test_wrong_bearer_rejected(self) -> None:
+        response = self._get({"Authorization": "Bearer wrong"})
+        assert response.status_code == 401
 
 
 class TestSharedBroadcaster:

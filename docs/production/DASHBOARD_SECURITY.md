@@ -30,7 +30,9 @@ The EigenCapital Operations & Risk Dashboard is a **read-only observability laye
 
 ## Authentication (implemented)
 
-- Bearer API key required for all `/api/v1/*` routes (`app.py` middleware).
+- API key required for all `/api/v1/*` routes (`app.py` middleware) via the
+  `X-API-Key` header (canonical) or `Authorization: Bearer` (tooling/legacy);
+  the key never travels in the URL (H-11).
 - Key source: environment variable `DASHBOARD_API_KEY`.
 - **Default key is `dev-key-change-in-production`.** The default is for local
   development only; production deployments **must** set `DASHBOARD_API_KEY` to a
@@ -41,8 +43,12 @@ The EigenCapital Operations & Risk Dashboard is a **read-only observability laye
   tooling; they expose no trading state.
 - `DASHBOARD_DISABLE_AUTH=1` bypasses authentication — **development only**,
   never set in production.
-- WebSocket handshake authenticates via `?token=<key>` (browsers cannot set
-  headers on handshakes) or the `Authorization: Bearer` header.
+- WebSocket handshake authenticates via the `api-key.<key>` subprotocol
+  (`Sec-WebSocket-Protocol`; the server echoes the selected protocol) or the
+  `Authorization: Bearer` header. The legacy `?token=<key>` query parameter is
+  still accepted **only as a transition window** — browsers cannot set
+  handshake headers, which is why the key must not be placed in the URL
+  (H-11); new clients use the subprotocol.
 
 ### Roadmap (not implemented)
 - OAuth2/OIDC, role-based access control, session management.

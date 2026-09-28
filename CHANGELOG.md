@@ -27,7 +27,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security
 - Bearer API key + per-IP rate limit on `/api/v1/*`; constant-time key comparison on HTTP and WebSocket handshakes
-- WebSocket `/ws/live` authenticated (`?token=`), single shared broadcaster instead of per-connection poll loops
+- WebSocket `/ws/live` authenticated (api-key subprotocol / Bearer; legacy `?token=` still accepted during the transition window), single shared broadcaster instead of per-connection poll loops
+- API key no longer travels in the URL (H-11): HTTP uses the `X-API-Key` header, the WebSocket uses the `api-key.<key>` subprotocol (`Sec-WebSocket-Protocol`, echoed on accept); the server keeps accepting legacy `?token=` for existing clients during a transition window
 - Frontend API-key fallback is dev-only — production builds fail closed (401 → explicit error state) instead of embedding a shared default key
 
 ### Changed

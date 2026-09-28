@@ -9,10 +9,10 @@ http://localhost:8080/api/v1
 
 ## Authentication
 ```
-Authorization: Bearer <api_key>
+X-API-Key: <api_key>
 ```
 
-All `/api/v1/*` routes require the bearer key (set via `DASHBOARD_API_KEY`) and are rate-limited per client IP (default 600 req/min, `DASHBOARD_RATE_LIMIT_MAX`). `/healthz` stays open for load balancers. `DASHBOARD_DISABLE_AUTH=1` disables auth for local development only. Only GET is allowed — the dashboard has no mutation endpoints (contract-tested).
+All `/api/v1/*` routes require the API key (set via `DASHBOARD_API_KEY`) and are rate-limited per client IP (default 600 req/min, `DASHBOARD_RATE_LIMIT_MAX`). The canonical header is `X-API-Key`; `Authorization: Bearer <api_key>` remains accepted for tooling and legacy clients — the key never travels in the URL (H-11). `/healthz` stays open for load balancers. `DASHBOARD_DISABLE_AUTH=1` disables auth for local development only. Only GET is allowed — the dashboard has no mutation endpoints (contract-tested).
 
 ## Endpoints
 
@@ -92,7 +92,7 @@ Dimension names: `supervisor`, `broker`, `risk_envelope`, `reconciliation`, `bui
 
 #### GET /api/v1/portfolio/account
 
-**Query parameters (all endpoints):** none. Authentication: `Authorization: Bearer <DASHBOARD_API_KEY>` on every `/api/v1` route; unauthorized requests receive `401`.
+**Query parameters (all endpoints):** none. Authentication: `X-API-Key: <DASHBOARD_API_KEY>` (or `Authorization: Bearer <DASHBOARD_API_KEY>`) on every `/api/v1` route; unauthorized requests receive `401`.
 
 > **Completeness note (2026-09-25):** this document previously omitted the alerts, reconciliation, health/authorization, health/watchdog, and portfolio/summary endpoints. All documented endpoints below match `src/eigencapital/dashboard/api/routes/` as of that date; the canonical machine-readable contract is the OpenAPI schema at `/api/docs`.
 
@@ -363,7 +363,7 @@ Get Phase 2 qualification status.
 #### ws://localhost:8080/ws/live
 Authenticated real-time state updates (fixed 2026-09-25, audit F-04).
 
-**Authentication (required):** pass the dashboard API key as `?token=<DASHBOARD_API_KEY>` (browsers cannot set headers on the WS handshake) or `Authorization: Bearer <key>`. Unauthorized handshakes are closed with code `1008` before any state is sent. `DASHBOARD_DISABLE_AUTH=1` bypasses auth for local development only.
+**Authentication (required):** pass the dashboard API key via the WebSocket subprotocol negotiation — `Sec-WebSocket-Protocol: api-key.<DASHBOARD_API_KEY>` (browsers cannot set custom headers on the handshake, but they can offer subprotocols; the server echoes the selected `api-key.*` protocol on accept). `Authorization: Bearer <key>` is also accepted for non-browser clients. **Legacy `?token=<DASHBOARD_API_KEY>` remains accepted only during the transition window** so existing clients keep working — new clients must not put the key in the URL (H-11), and this fallback will be removed once all clients are migrated. Unauthorized handshakes are closed with code `1008` before any state is sent. `DASHBOARD_DISABLE_AUTH=1` bypasses auth for local development only.
 
 **Transport:** ONE shared broadcaster task pushes a cached state snapshot (max age 5s) to all connected clients every 5 seconds — broker load does not scale with connection count. An initial snapshot is sent on connect; heartbeats every 30s.
 

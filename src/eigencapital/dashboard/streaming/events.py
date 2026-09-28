@@ -18,8 +18,12 @@ Design:
 - Freshness indicators
 
 Security (DASHBOARD_CONTRACT.md §2 T5): the live transport is authenticated.
-Clients pass the API key as `?token=` (or `Authorization: Bearer`) — browsers
-cannot set custom headers on the WebSocket handshake.
+Browsers cannot set custom headers on the WebSocket handshake, so the API key
+is passed via the `api-key.<key>` subprotocol (`Sec-WebSocket-Protocol`); the
+server echoes the selected protocol per RFC 6455. `Authorization: Bearer` is
+also accepted (non-browser clients). Legacy `?token=` query authentication
+remains accepted only during the transition window — the key must not travel
+in the URL (H-11).
 """
 
 from __future__ import annotations
@@ -39,28 +43,64 @@ router = APIRouter(tags=["streaming"])
 _BROADCAST_INTERVAL_SECONDS = 5.0
 _STATE_CACHE_MAX_AGE_SECONDS = 5.0
 
+# Preferred credential transport (H-11): `Sec-WebSocket-Protocol: api-key.<key>`.
+# Subprotocol tokens are client-offered and server-echoed, so the key never
+# appears in the URL and no custom handshake header is required.
+_API_KEY_PROTOCOL_PREFIX = "api-key."
+
 
 def _api_key() -> str:
     """Read the configured API key (env override each request)."""
     return os.environ.get("DASHBOARD_API_KEY", "dev-key-change-in-production")
 
 
+def _offered_api_key_protocol(websocket: WebSocket) -> str | None:
+    """Return the offered `api-key.<key>` subprotocol token, if any.
+
+    The header may carry a comma-separated list of client-offered protocols;
+    the full token (prefix included) is returned so it can be echoed back as
+    the server-selected protocol on accept.
+    """
+    header = websocket.headers.get("sec-websocket-protocol", "")
+    for offered in header.split(","):
+        protocol = offered.strip()
+        if protocol.startswith(_API_KEY_PROTOCOL_PREFIX):
+            return protocol
+    return None
+
+
 def _is_authorized(websocket: WebSocket) -> bool:
     """Authenticate a WebSocket handshake against the dashboard API key.
 
     Mirrors the /api/v1 HTTP middleware (S7): DASHBOARD_DISABLE_AUTH=1 bypasses
-    auth for local development only; otherwise the token query parameter or the
-    Authorization header must carry the configured key.
+    auth for local development only. Credentials are accepted from, in order
+    of preference:
+    1. the `api-key.<key>` subprotocol (Sec-WebSocket-Protocol header),
+    2. `Authorization: Bearer <key>`,
+    3. the legacy `?token=` query parameter (transition window, H-11).
+
+    Every non-empty candidate is checked with a constant-time comparison.
     """
     if os.environ.get("DASHBOARD_DISABLE_AUTH") == "1":
         return True
-    token = websocket.query_params.get("token", "")
-    if not token:
-        auth_header = websocket.headers.get("authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[len("Bearer ") :]
-    # Constant-time comparison, mirroring the HTTP middleware.
-    return bool(token) and secrets.compare_digest(token.encode("utf-8"), _api_key().encode("utf-8"))
+    candidates: list[str] = []
+    api_key_protocol = _offered_api_key_protocol(websocket)
+    if api_key_protocol is not None:
+        candidates.append(api_key_protocol[len(_API_KEY_PROTOCOL_PREFIX) :])
+    auth_header = websocket.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        candidates.append(auth_header[len("Bearer ") :])
+    candidates.append(websocket.query_params.get("token", ""))
+
+    expected = _api_key().encode("utf-8")
+    authorized = False
+    for candidate in candidates:
+        if candidate:
+            # Constant-time comparison for each non-empty candidate (bytes —
+            # tolerates non-ASCII input that would raise in str compare_digest),
+            # mirroring the HTTP middleware. No candidate short-circuits the rest.
+            authorized = secrets.compare_digest(candidate.encode("utf-8"), expected) or authorized
+    return authorized
 
 
 class ConnectionManager:
@@ -69,8 +109,10 @@ class ConnectionManager:
     def __init__(self) -> None:
         self.active_connections: list[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket) -> None:
-        await websocket.accept()
+    async def connect(self, websocket: WebSocket, subprotocol: str | None = None) -> None:
+        # Echo the server-selected subprotocol (RFC 6455): browsers reject a
+        # response that names a protocol the client did not offer.
+        await websocket.accept(subprotocol=subprotocol)
         self.active_connections.append(websocket)
 
     def disconnect(self, websocket: WebSocket) -> None:
@@ -182,14 +224,20 @@ async def websocket_live(websocket: WebSocket) -> None:
     - alert: New alert
     - heartbeat: Keepalive
 
-    Authentication: `?token=<DASHBOARD_API_KEY>` (or Authorization: Bearer).
+    Authentication: `Sec-WebSocket-Protocol: api-key.<DASHBOARD_API_KEY>`
+    (preferred — the selected protocol is echoed on accept), or
+    `Authorization: Bearer <key>`. The legacy `?token=<DASHBOARD_API_KEY>`
+    query parameter is still accepted during the transition window but the
+    key must no longer be placed in the URL (H-11).
     Unauthorized handshakes are closed with policy violation code 1008.
     """
     if not _is_authorized(websocket):
         await websocket.close(code=1008, reason="Unauthorized")
         return
 
-    await manager.connect(websocket)
+    # Echo the offered `api-key.*` protocol (or None when the client offered
+    # none / authenticated via bearer or legacy query token).
+    await manager.connect(websocket, subprotocol=_offered_api_key_protocol(websocket))
     _ensure_broadcaster()
 
     heartbeat_task: asyncio.Task[None] | None = None

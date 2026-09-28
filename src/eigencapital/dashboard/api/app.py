@@ -4,7 +4,9 @@ This is a READ-ONLY observability layer over the existing production trading sys
 It cannot modify R4, risk limits, orders, positions, or qualification results.
 
 Security (S7): every /api/v1 endpoint (live risk/position/evidence state) is
-protected by a bearer API key and a per-IP rate limit. Set DASHBOARD_API_KEY
+protected by an API key — `X-API-Key: <key>` (canonical) or
+`Authorization: Bearer <key>` — and a per-IP rate limit. The key never
+travels in the URL (H-11). Set DASHBOARD_API_KEY
 to a strong random value in production; set DASHBOARD_DISABLE_AUTH=1 only for
 local development against localhost.
 """
@@ -110,10 +112,21 @@ async def require_api_key_and_rate_limit(request: Request, call_next: Any) -> An
         )
     _RATE_LIMITS[client_ip].append(now)
 
+    # X-API-Key is the canonical header (H-11: credentials never travel in the
+    # URL); Authorization: Bearer remains accepted for tooling and legacy
+    # clients. Constant-time comparison (bytes) — avoids timing side channels
+    # and tolerates non-ASCII header input that would raise in str
+    # compare_digest.
+    header_key = request.headers.get("X-API-Key", "")
     auth = request.headers.get("Authorization", "")
-    # Constant-time comparison (bytes) — avoids timing side channels and
-    # tolerates non-ASCII header input that would raise in str compare_digest.
-    if not secrets.compare_digest(auth.encode("utf-8"), f"Bearer {_api_key()}".encode()):
+    api_key = _api_key()
+    x_api_key_ok = bool(header_key) and secrets.compare_digest(
+        header_key.encode("utf-8"), api_key.encode("utf-8")
+    )
+    bearer_ok = bool(auth) and secrets.compare_digest(
+        auth.encode("utf-8"), f"Bearer {api_key}".encode()
+    )
+    if not (x_api_key_ok or bearer_ok):
         return JSONResponse(
             status_code=401,
             content={"error": "Unauthorized", "detail": "Missing or invalid API key"},

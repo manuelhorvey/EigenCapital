@@ -3,16 +3,17 @@ import { getApiBase } from "./config";
 const API_BASE = getApiBase();
 
 // Must match the backend's DASHBOARD_API_KEY (S7). Set VITE_API_KEY at build
-// time — see .env.example. In dev only, fall back to the backend's local-dev
-// default so `vite dev` works out of the box; production builds never embed
-// this fallback (unknown key → API 401 → the UI shows an error state rather
-// than silently shipping a shared default key).
+// time — see .env.example. Sent as the X-API-Key header — the key never
+// travels in the URL (H-11). In dev only, fall back to the backend's
+// local-dev default so `vite dev` works out of the box; production builds
+// never embed this fallback (unknown key → API 401 → the UI shows an error
+// state rather than silently shipping a shared default key).
 const API_KEY: string | undefined =
   import.meta.env.VITE_API_KEY || (import.meta.env.DEV ? "dev-key-change-in-production" : undefined);
 
 export async function fetchApi<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {},
+    headers: API_KEY ? { "X-API-Key": API_KEY } : {},
   });
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);

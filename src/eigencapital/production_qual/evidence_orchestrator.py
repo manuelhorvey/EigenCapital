@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import time
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -57,12 +58,35 @@ from eigencapital.production_qual.live_qualification import (
 from eigencapital.production_qual.phase2_report import Phase2Report, Phase2ReportGenerator
 
 
+@dataclass(frozen=True)
+class _DeferredSnapshotRequest:
+    """H-14: snapshot request held back by the rate limiter.
+
+    Preserves the observation (positions + account state + the time it was
+    observed) so it can be emitted as soon as the snapshot interval allows,
+    instead of being silently dropped.
+    """
+
+    requested_at: float
+    positions: List[Dict[str, Any]]
+    account_equity: float
+    account_balance: float
+    free_margin: float
+
+
 class EvidenceOrchestrator:
     """Central hub for Phase 2 evidence collection.
 
     Integrates all evidence collection into a single interface
     for the live rebalance loop.
     """
+
+    # H-14: cap on throttled snapshot requests held in memory. Once the backlog
+    # is full, the next state-changing request triggers an immediate capture
+    # (bypassing the cooldown) instead of growing the queue, so churn inside
+    # one window can neither accumulate an unbounded backlog nor turn into an
+    # unbounded write burst at the next allowed capture.
+    _max_deferred_snapshots: int = 32
 
     def __init__(
         self,
@@ -99,6 +123,10 @@ class EvidenceOrchestrator:
         # State tracking
         self._last_snapshot_time: float = 0.0
         self._last_report_time: float = 0.0
+        # H-14: throttled requests awaiting the next allowed capture, plus the
+        # fingerprint of the last observed position state (see _position_fingerprint)
+        self._deferred_snapshots: List[_DeferredSnapshotRequest] = []
+        self._last_event_fingerprint: frozenset[tuple[int, float]] | None = None
         self._last_positions: Dict[int, Dict[str, Any]] = {}  # ticket -> position info
         self._position_entry_prices: Dict[int, float] = {}  # ticket -> entry price
         self._position_entry_times: Dict[int, str] = {}  # ticket -> entry timestamp
@@ -125,6 +153,18 @@ class EvidenceOrchestrator:
         Called after each rebalance cycle. Respects snapshot interval
         unless force=True.
 
+        H-14: a request throttled inside the cooldown window is no longer
+        dropped. If it observes a position-state change (entry, exit or
+        partial close) it is deferred and emitted — with its original
+        observation timestamp — by the first capture the interval allows
+        (or immediately by force=True). Requests observing an unchanged
+        state carry no new evidence and are coalesced into the next
+        allowed capture, so rate limiting still prevents snapshot bursts.
+        The backlog is capped at `_max_deferred_snapshots`: when the cap is
+        reached the next state-changing request captures immediately,
+        bypassing the cooldown, so nothing is dropped and the write rate
+        stays bounded.
+
         Args:
             positions: Current broker positions (from mt5.positions_get())
             account_equity: Current account equity
@@ -133,16 +173,108 @@ class EvidenceOrchestrator:
             force: Force snapshot even if interval hasn't elapsed
 
         Returns:
-            Snapshot data if captured, None if skipped
+            Snapshot data if captured, None if skipped (request deferred)
         """
         now = time.time()
 
-        # Rate limiting
+        # Rate limiting (H-14: defer state-changing requests instead of dropping them)
         if not force and (now - self._last_snapshot_time) < self._snapshot_interval:
-            return None
+            backlog_full = len(self._deferred_snapshots) >= self._max_deferred_snapshots
+            unchanged_state = self._position_fingerprint(positions) == self._last_event_fingerprint
+            if not backlog_full or unchanged_state:
+                self._defer_snapshot_request(positions, account_equity, account_balance, free_margin, now)
+                return None
+            # H-14: the backlog is at capacity and this request carries a new
+            # state — capture immediately (bypassing the cooldown) instead of
+            # growing the queue. Nothing is dropped and, because a capture
+            # flushes the backlog, writes stay bounded at the cap.
 
+        # H-14: emit requests deferred during the cooldown, oldest first, so
+        # transient events observed inside the window are not lost. Each
+        # request is dequeued only after its write succeeds: a mid-flush
+        # failure (disk full, torn write) is raised to the caller and leaves
+        # the failed request plus everything behind it still queued.
+        self._flush_deferred_snapshots()
+
+        # Throttle the next capture only now that this one has been recorded,
+        # so a failed flush is retried by the next call instead of waiting out
+        # a fresh cooldown with a stranded backlog.
         self._last_snapshot_time = now
 
+        return self._emit_snapshot(
+            positions,
+            account_equity,
+            account_balance,
+            free_margin,
+            requested_at=now,
+            deferred=False,
+        )
+
+    def _flush_deferred_snapshots(self) -> None:
+        """H-14: emit every throttled request, oldest first.
+
+        Dequeue-after-success: a request leaves the backlog only once its
+        snapshot has been written. A failed write propagates to the caller
+        (it is never swallowed) and keeps the remaining backlog intact, so a
+        partial flush cannot silently discard pending requests.
+        """
+        while self._deferred_snapshots:
+            request = self._deferred_snapshots[0]
+            self._emit_snapshot(
+                request.positions,
+                request.account_equity,
+                request.account_balance,
+                request.free_margin,
+                requested_at=request.requested_at,
+                deferred=True,
+            )
+            self._deferred_snapshots.pop(0)
+
+    def _defer_snapshot_request(
+        self,
+        positions: List[Dict[str, Any]],
+        account_equity: float,
+        account_balance: float,
+        free_margin: float,
+        requested_at: float,
+    ) -> None:
+        """H-14: hold a throttled request until the interval allows a capture.
+
+        Requests whose observed position state matches the last observed
+        state add no evidence and are coalesced (not queued), keeping the
+        rate limiter effective against call bursts. The backlog cap itself is
+        enforced by `capture_cycle_snapshot`, which captures immediately once
+        the cap is reached rather than dropping a request here.
+        """
+        fingerprint = self._position_fingerprint(positions)
+        if fingerprint == self._last_event_fingerprint:
+            return
+        self._last_event_fingerprint = fingerprint
+        self._deferred_snapshots.append(
+            _DeferredSnapshotRequest(
+                requested_at=requested_at,
+                positions=[dict(p) for p in positions],
+                account_equity=account_equity,
+                account_balance=account_balance,
+                free_margin=free_margin,
+            )
+        )
+
+    @staticmethod
+    def _position_fingerprint(positions: List[Dict[str, Any]]) -> frozenset[tuple[int, float]]:
+        """Identify a position state by ticket/volume (captures entries, exits, partial closes)."""
+        return frozenset((int(p.get("ticket") or 0), float(p.get("volume") or 0.0)) for p in positions)
+
+    def _emit_snapshot(
+        self,
+        positions: List[Dict[str, Any]],
+        account_equity: float,
+        account_balance: float,
+        free_margin: float,
+        requested_at: float,
+        deferred: bool,
+    ) -> Dict[str, Any]:
+        """Record one snapshot (immediate or H-14 deferred emission)."""
         # Detect new positions (entries)
         current_tickets = {p.get("ticket") for p in positions}
         new_tickets = current_tickets - set(self._last_positions.keys())
@@ -163,15 +295,21 @@ class EvidenceOrchestrator:
         risk_snapshot = self._build_risk_snapshot(positions, account_equity, account_balance, free_margin)
         self._dataset.record_risk_snapshot(risk_snapshot)
 
-        # Update position tracking
+        # Update position tracking. The state fingerprint is deliberately NOT
+        # advanced here: it moves only after the record is durably written
+        # (see below), otherwise a failed write would arm the unchanged-state
+        # coalescing and the next request for that state would be swallowed —
+        # the cooldown limiter and coalescing must never both lose one event.
         self._last_positions = {int(p.get("ticket", 0)): p for p in positions if p.get("ticket") is not None}
 
         # P2-017: Increment cycle counter for explicit correlation
         self._cycle_counter += 1
 
-        # Save snapshot with explicit correlation IDs
+        # Save snapshot with explicit correlation IDs.
+        # H-14: timestamp is the original observation time, so deferred
+        # records stay chronologically truthful.
         snapshot = {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.fromtimestamp(requested_at, tz=UTC).isoformat(),
             "campaign_id": self._campaign_id,
             "cycle_counter": self._cycle_counter,
             "correlation_id": f"{self._campaign_id}-c{self._cycle_counter}",
@@ -182,9 +320,15 @@ class EvidenceOrchestrator:
             "r4_count": sum(1 for p in positions if p.get("magic") == 20260825),
             "foreign_count": sum(1 for p in positions if p.get("magic") != 20260825),
             "tickets": list(current_tickets),
+            "deferred": deferred,
         }
 
         self._append_jsonl(self._snapshot_file, snapshot)
+
+        # H-14: only a written snapshot may retire this state for coalescing
+        # purposes (a raise above leaves the fingerprint untouched, so the
+        # observation is re-queued instead of swallowed).
+        self._last_event_fingerprint = self._position_fingerprint(positions)
 
         return snapshot
 
@@ -345,6 +489,13 @@ class EvidenceOrchestrator:
         Returns:
             Phase2Report if generated, None if skipped
         """
+        # H-14: drain the snapshot backlog before anything else. The report
+        # path typically runs at campaign end or process shutdown, and without
+        # this drain a queued transient event would be stranded if no later
+        # capture ever happens. Runs even when the report itself is throttled,
+        # so the report cadence can never strand pending evidence.
+        self._flush_deferred_snapshots()
+
         now = time.time()
 
         # Rate limiting

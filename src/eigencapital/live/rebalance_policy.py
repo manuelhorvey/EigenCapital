@@ -26,6 +26,7 @@ block live trading (FingerprintVerifier + T=0 snapshot).
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import UTC, datetime
 from pathlib import Path
@@ -52,6 +53,8 @@ from eigencapital.core.rebalance import (
     experiment_matrix,
 )
 
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "CANONICAL_MIN_WEIGHT",
     "LEDGER_FILE",
@@ -63,6 +66,7 @@ __all__ = [
     "DecisionReason",
     "PolicyConfig",
     "PolicyState",
+    "PolicyStateError",
     "PolicyType",
     "RebalanceDecision",
     "RebalanceEvents",
@@ -130,6 +134,34 @@ def policy_from_env(env: Mapping[str, str] | None = None) -> RebalancePolicy:
 # ── Persistence + ledger (Sections 23/29) ─────────────────────────────
 
 
+class PolicyStateError(ValueError):
+    """Persisted policy state exists but cannot be read or parsed (fail-closed).
+
+    Raised by :func:`load_policy_state` when the state file is present yet
+    corrupt, unreadable, or malformed. Silently returning the default state
+    would erase the restart anchors (day/week) and could double-trade the
+    same period, so the loader surfaces a typed error instead and the caller
+    decides (refuse to start trading). ``path`` and ``reason`` are always
+    carried so the failure can be logged and audited with the file it came
+    from.
+    """
+
+    def __init__(self, path: str | Path, reason: str) -> None:
+        self.path = str(path)
+        self.reason = reason
+        super().__init__(f"unusable rebalance policy state file {self.path}: {reason}")
+
+
+def _policy_state_error(path: Path, reason: str) -> PolicyStateError:
+    """Build the fail-closed error and log it at ERROR with path + reason."""
+    logger.error(
+        "rebalance policy state file unusable — not falling back to default state: path=%s reason=%s",
+        path,
+        reason,
+    )
+    return PolicyStateError(path, reason)
+
+
 def save_policy_state(audit_dir: str | Path, state: PolicyState) -> None:
     """Atomic-write policy state (crash-safe, same pattern as runtime_state)."""
     path = Path(audit_dir) / STATE_FILE
@@ -153,16 +185,38 @@ def load_policy_state(audit_dir: str | Path, policy: RebalancePolicy) -> PolicyS
     period anchors (they are not meaningful for this policy), but the shared
     fields (last_target_hash, last_decision, last_signal_timestamp) are
     always surfaced.
+
+    Fail-closed loading (M-11):
+        * no state file → return the policy's default state (first run);
+        * file present but corrupt/unreadable/malformed → raise
+          :class:`PolicyStateError` (logged at ERROR with path + reason).
+          Falling back to defaults would silently drop the restart anchors
+          and could double-trade, so the caller must decide instead.
     """
     path = Path(audit_dir) / STATE_FILE
-    if not path.exists():
+    try:
+        present = path.exists()
+    except OSError as e:
+        # Cannot even stat the path → absence is unproven → fail closed.
+        raise _policy_state_error(path, f"unreadable ({type(e).__name__}: {e})") from e
+    if not present:
         return policy.state
     try:
         with open(path) as f:
             data = json.load(f)
-    except (json.JSONDecodeError, OSError):
+    except FileNotFoundError:
+        # Deleted/atomically-replaced between exists() and open() → same as absent.
         return policy.state
-    saved = PolicyState.from_dict(data)
+    except OSError as e:
+        raise _policy_state_error(path, f"unreadable ({type(e).__name__}: {e})") from e
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise _policy_state_error(path, f"invalid JSON ({type(e).__name__}: {e})") from e
+    if not isinstance(data, dict):
+        raise _policy_state_error(path, f"expected a JSON object, got {type(data).__name__}")
+    try:
+        saved = PolicyState.from_dict(data)
+    except (AttributeError, KeyError, TypeError, ValueError) as e:
+        raise _policy_state_error(path, f"malformed state fields ({type(e).__name__}: {e})") from e
     policy.state.last_target_hash = saved.last_target_hash
     policy.state.last_decision = saved.last_decision
     policy.state.last_decision_reason = saved.last_decision_reason

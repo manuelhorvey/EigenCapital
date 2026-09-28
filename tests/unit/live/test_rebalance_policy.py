@@ -8,6 +8,7 @@ ledger isolation, and shadow evaluation.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -15,9 +16,11 @@ import pytest
 
 from eigencapital.live.rebalance_policy import (
     CANONICAL_MIN_WEIGHT,
+    STATE_FILE,
     DecisionAction,
     DecisionReason,
     PolicyConfig,
+    PolicyStateError,
     PolicyType,
     RebalanceDecision,
     RebalanceEvents,
@@ -394,6 +397,71 @@ class TestPersistenceAndIdempotency:
                 current_weights={"A": 0.05}, target_weights={"A": 0.05}, signal_timestamp=None, now=NOW
             )
             assert d.action is DecisionAction.HOLD
+
+
+# ── M-11: corrupt/unreadable state file must fail closed (no silent default) ─
+
+
+class TestCorruptStateFailsClosed:
+    def test_absent_file_returns_default_state(self, tmp_path: Path):
+        policy = build_policy(PolicyConfig(policy_type=PolicyType.DAILY))
+        state = load_policy_state(tmp_path, policy)  # no file yet → default is correct
+        assert state is policy.state
+        assert state.last_rebalance_day == ""
+        assert state.last_target_hash == ""
+
+    def test_corrupt_file_raises_instead_of_default(self, tmp_path: Path):
+        path = tmp_path / STATE_FILE
+        path.write_text('{"last_rebalance_day": "2026-09-16",')  # truncated JSON
+        policy = build_policy(PolicyConfig(policy_type=PolicyType.DAILY))
+        with pytest.raises(PolicyStateError) as exc:
+            load_policy_state(tmp_path, policy)  # must NOT return silently
+        # Error carries the file path and the parse failure.
+        assert exc.value.path == str(path)
+        assert str(path) in str(exc.value)
+        assert exc.value.reason in str(exc.value)
+        assert "invalid JSON" in exc.value.reason
+
+    def test_corrupt_file_is_logged_at_error_with_path(self, tmp_path: Path, caplog: pytest.LogCaptureFixture):
+        path = tmp_path / STATE_FILE
+        path.write_text("{ not json")
+        policy = build_policy(PolicyConfig(policy_type=PolicyType.DAILY))
+        with (
+            caplog.at_level(logging.ERROR, logger="eigencapital.live.rebalance_policy"),
+            pytest.raises(PolicyStateError),
+        ):
+            load_policy_state(tmp_path, policy)
+        errors = [r for r in caplog.records if r.levelname == "ERROR"]
+        assert errors, "corrupt policy state must be logged at ERROR"
+        assert str(path) in caplog.text  # file path surfaced
+        assert "invalid JSON" in caplog.text  # parse failure surfaced
+
+    def test_unreadable_file_raises(self, tmp_path: Path):
+        # State path exists but is a directory → open() fails (OSError).
+        (tmp_path / STATE_FILE).mkdir()
+        policy = build_policy(PolicyConfig(policy_type=PolicyType.DAILY))
+        with pytest.raises(PolicyStateError) as exc:
+            load_policy_state(tmp_path, policy)
+        assert exc.value.path == str(tmp_path / STATE_FILE)
+        assert "unreadable" in exc.value.reason
+
+    def test_non_object_json_raises(self, tmp_path: Path):
+        (tmp_path / STATE_FILE).write_text('["not", "a", "state"]')
+        policy = build_policy(PolicyConfig(policy_type=PolicyType.DAILY))
+        with pytest.raises(PolicyStateError) as exc:
+            load_policy_state(tmp_path, policy)
+        assert "expected a JSON object" in exc.value.reason
+
+    def test_valid_file_still_parses(self, tmp_path: Path):
+        saved = build_policy(PolicyConfig(policy_type=PolicyType.DAILY))
+        saved.state.last_rebalance_day = "2026-09-16"
+        saved.state.last_target_hash = "abc123"
+        save_policy_state(tmp_path, saved.state)
+
+        restarted = build_policy(PolicyConfig(policy_type=PolicyType.DAILY))
+        state = load_policy_state(tmp_path, restarted)
+        assert state.last_rebalance_day == "2026-09-16"
+        assert state.last_target_hash == "abc123"
 
 
 # ── Target hashing + turnover ───────────────────────────────────────────

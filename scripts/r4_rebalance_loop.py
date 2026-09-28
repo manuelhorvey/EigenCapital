@@ -68,6 +68,7 @@ from eigencapital.live.daily_loss import DailyLossTracker  # noqa: E402
 from eigencapital.live.partial_fills import PartialFillManager  # noqa: E402
 from eigencapital.live.position_attribution import R4_MAGIC, classify_all, snapshot_hash  # noqa: E402
 from eigencapital.live.rebalance_policy import (  # noqa: E402
+    PolicyStateError,
     RebalanceDecision,
     RebalanceEvents,
     RebalancePolicyLedger,
@@ -2930,7 +2931,18 @@ def main() -> None:
 
     # Rebalance policy (EXP-000002): restore persisted anchors so a restart
     # cannot double-trade the same day/week (idempotency, Sections 23/24).
-    load_policy_state(AUDIT_DIR, _rebalance_policy)
+    # M-11: a corrupt/unreadable state file means the day/week anchors are
+    # unknown — starting anyway could double-trade. Fail closed exactly like
+    # the config/fingerprint startup gates: log + audit, disconnect, refuse
+    # to authorize trading (instead of an unhandled traceback before audit).
+    try:
+        load_policy_state(AUDIT_DIR, _rebalance_policy)
+    except PolicyStateError as e:
+        log(f"\n🔴 REBALANCE POLICY STATE UNREADABLE — cannot start trading: {e}")
+        log("   Fix or remove rebalance_policy_state.json, then restart.")
+        audit({"event": "rebalance_policy_state_unusable", "path": e.path, "reason": e.reason})
+        mt5.shutdown()
+        return
     log(
         f"Rebalance policy: {_rebalance_policy.config.policy_id} "
         f"(env R4_REBALANCE_POLICY={os.environ.get('R4_REBALANCE_POLICY', 'CANONICAL')})"

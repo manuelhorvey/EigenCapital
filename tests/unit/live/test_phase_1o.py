@@ -8,13 +8,22 @@ Tests:
 - Live/shadow/backtest divergence
 - Preflight checks
 - Kill switch validation
+- Authorization record signing (HMAC-SHA256, fail-closed)
 - Adversarial scenarios
 """
 
+import logging
+from dataclasses import replace
+
+import pytest
+
 from eigencapital.live.authorization import (
+    LEGACY_UNSIGNED_WINDOW_END,
+    SIGNING_KEY_ENV_VAR,
     AuthorizationGate,
     ExecutionMode,
     LiveAuthorization,
+    sign_authorization,
 )
 from eigencapital.live.broker import BrokerConfig, BrokerStatus, LiveBrokerAdapter
 from eigencapital.live.campaign import (
@@ -315,6 +324,92 @@ class TestAuthorizationGate:
         gate.validate_authorization("nonexistent", "2026-06-01T00:00:00")
         log = gate.get_rejection_log()
         assert len(log) == 1
+
+
+# ============================================================
+# Authorization Record Signing Tests (HMAC-SHA256, fail-closed)
+# ============================================================
+
+
+class TestAuthorizationSigning:
+    """HMAC-SHA256 signing of authorization records — fail-closed verification."""
+
+    _TEST_SIGNING_KEY = "unit-test-signing-key-for-tests-only"
+
+    def _make_auth(self, **overrides):
+        defaults = {
+            "authorization_id": "auth-1",
+            "campaign_id": "camp-1",
+            "strategy_fingerprint": "strat-fp",
+            "portfolio_fingerprint": "port-fp",
+            "risk_fingerprint": "risk-fp",
+            "execution_fingerprint": "exec-fp",
+            "broker_identity": "broker-1",
+            "account_identity": "acct-1",
+            "execution_mode": ExecutionMode.LIVE.value,
+            "max_capital": 10000.0,
+            "max_drawdown": 2000.0,
+            "operator_identity": "operator-1",
+            "authorization_timestamp": "2026-01-01T00:00:00",
+            "expiry_timestamp": "2026-12-31T23:59:59",
+        }
+        defaults.update(overrides)
+        return LiveAuthorization(**defaults)
+
+    def test_valid_signature_accepted(self, monkeypatch):
+        """A record signed with the configured key validates."""
+        monkeypatch.setenv(SIGNING_KEY_ENV_VAR, self._TEST_SIGNING_KEY)
+        gate = AuthorizationGate()
+        gate.grant_authorization(self._make_auth())
+        stored = gate.get_active_authorization("camp-1")
+        assert stored is not None
+        assert stored.signature != ""
+        authorized, reason = gate.validate_authorization("auth-1", "2026-06-01T00:00:00")
+        assert authorized is True, reason
+
+    def test_tampered_payload_rejected(self, monkeypatch):
+        """A payload altered after signing no longer matches its HMAC."""
+        monkeypatch.setenv(SIGNING_KEY_ENV_VAR, self._TEST_SIGNING_KEY)
+        signed = sign_authorization(self._make_auth())
+        tampered = replace(signed, max_capital=999_999.0)
+        gate = AuthorizationGate()
+        gate.grant_authorization(tampered)
+        authorized, reason = gate.validate_authorization("auth-1", "2026-06-01T00:00:00")
+        assert authorized is False
+        assert "signature" in reason.lower()
+
+    def test_missing_signature_inside_window_accepted_and_logged(self, monkeypatch, caplog):
+        """Pre-signing records validate inside the window and are logged as legacy."""
+        monkeypatch.delenv(SIGNING_KEY_ENV_VAR, raising=False)
+        gate = AuthorizationGate()
+        gate.grant_authorization(self._make_auth())  # granted by pre-signing code
+        monkeypatch.setenv(SIGNING_KEY_ENV_VAR, self._TEST_SIGNING_KEY)
+        with caplog.at_level(logging.WARNING, logger="eigencapital.live.authorization"):
+            authorized, reason = gate.validate_authorization("auth-1", "2026-06-01T00:00:00")
+        assert authorized is True, reason
+        assert "legacy" in caplog.text.lower()
+
+    def test_missing_signature_outside_window_rejected(self, monkeypatch):
+        """The legacy window is time-bounded: unsigned records die with it."""
+        monkeypatch.delenv(SIGNING_KEY_ENV_VAR, raising=False)
+        gate = AuthorizationGate()
+        gate.grant_authorization(self._make_auth())
+        after_window = f"{int(LEGACY_UNSIGNED_WINDOW_END[:4]) + 1}-01-01T00:00:00"
+        authorized, reason = gate.validate_authorization("auth-1", after_window)
+        assert authorized is False
+        assert "legacy window" in reason.lower()
+
+    def test_missing_signing_key_fails_closed(self, monkeypatch):
+        """No key → nothing is signed, and nothing unverifiable is accepted."""
+        monkeypatch.delenv(SIGNING_KEY_ENV_VAR, raising=False)
+        with pytest.raises(ValueError, match=SIGNING_KEY_ENV_VAR):
+            sign_authorization(self._make_auth())
+        signed = sign_authorization(self._make_auth(), signing_key=self._TEST_SIGNING_KEY)
+        gate = AuthorizationGate()
+        gate.grant_authorization(signed)
+        authorized, reason = gate.validate_authorization("auth-1", "2026-06-01T00:00:00")
+        assert authorized is False
+        assert SIGNING_KEY_ENV_VAR in reason
 
 
 # ============================================================

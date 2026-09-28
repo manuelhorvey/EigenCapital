@@ -1,7 +1,7 @@
 # EigenCapital — Findings Registry
 > Branch: fix/findings-resolution
 > Baseline: ruff ❌ 2 pre-existing F401 · mypy ✅ 309 files · unit tests ✅ 3391 passed, 2 skipped
-> Last updated: 2026-09-28
+> Last updated: 2026-09-28 (post-resolution: ruff ✅ · mypy ✅ 309 files · 3450 passed, 2 skipped)
 
 ## BASELINE (pre-change state, recorded 2026-09-28)
 - **Ruff**: 2 pre-existing errors (out of scope, will be cleaned up with H-5/C-5):
@@ -14,7 +14,7 @@
 - `open` / `in_progress` / `done` / `blocked` / `skipped`
 
 ## WORK QUEUE (orchestrator)
-- **In flight** (uncommitted from prior session, needs independent verification): C-1, C-3, C-4, C-5, C-6, H-4, H-5
+- **Verified & committed this run**: C-1, C-3, C-4, C-5, C-6, H-4, H-5, H-7, H-12 (each independently reviewed, one commit per finding)
 - **This run** (per instruction): H-5 → L-8, in severity order, parallel only across disjoint files
 - **Not in requested range**: C-2, H-1, H-2, H-3 — carried forward to the final re-scan
 
@@ -24,12 +24,12 @@
 
 | ID | Description | Affected Files | Status |
 |---|---|---|---|
-| C-1 | Fingerprint verifier caches after first cycle — never re-hashes | `production_qual/fingerprint_verifier.py` | in_progress |
+| C-1 | Fingerprint verifier caches after first cycle — never re-hashes | `production_qual/fingerprint_verifier.py` | done |
 | C-2 | `live/broker.py` stub doesn't send real orders | `live/broker.py`, `scripts/r4_rebalance_loop.py` | open |
-| C-3 | `durable_audit.py` no file lock on append + mirror zeroing | `live/durable_audit.py` | in_progress |
-| C-4 | `supervisor.py` TOCTOU race — duplicate live loop risk | `live/supervisor.py` | in_progress |
-| C-5 | `daily_loss.py` static UTC offset breaks on DST | `live/daily_loss.py` | in_progress |
-| C-6 | `catastrophic_protection.py` retry loop drops exceptions | `live/catastrophic_protection.py` | in_progress |
+| C-3 | `durable_audit.py` no file lock on append + mirror zeroing | `live/durable_audit.py` | done |
+| C-4 | `supervisor.py` TOCTOU race — duplicate live loop risk | `live/supervisor.py` | done |
+| C-5 | `daily_loss.py` static UTC offset breaks on DST | `live/daily_loss.py` | done |
+| C-6 | `catastrophic_protection.py` retry loop drops exceptions | `live/catastrophic_protection.py` | done |
 
 ## HIGH (P1)
 
@@ -38,14 +38,14 @@
 | H-1 | Hardcoded 1-contract sizing ignores target_risk | `portfolio/portfolio.py:184` | open |
 | H-2 | Exposure calc uses entry price not market price | `portfolio/portfolio.py:56` | open |
 | H-3 | `_deep_merge` shallow copy mutates base config | `config.py:270` | open |
-| H-4 | Reconciliation ignores swaps/commissions | `reconciliation/engine.py:698-725` | in_progress |
-| H-5 | `watchdog.py` pgrep match is brittle | `live/watchdog.py` | in_progress |
-| H-7 | No unit tests for ReconciliationEngine | `tests/unit/reconciliation/` (missing) | open |
+| H-4 | Reconciliation ignores swaps/commissions | `reconciliation/engine.py:698-725` | done |
+| H-5 | `watchdog.py` pgrep match is brittle | `live/watchdog.py` | done |
+| H-7 | No unit tests for ReconciliationEngine | `tests/unit/reconciliation/` (missing) | done |
 | H-8 | `campaign.py` state purely in-memory | `live/campaign.py` | open |
 | H-9 | `trading_provider.py` swallows all exceptions in connect() | `execution/trading_provider.py` | open |
 | H-10 | Dead [risk] config table never parsed | `configs/production/config.toml`, `config.py` | open |
 | H-11 | Auth token in URL query string (dashboard) | `dashboard/src/lib/config.ts` | open |
-| H-12 | Fingerprint verifier tests miss cache bypass | `tests/unit/production_qual/` | open |
+| H-12 | Fingerprint verifier tests miss cache bypass | `tests/unit/production_qual/` | done |
 | H-13 | Min-lot forcing bypasses concentration limits | `scripts/r4_rebalance_loop.py` | open |
 | H-14 | Snapshot rate limiter misses transient events | `production_qual/evidence_orchestrator.py` | open |
 
@@ -111,3 +111,7 @@
 - M-13: Move account ID / server to env vars (MT5_ACCOUNT_ID, MT5_SERVER) with placeholder in config
 - M-14: pip-compile → requirements.txt + requirements-dev.txt and commit
 - M-1: Extract key concerns into modules; keep script as orchestrator
+- H-11: Move the token out of the URL — `X-API-Key` header on HTTP, WS subprotocol/message for WebSocket; server accepts both during a transition window
+- M-8: Mask in the DTO layer (account IDs, balances, notionals rounded; exact values stay behind the authenticated API)
+- M-10: HMAC-SHA256 signing with fail-closed verification, with an accept-then-reject window for legacy unsigned records
+

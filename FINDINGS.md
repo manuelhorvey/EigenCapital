@@ -14,7 +14,10 @@
 - `open` / `in_progress` / `done` / `blocked` / `skipped`
 
 ## WORK QUEUE (orchestrator)
-- **Verified & committed this run**: C-1, C-3, C-4, C-5, C-6, H-4, H-5, H-7, H-12 (each independently reviewed, one commit per finding)
+- **Verified & committed this run (batch 1)**: C-1, C-3, C-4, C-5, C-6, H-4, H-5, H-7, H-12
+- **Verified & committed this run (batch 2)**: H-8, H-9, H-9b, H-11, H-14 (each independently reviewed, one commit per finding)
+- **Next**: config cluster H-10 + M-13 + M-14 (same files, sequential), then M-2, M-6/M-7, M-8, M-10, M-11, r4-loop cluster (H-13, M-9, M-12, M-1), portfolio cluster (M-5 → L-1/L-2), M-3/M-4, then L-3..L-8
+- **Out of range, carried to final re-scan**: C-2, H-1, H-2, H-3
 - **This run** (per instruction): H-5 → L-8, in severity order, parallel only across disjoint files
 - **Not in requested range**: C-2, H-1, H-2, H-3 — carried forward to the final re-scan
 
@@ -41,13 +44,14 @@
 | H-4 | Reconciliation ignores swaps/commissions | `reconciliation/engine.py:698-725` | done |
 | H-5 | `watchdog.py` pgrep match is brittle | `live/watchdog.py` | done |
 | H-7 | No unit tests for ReconciliationEngine | `tests/unit/reconciliation/` (missing) | done |
-| H-8 | `campaign.py` state purely in-memory | `live/campaign.py` | open |
-| H-9 | `trading_provider.py` swallows all exceptions in connect() | `execution/trading_provider.py` | open |
+| H-8 | `campaign.py` state purely in-memory | `live/campaign.py` | done |
+| H-9 | `trading_provider.py` swallows all exceptions in connect() | `execution/trading_provider.py` | done |
+| H-9b | Same swallow defect on the real call path: `MT5Connection.connect()` | `micro_live/runner.py:37` | done |
 | H-10 | Dead [risk] config table never parsed | `configs/production/config.toml`, `config.py` | open |
-| H-11 | Auth token in URL query string (dashboard) | `dashboard/src/lib/config.ts` | open |
+| H-11 | Auth token in URL query string (dashboard) | `dashboard/src/lib/config.ts` | done |
 | H-12 | Fingerprint verifier tests miss cache bypass | `tests/unit/production_qual/` | done |
 | H-13 | Min-lot forcing bypasses concentration limits | `scripts/r4_rebalance_loop.py` | open |
-| H-14 | Snapshot rate limiter misses transient events | `production_qual/evidence_orchestrator.py` | open |
+| H-14 | Snapshot rate limiter misses transient events | `production_qual/evidence_orchestrator.py` | done |
 
 ## MEDIUM (P2)
 

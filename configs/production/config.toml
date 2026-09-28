@@ -47,8 +47,8 @@ max_spread_by_class = { energy = 0.0030 }
 
 US30 = "indices"          # min lot $2,675 (fits $5K cap)
 USTEC = "indices"         # min lot fits campaign position limit
-HK50 = "indices"          # admitted 2026-09-27 — min-lot fit unverified against live account
-JP225 = "indices"         # admitted 2026-09-27 — min-lot fit unverified against live account
+HK50 = "indices"          # admitted 2026-09-27 — min-lot fit VERIFIED 2026-09-28: 0.07 lots × $24,635 ≈ $1,726 (fits $5K cap, but floors sub-$1,726 signals → weight distortion, see weight_deviation evidence)
+JP225 = "indices"         # admitted 2026-09-27 — min-lot fit VERIFIED UNFIT 2026-09-28: 3.0 lots × $66,364 ≈ $199K >> $5K cap → never executable, produces no orders (silently skipped in generate_orders); HHI diagnostic still counts its signal weight
 USOIL = "energy"          # min lot fits $5K cap
 AUDJPY = "forex_excluded"  # min lot $114K (JPY)
 AUDUSD = "forex"          # min lot $716

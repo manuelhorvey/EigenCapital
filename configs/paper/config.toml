@@ -30,6 +30,7 @@ USTECm = "indices"
 BTCUSDm = "crypto"
 ETHUSDm = "crypto"
 USOILm = "energy"
+HK50 = "indices" 
 
 [capital]
 # Paper trading — larger limits for validation

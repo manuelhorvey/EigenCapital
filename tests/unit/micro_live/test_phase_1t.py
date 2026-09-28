@@ -1,5 +1,9 @@
 """Phase 1T Tests — Micro-Live Qualification."""
 
+import logging
+import sys
+import types
+
 import pytest
 
 from eigencapital.micro_live.campaign import (
@@ -13,6 +17,7 @@ from eigencapital.micro_live.campaign import (
 from eigencapital.micro_live.qualification import (
     MicroLiveEvaluator,
 )
+from eigencapital.micro_live.runner import MT5Connection
 
 # ============================================================
 # MICRO-LIVE ENVELOPE TESTS
@@ -475,3 +480,125 @@ class TestAdversarialMicroLive:
         report = evaluator.evaluate(camp)
         # Should still qualify — behavior is correct even though losing
         assert report.verdict in (MicroLiveVerdict.QUALIFIED, MicroLiveVerdict.QUALIFIED_WITH_RESTRICTIONS)
+
+
+# ============================================================
+# H-9b — MT5Connection.connect() error policy
+# ============================================================
+
+RUNNER_LOGGER = "eigencapital.micro_live.runner"
+
+
+def _install_fake_mt5(
+    monkeypatch,
+    initialize_result: bool = True,
+    init_error: BaseException | None = None,
+    ctor_error: BaseException | None = None,
+) -> None:
+    """Install a scripted stand-in for the mt5linux binding on sys.modules."""
+
+    class _FakeMT5:
+        def __init__(self, host: str = "127.0.0.1", port: int = 8001) -> None:
+            if ctor_error is not None:
+                raise ctor_error
+            self.host = host
+            self.port = port
+
+        def initialize(self) -> bool:
+            if init_error is not None:
+                raise init_error
+            return initialize_result
+
+        def shutdown(self) -> None:
+            return None
+
+    fake_module = types.ModuleType("mt5linux")
+    fake_module.MetaTrader5 = _FakeMT5
+    monkeypatch.setitem(sys.modules, "mt5linux", fake_module)
+
+
+class TestMT5ConnectionConnectErrorPolicy:
+    """H-9b regression: connect() separates environment-absent from defects."""
+
+    def test_binding_unavailable_returns_false(self, monkeypatch):
+        """ImportError (mt5linux not installed) still returns False."""
+        monkeypatch.setitem(sys.modules, "mt5linux", None)
+        conn = MT5Connection()
+        assert conn.connect() is False
+        assert conn.is_connected is False
+
+    def test_bridge_unreachable_returns_false(self, monkeypatch):
+        """Connection refused / bridge down is an environment failure → False."""
+        _install_fake_mt5(
+            monkeypatch, init_error=ConnectionRefusedError("[Errno 111] Connection refused")
+        )
+        conn = MT5Connection()
+        assert conn.connect() is False
+        assert conn.is_connected is False
+
+    def test_initialize_reports_unavailable_returns_false(self, monkeypatch):
+        """initialize() returning False is the documented unavailable case."""
+        _install_fake_mt5(monkeypatch, initialize_result=False)
+        conn = MT5Connection()
+        assert conn.connect() is False
+        assert conn.is_connected is False
+
+    def test_successful_connect_sets_connected_flag(self, monkeypatch):
+        _install_fake_mt5(monkeypatch)
+        conn = MT5Connection()
+        assert conn.connect() is True
+        assert conn.is_connected is True
+
+    def test_unexpected_error_in_initialize_propagates(self, monkeypatch):
+        """A defect must not be reported as plain "not connected"."""
+        _install_fake_mt5(monkeypatch, init_error=TypeError("initialize() bad config"))
+        conn = MT5Connection()
+        with pytest.raises(TypeError):
+            conn.connect()
+        assert conn.is_connected is False
+
+    def test_unexpected_error_in_binding_constructor_propagates(self, monkeypatch):
+        _install_fake_mt5(monkeypatch, ctor_error=RuntimeError("defect in binding constructor"))
+        conn = MT5Connection()
+        with pytest.raises(RuntimeError):
+            conn.connect()
+        assert conn.is_connected is False
+
+    def test_connected_flag_not_left_true_after_failure(self, monkeypatch):
+        """A failure on a later connect must clear a previously True flag."""
+        _install_fake_mt5(monkeypatch)
+        conn = MT5Connection()
+        assert conn.connect() is True
+
+        _install_fake_mt5(monkeypatch, init_error=AttributeError("defect after connect"))
+        with pytest.raises(AttributeError):
+            conn.connect()
+        assert conn.is_connected is False
+
+    def test_environment_failure_logged_at_error(self, monkeypatch, caplog):
+        _install_fake_mt5(monkeypatch, init_error=ConnectionRefusedError("refused"))
+        with caplog.at_level(logging.DEBUG, logger=RUNNER_LOGGER):
+            assert MT5Connection().connect() is False
+        records = [r for r in caplog.records if r.name == RUNNER_LOGGER]
+        assert records
+        assert max(r.levelno for r in records) >= logging.ERROR
+
+    def test_binding_unavailable_logged_at_warning(self, monkeypatch, caplog):
+        monkeypatch.setitem(sys.modules, "mt5linux", None)
+        with caplog.at_level(logging.DEBUG, logger=RUNNER_LOGGER):
+            assert MT5Connection().connect() is False
+        records = [r for r in caplog.records if r.name == RUNNER_LOGGER]
+        assert records
+        assert max(r.levelno for r in records) >= logging.WARNING
+
+    def test_unexpected_error_logged_with_traceback(self, monkeypatch, caplog):
+        _install_fake_mt5(monkeypatch, init_error=RuntimeError("defect"))
+        conn = MT5Connection()
+        with (
+            caplog.at_level(logging.DEBUG, logger=RUNNER_LOGGER),
+            pytest.raises(RuntimeError),
+        ):
+            conn.connect()
+        records = [r for r in caplog.records if r.name == RUNNER_LOGGER]
+        assert records
+        assert any(r.levelno >= logging.ERROR and r.exc_info is not None for r in records)

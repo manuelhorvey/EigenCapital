@@ -35,17 +35,46 @@ class MT5Connection:
         self._connected = False
 
     def connect(self) -> bool:
+        """Connect to MT5.
+
+        Returns True on success. Returns False only for *expected,
+        environmental* failures:
+
+        - ImportError: the mt5linux binding is not installed on this host.
+        - OSError: the bridge/terminal is unreachable (connection refused,
+          host unreachable, DNS failure, timeout).
+
+        Anything else (AttributeError, TypeError, config/auth defects, ...)
+        is a defect and is re-raised so it can never be mistaken for a plain
+        "not connected" — mirrors MT5BaseProvider.connect(). ``_connected``
+        is never left True when this method returns False or raises.
+        """
+        self._connected = False
         try:
             from mt5linux import MetaTrader5
 
             self._mt5 = MetaTrader5(host=self._host, port=self._port)
-            self._connected = self._mt5.initialize()
-            if self._connected:
+            connected = bool(self._mt5.initialize())
+            if connected:
                 logger.info(f"MT5 connected on {self._host}:{self._port}")
-            return self._connected
-        except Exception as e:
-            logger.error(f"MT5 connection failed: {e}")
+            self._connected = connected
+            return connected
+        except ImportError as e:
+            # Binding genuinely unavailable on this host — expected.
+            logger.warning("mt5linux binding not available: %s", e)
+            self._connected = False
             return False
+        except OSError as e:
+            # Bridge unreachable / connection refused — expected environment
+            # failure (ImportError is not an OSError, so both branches stand).
+            logger.error("MT5 connection failed (environment unavailable): %s", e)
+            self._connected = False
+            return False
+        except Exception:
+            # Unexpected defect: reset state, log loudly, propagate.
+            self._connected = False
+            logger.exception("Unexpected error during MT5 connect — re-raising as a defect")
+            raise
 
     def get_account_info(self) -> Dict[str, Any]:
         if not self._connected:

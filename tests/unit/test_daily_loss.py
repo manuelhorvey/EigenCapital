@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import tempfile
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -248,3 +249,113 @@ class TestDiagnostics:
         assert "is_breached" in d
         assert "remaining_budget" in d
         assert d["daily_loss"] == 100.0
+
+
+def _freeze_clock(monkeypatch, instant_utc: datetime) -> None:
+    """Freeze daily_loss's view of now to a fixed UTC instant (C-5 tests)."""
+
+    class _FrozenDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            if tz is None:
+                return instant_utc.replace(tzinfo=None)
+            return instant_utc.astimezone(tz)
+
+    monkeypatch.setattr("eigencapital.live.daily_loss.datetime", _FrozenDateTime)
+
+
+class TestDSTTransitions:
+    """C-5 regression: the daily boundary must follow the IANA zone's local
+    calendar date across DST transitions — a fixed UTC offset drifts by an
+    hour when the zone switches between standard time and DST."""
+
+    def test_berlin_spring_forward_boundary(self, tmp_dir, monkeypatch):
+        """Berlin local midnight 2025-03-30 = 2025-03-29T23:00Z (CET, UTC+1)."""
+        tracker = DailyLossTracker(persistence_dir=tmp_dir, tz_name="Europe/Berlin")
+
+        _freeze_clock(monkeypatch, datetime(2025, 3, 29, 22, 59, tzinfo=UTC))
+        assert tracker._today_str() == "2025-03-29"
+        _freeze_clock(monkeypatch, datetime(2025, 3, 29, 23, 0, tzinfo=UTC))
+        assert tracker._today_str() == "2025-03-30"
+
+        # 2025-03-30T01:00Z is the transition instant (02:00 CET → 03:00 CEST)
+        _freeze_clock(monkeypatch, datetime(2025, 3, 30, 1, 0, tzinfo=UTC))
+        assert tracker._today_str() == "2025-03-30"
+
+    def test_berlin_summer_midnight_uses_dst_offset(self, tmp_dir, monkeypatch):
+        """Under CEST (UTC+2) local midnight is 22:00Z. A fixed +01:00 offset
+        (the C-5 bug) would still report the previous date at that instant."""
+        tracker = DailyLossTracker(persistence_dir=tmp_dir, tz_name="Europe/Berlin")
+        instant = datetime(2025, 6, 30, 22, 0, tzinfo=UTC)
+
+        _freeze_clock(monkeypatch, instant - timedelta(minutes=1))
+        assert tracker._today_str() == "2025-06-30"
+        _freeze_clock(monkeypatch, instant)
+        assert tracker._today_str() == "2025-07-01"
+
+        static_offset_date = (instant + timedelta(hours=1)).strftime("%Y-%m-%d")
+        assert static_offset_date == "2025-06-30"  # fixed offset fails here
+
+    def test_berlin_autumn_fallback_boundary(self, tmp_dir, monkeypatch):
+        """Berlin local midnight 2025-10-26 = 2025-10-25T22:00Z (still CEST)."""
+        tracker = DailyLossTracker(persistence_dir=tmp_dir, tz_name="Europe/Berlin")
+
+        _freeze_clock(monkeypatch, datetime(2025, 10, 25, 21, 59, tzinfo=UTC))
+        assert tracker._today_str() == "2025-10-25"
+        _freeze_clock(monkeypatch, datetime(2025, 10, 25, 22, 0, tzinfo=UTC))
+        assert tracker._today_str() == "2025-10-26"
+
+        # 2025-10-26T01:00Z = 02:00 CET after fallback (03:00 → 02:00);
+        # the repeated local hour must not shift the date
+        _freeze_clock(monkeypatch, datetime(2025, 10, 26, 1, 0, tzinfo=UTC))
+        assert tracker._today_str() == "2025-10-26"
+
+    def test_new_york_spring_summer_autumn_boundaries(self, tmp_dir, monkeypatch):
+        """New York: EST midnight = 05:00Z, EDT midnight = 04:00Z."""
+        tracker = DailyLossTracker(persistence_dir=tmp_dir, tz_name="America/New_York")
+        cases = [
+            # Spring forward 2025-03-09 (EST → EDT at 07:00Z)
+            (datetime(2025, 3, 9, 4, 59, tzinfo=UTC), "2025-03-08"),
+            (datetime(2025, 3, 9, 5, 0, tzinfo=UTC), "2025-03-09"),
+            # Mid-summer: EDT midnight is 04:00Z — a fixed UTC-5 offset
+            # (the C-5 bug) would still say 2025-06-30 here
+            (datetime(2025, 7, 1, 3, 59, tzinfo=UTC), "2025-06-30"),
+            (datetime(2025, 7, 1, 4, 0, tzinfo=UTC), "2025-07-01"),
+            # Autumn back 2025-11-02 (EDT → EST at 06:00Z, after midnight)
+            (datetime(2025, 11, 2, 3, 59, tzinfo=UTC), "2025-11-01"),
+            (datetime(2025, 11, 2, 4, 0, tzinfo=UTC), "2025-11-02"),
+        ]
+        for instant, expected in cases:
+            _freeze_clock(monkeypatch, instant)
+            assert tracker._today_str() == expected, instant
+
+    def test_dst_rollover_rebaselines_and_persists_local_date(self, tmp_dir, monkeypatch):
+        """Rollover and persistence keys must use the zone-aware local date."""
+        tracker = DailyLossTracker(
+            max_daily_loss=250.0,
+            persistence_dir=tmp_dir,
+            tz_name="Europe/Berlin",
+        )
+        baseline_file = Path(tmp_dir) / "daily_baseline.json"
+
+        _freeze_clock(monkeypatch, datetime(2025, 6, 30, 21, 59, tzinfo=UTC))
+        tracker.initialize(broker_equity=5000.0)
+        assert tracker.baseline_date == "2025-06-30"
+        persisted = json.loads(baseline_file.read_text())
+        assert persisted["date_str"] == "2025-06-30"
+
+        # 22:00Z = local midnight under CEST → rollover resets baseline
+        _freeze_clock(monkeypatch, datetime(2025, 6, 30, 22, 0, tzinfo=UTC))
+        tracker.update(equity=4900.0)
+        assert tracker.baseline_date == "2025-07-01"
+        assert tracker.baseline_equity == 4900.0
+        assert tracker.daily_loss == 0.0
+        persisted = json.loads(baseline_file.read_text())
+        assert persisted["date_str"] == "2025-07-01"
+
+        # force_reset keys off the same zone-aware local date
+        tracker.force_reset(equity=4800.0)
+        assert tracker.baseline_date == "2025-07-01"
+        persisted = json.loads(baseline_file.read_text())
+        assert persisted["date_str"] == "2025-07-01"
+        assert tracker.daily_loss == 0.0

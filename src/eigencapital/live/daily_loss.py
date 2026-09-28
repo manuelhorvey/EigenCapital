@@ -1,7 +1,7 @@
 """Daily Loss Tracker — correct daily loss accounting.
 
 Handles:
-- Reset at configured trading-day boundary (midnight UTC by default)
+- Reset at configured trading-day boundary (local midnight of tz_name)
 - Survives process restart
 - Derives baseline from authoritative broker state
 - Handles timezone explicitly
@@ -9,28 +9,26 @@ Handles:
 - Fail closed when baseline cannot be trusted
 
 Definition of "trading day":
-  A trading day starts at 00:00 UTC and ends at 23:59:59 UTC.
+  A trading day starts at 00:00 in the configured timezone (tz_name,
+  default UTC) and ends one second before the next local midnight.
   Daily loss is measured from the equity at the start of the trading day.
 
 Timezone semantics (P1-009):
-  The timezone_offset_hours parameter shifts the midnight rollover boundary.
-  Examples:
-    timezone_offset_hours=0   → daily reset at midnight UTC (default)
-    timezone_offset_hours=-5  → daily reset at midnight EST (New York)
-    timezone_offset_hours=8   → daily reset at midnight SGT (Singapore)
+  The tz_name parameter selects an IANA timezone that determines the
+  midnight rollover boundary. Examples:
+    tz_name="UTC"              → daily reset at midnight UTC (default)
+    tz_name="America/New_York" → daily reset at local midnight New York
+    tz_name="Asia/Singapore"   → daily reset at local midnight Singapore
 
   The broker (Exness) operates in GMT/UTC. The MT5 terminal uses UTC for
   all timestamps. This tracker defaults to UTC to match the broker's
   trading day boundary.
 
-  If your local timezone differs, set timezone_offset_hours to shift the
-  rollover. For example, a New York trader wanting the daily loss to
-  reset at midnight EST would use timezone_offset_hours=-5 (or -4
-  during DST if using manual offset — prefer zoneinfo for DST safety).
-
-  WARNING: Manual offset does NOT handle DST transitions automatically.
-  For DST-safe operation, migrate to zoneinfo-based timezone in a future
-  release (Python 3.9+ has zoneinfo in stdlib).
+  If your local timezone differs, set tz_name to your IANA zone. The
+  rollover follows that zone's local calendar date, so DST transitions
+  are handled automatically (e.g. America/New_York resets at 05:00 UTC
+  during EST but 04:00 UTC during EDT). Do NOT use a fixed UTC offset:
+  it drifts by an hour across DST transitions (C-5).
 """
 
 from __future__ import annotations
@@ -39,9 +37,10 @@ import hashlib
 import json
 import os
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict
+from zoneinfo import ZoneInfo
 
 
 @dataclass(frozen=True)
@@ -80,18 +79,18 @@ class DailyLossTracker:
     2. If no baseline or different day → creates new baseline from current equity
     3. Persists baseline to disk after creation
     4. Computes daily loss as baseline_equity - current_equity
-    5. Resets automatically at midnight UTC
+    5. Resets automatically at local midnight in tz_name (DST-aware)
     """
 
     def __init__(
         self,
         max_daily_loss: float = 250.0,
         persistence_dir: str = "reports/r4_loop",
-        timezone_offset_hours: int = 0,
+        tz_name: str = "UTC",
     ) -> None:
         self._max_daily_loss = max_daily_loss
         self._persistence_dir = Path(persistence_dir)
-        self._tz_offset = timedelta(hours=timezone_offset_hours)
+        self._tz_name = tz_name
         self._baseline: DailyBaseline | None = None
         self._current_equity: float = 0.0
         self._baseline_file = self._persistence_dir / "daily_baseline.json"
@@ -104,7 +103,7 @@ class DailyLossTracker:
 
     def _today_str(self) -> str:
         """Get today's date string in the configured timezone."""
-        now = datetime.now(UTC) + self._tz_offset
+        now = datetime.now(tz=ZoneInfo(self._tz_name))
         return now.strftime("%Y-%m-%d")
 
     def _now_utc(self) -> str:

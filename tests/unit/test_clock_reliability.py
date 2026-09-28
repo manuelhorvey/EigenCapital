@@ -12,6 +12,7 @@ import json
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 
 def _parse_utc(ts: str) -> datetime:
@@ -72,8 +73,8 @@ class TestTimezoneOffset:
     """The daily boundary must honor the configured offset explicitly."""
 
     @staticmethod
-    def _expected_today(offset_hours: int) -> str:
-        now = datetime.now(UTC) + timedelta(hours=offset_hours)
+    def _expected_today(tz_name: str) -> str:
+        now = datetime.now(tz=ZoneInfo(tz_name))
         return now.strftime("%Y-%m-%d")
 
     def test_zero_offset_matches_utc_date(self, tmp_path):
@@ -82,9 +83,9 @@ class TestTimezoneOffset:
         t = DailyLossTracker(
             max_daily_loss=100.0,
             persistence_dir=str(tmp_path),
-            timezone_offset_hours=0,
+            tz_name="UTC",
         )
-        assert t._today_str() == self._expected_today(0)
+        assert t._today_str() == self._expected_today("UTC")
 
     def test_positive_offset_shifts_day_forward(self, tmp_path):
         from eigencapital.live.daily_loss import DailyLossTracker
@@ -92,9 +93,9 @@ class TestTimezoneOffset:
         t = DailyLossTracker(
             max_daily_loss=100.0,
             persistence_dir=str(tmp_path),
-            timezone_offset_hours=5,
+            tz_name="Asia/Karachi",
         )
-        assert t._today_str() == self._expected_today(5)
+        assert t._today_str() == self._expected_today("Asia/Karachi")
 
     def test_negative_offset_shifts_day_backward(self, tmp_path):
         from eigencapital.live.daily_loss import DailyLossTracker
@@ -102,18 +103,18 @@ class TestTimezoneOffset:
         t = DailyLossTracker(
             max_daily_loss=100.0,
             persistence_dir=str(tmp_path),
-            timezone_offset_hours=-5,
+            tz_name="America/New_York",
         )
-        assert t._today_str() == self._expected_today(-5)
+        assert t._today_str() == self._expected_today("America/New_York")
 
     def test_extreme_offsets_stay_well_formed(self, tmp_path):
         from eigencapital.live.daily_loss import DailyLossTracker
 
-        for offset in [-12, 12, -14, 14]:
+        for tz_name in ["Pacific/Kiritimati", "Pacific/Fiji", "Pacific/Honolulu", "Pacific/Midway"]:
             t = DailyLossTracker(
                 max_daily_loss=100.0,
                 persistence_dir=str(tmp_path),
-                timezone_offset_hours=offset,
+                tz_name=tz_name,
             )
             result = t._today_str()
             assert len(result) == 10

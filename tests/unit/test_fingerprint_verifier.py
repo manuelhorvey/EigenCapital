@@ -183,3 +183,96 @@ class TestFailClosed:
         fp2 = verifier.frozen_manifest_fingerprint
         assert fp1 == fp2
         assert fp1 == "aaab6c00dc05a09a380af7fbd705cc8c241ea69023b6a8ddc8d5e7f0b82b2beb"
+
+
+class TestRehashEveryCycle:
+    """C-1 / H-12 regression: no cache — every cycle must re-hash inputs.
+
+    The verifier must re-compute fingerprints on each verify_all() call.
+    Tampering AFTER a first successful verification (which previously
+    populated a cache) must still be detected on subsequent cycles.
+    """
+
+    def test_manifest_tamper_after_first_success_detected(self, config):
+        """A manifest tampered after one passing cycle must fail the next."""
+        verifier = FingerprintVerifier(config=config)
+        first = verifier.verify_all()
+        assert first.all_verified
+        verifier._manifest = R4ConfigManifest(strategy_version="R4.1")
+        second = verifier.verify_all()
+        assert not second.all_verified
+        manifest_check = next(c for c in second.checks if c.component == "r4_manifest")
+        assert manifest_check.status == "mismatch"
+        assert manifest_check.observed != manifest_check.expected
+
+    def test_risk_policy_tamper_after_first_success_detected(self, config):
+        """A risk policy tampered after one passing cycle must fail the next."""
+        verifier = FingerprintVerifier(config=config)
+        first = verifier.verify_all()
+        assert first.all_verified
+        verifier._risk_policy = RiskPolicy(max_drawdown_pct=20.0)
+        second = verifier.verify_all()
+        assert not second.all_verified
+        risk_check = next(c for c in second.checks if c.component == "risk_policy")
+        assert risk_check.status == "mismatch"
+        assert risk_check.observed != risk_check.expected
+
+    def test_live_risk_tamper_after_first_success_detected(self, config):
+        """LiveRiskConfig tampered after one passing cycle must fail the next."""
+        verifier = FingerprintVerifier(config=config)
+        first = verifier.verify_all()
+        assert first.all_verified
+        verifier._live_risk = LiveRiskConfig(max_daily_loss=500.0)
+        second = verifier.verify_all()
+        assert not second.all_verified
+        lr_check = next(c for c in second.checks if c.component == "live_risk")
+        assert lr_check.status == "mismatch"
+        assert lr_check.observed != lr_check.expected
+
+    def test_config_tamper_after_first_success_detected(self, config):
+        """Config mutated after one passing cycle must fail the next."""
+        verifier = FingerprintVerifier(config=config)
+        first = verifier.verify_all()
+        assert first.all_verified
+        verifier._config = load_config("development")
+        second = verifier.verify_all()
+        assert not second.all_verified
+        cfg_check = next(c for c in second.checks if c.component == "config")
+        assert cfg_check.status == "mismatch"
+
+    def test_observed_fingerprint_tracks_current_value_each_cycle(self, config):
+        """Observed value on later cycles must be freshly computed, not stale."""
+        verifier = FingerprintVerifier(config=config)
+        verifier.verify_all()
+        tampered = R4ConfigManifest(strategy_version="R4.1")
+        verifier._manifest = tampered
+        second = verifier.verify_all()
+        manifest_check = next(c for c in second.checks if c.component == "r4_manifest")
+        assert manifest_check.observed == tampered.compute_identity()
+
+    def test_compute_identity_called_on_every_cycle(self, config):
+        """Manifest must be re-hashed on each verify_all() — no caching."""
+        manifest = R4ConfigManifest()
+        verifier = FingerprintVerifier(config=config, manifest=manifest)
+        calls: list[int] = []
+        original = manifest.compute_identity
+
+        def counting_compute_identity() -> str:
+            calls.append(1)
+            return original()
+
+        object.__setattr__(manifest, "compute_identity", counting_compute_identity)
+        verifier.verify_all()
+        verifier.verify_all()
+        assert len(calls) == 2
+
+    def test_repeated_cycles_then_tamper_still_detected(self, config):
+        """Cache-bypass holds across many passing cycles before tampering."""
+        verifier = FingerprintVerifier(config=config)
+        for _ in range(5):
+            assert verifier.verify_all().all_verified
+        verifier._risk_policy = RiskPolicy(max_drawdown_pct=20.0)
+        result = verifier.verify_all()
+        assert not result.all_verified
+        risk_check = next(c for c in result.checks if c.component == "risk_policy")
+        assert risk_check.status == "mismatch"

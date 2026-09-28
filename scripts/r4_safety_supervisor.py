@@ -49,6 +49,7 @@ from eigencapital.live.position_attribution import (  # noqa: E402
 from eigencapital.live.watchdog import (  # noqa: E402
     ProbeResult,
     Watchdog,
+    process_alive,
     trail_age_seconds,
 )
 
@@ -238,18 +239,9 @@ def run_tick(
 
 
 def _loop_alive() -> bool:
-    import subprocess
-
-    try:
-        r = subprocess.run(
-            ["pgrep", "-f", "r4_rebalance_loop"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        return r.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
+    # H-5: PID-file-first / anchored-pgrep probe, never a bare `pgrep -f`
+    # (an unanchored match can report a DEAD loop as RUNNING).
+    return process_alive()
 
 
 def contain_flat_r4(broker: Any, audit: DurableAudit, build_id: str) -> dict[str, Any]:

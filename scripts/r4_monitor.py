@@ -42,6 +42,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from mt5linux import MetaTrader5
 
+from eigencapital.live.watchdog import process_alive
+
 # ── Configuration ──────────────────────────────────────────────────
 
 AUDIT_DIR = Path("reports/r4_loop")
@@ -449,18 +451,8 @@ def check_regime(mt5=None) -> None:
 
 def check_loop_health() -> None:
     """Check if the rebalance loop process is alive."""
-    import subprocess
-
-    try:
-        result = subprocess.run(
-            ["pgrep", "-f", "r4_rebalance_loop"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        alive = result.returncode == 0
-    except Exception:
-        alive = False
+    # H-5: PID-file-first / anchored-pgrep probe, never a bare `pgrep -f`.
+    alive = process_alive()
 
     # Load last state
     health_file = AUDIT_DIR / "last_health.json"
@@ -523,19 +515,8 @@ def show_status(mt5) -> None:
         print("REGIME: unknown (no check yet)")
     print()
 
-    # Loop health
-    import subprocess
-
-    try:
-        result = subprocess.run(
-            ["pgrep", "-f", "r4_rebalance_loop"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        alive = result.returncode == 0
-    except Exception:
-        alive = False
+    # Loop health — H-5: anchored probe, not a bare `pgrep -f`.
+    alive = process_alive()
 
     print(f"LOOP: {'RUNNING ✅' if alive else 'DEAD ⛔'}")
     print()

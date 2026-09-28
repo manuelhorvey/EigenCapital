@@ -287,11 +287,72 @@ def trail_age_seconds(audit_file: Path, now_s: float | None = None) -> float | N
         return None
 
 
-def process_alive(pattern: str = "r4_rebalance_loop") -> bool:
+# Largest plausible OS pid (Linux pid_max ceiling); larger values in a PID
+# file are corrupt/stale and must never be handed to os.kill().
+_MAX_PLAUSIBLE_PID = 2**22
+
+
+def process_alive(pattern: str = "r4_rebalance_loop", pid_file: Path | None = None) -> bool:
+    """Check whether the trading loop process is alive.
+
+    H-5: the liveness probe must not be spoofable by unrelated processes.
+
+    Preference order:
+    1. *pid_file*, when present and holding a plausible PID: probe it with
+       ``os.kill(pid, 0)``, which is precise and cannot be matched by an
+       unrelated process. The holder PID is authoritative in both
+       directions — alive → ``True``, dead (ESRCH) → ``False`` with NO
+       pgrep fallback, so a dead holder can never be written to
+       ``loop_health.json`` as alive. Missing/unreadable/corrupt content
+       falls through to (2).
+    2. ``pgrep`` fallback: ``--full`` plus an anchored pattern requiring a
+       python interpreter whose script argument ends in ``<pattern>.py``.
+       Bare substring matches (greps, editors, similarly-named scripts such
+       as ``<pattern>_v2.py`` or ``test_<pattern>.py``) cannot satisfy it.
+    """
+    import errno
+    import os
+    import re
     import subprocess
 
+    if pid_file is not None:
+        raw: str | None
+        try:
+            raw = pid_file.read_text().strip()
+        except OSError:
+            raw = None  # missing/unreadable file → pgrep fallback
+        pid: int | None = None
+        if raw is not None:
+            try:
+                pid = int(raw)
+            except ValueError:
+                pid = None  # stale/invalid content → pgrep fallback
+        if pid is not None and 0 < pid <= _MAX_PLAUSIBLE_PID:
+            try:
+                os.kill(pid, 0)  # signal 0 = existence probe
+                return True
+            except OSError as exc:
+                if exc.errno == errno.EPERM:
+                    return True  # alive, owned by another user
+                if exc.errno == errno.ESRCH:
+                    return False  # dead holder PID — authoritative, no fallback
+                # any other errno → unusable evidence → pgrep fallback
+
+    # Anchored full match: interpreter, then optional interpreter flags, then
+    # the script token itself (path prefix allowed, token must end with
+    # "<pattern>.py" and be followed by a space or end of command line).
+    anchored = (
+        r"^([^ ]*/)?python[0-9.]* +(-[^ ]+ +)*([^ ]*/)?"
+        + re.escape(pattern)
+        + r"\.py( |$)"
+    )
     try:
-        r = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True, timeout=5)
-        return r.returncode == 0
+        result = subprocess.run(
+            ["pgrep", "--full", "--count", anchored],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
     except (OSError, subprocess.TimeoutExpired):
         return False
+    return result.returncode == 0

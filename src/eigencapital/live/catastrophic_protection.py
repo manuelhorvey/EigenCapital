@@ -15,11 +15,14 @@ Rules:
   - Idempotent: a position already protected at-or-inside the boundary yields
     NO new action (restart cannot duplicate orders).
   - Flatten operations retry across passes until flat or attempts exhausted,
-    then escalate to HALT.
+    then escalate to HALT. Close errors are logged with their traceback and the
+    last error is retained: if passes run out with nothing closed, that error
+    is raised instead of being dropped.
 """
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -136,10 +139,15 @@ def flatten_with_retry(
     """Close positions across multiple passes until flat or attempts exhausted.
 
     Each pass re-lists live broker state so partially failed closes are retried.
-    Returns (outcome, closed_count). FAILED_HALT means manual intervention.
+    A close exception is logged with its traceback and the last error is kept;
+    if passes are exhausted with nothing closed, that last error is raised so
+    the caller cannot mistake a dropped exception for a normal failure.
+    Returns (outcome, closed_count). FAILED_HALT means the broker refused to
+    close (no exception) and manual intervention is required.
     """
     closed_total = 0
-    for _ in range(max_passes):
+    last_error: Exception | None = None
+    for pass_no in range(max_passes):
         positions = list_positions()
         if only_tickets is not None:
             positions = [p for p in positions if p.get("ticket") in only_tickets]
@@ -150,11 +158,15 @@ def flatten_with_retry(
             ticket = p.get("ticket")
             if ticket is None:
                 continue
-            if close_position(int(ticket)):
-                closed_total += 1
-                progressed = True
-        if not progressed:
-            time.sleep(0.05)  # transient failure: brief backoff before next pass
+            try:
+                if close_position(int(ticket)):
+                    closed_total += 1
+                    progressed = True
+            except Exception as exc:
+                last_error = exc
+                logging.exception("Exception closing ticket %s: %s", ticket, exc)
+        if not progressed and pass_no < max_passes - 1:
+            time.sleep(0.05)  # bounded backoff before the next pass
     remaining = list_positions()
     if only_tickets is not None:
         remaining = [p for p in remaining if p.get("ticket") in only_tickets]
@@ -162,6 +174,11 @@ def flatten_with_retry(
         return FlattenOutcome.FLATTENED, closed_total
     if closed_total > 0:
         return FlattenOutcome.PARTIAL, closed_total
+    if last_error is not None:
+        raise RuntimeError(
+            f"flatten gave up after {max_passes} passes with {len(remaining)} position(s) still open; "
+            f"last close error: {last_error}"
+        ) from last_error
     return FlattenOutcome.FAILED_HALT, closed_total
 
 

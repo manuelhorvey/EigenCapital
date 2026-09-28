@@ -60,6 +60,8 @@ reports/r4_safety/safety_audit.jsonl
 reports/r4_safety/safety_audit.mirror.jsonl
 reports/campaigns.jsonl
 reports/campaigns.mirror.jsonl
+reports/execution_audit.jsonl
+reports/execution_audit.mirror.jsonl
 reports/r4_economics_audit/
 reports/t0_snapshot.json
 reports/t0_snapshot.md

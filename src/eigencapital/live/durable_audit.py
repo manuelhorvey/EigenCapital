@@ -10,9 +10,11 @@ location cannot silently destroy evidence.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
+import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -44,6 +46,7 @@ class DurableAudit:
         self._mirror = Path(mirror) if mirror else None
         self._seq = self._last_seq()
         self._prev_hash = self._last_hash()
+        self._lock = threading.Lock()
 
     # ── path helpers ───────────────────────────────────────────────
     @property
@@ -74,26 +77,47 @@ class DurableAudit:
 
     # ── write path ─────────────────────────────────────────────────
     def append(self, event: str, payload: dict[str, Any]) -> dict[str, Any]:
-        """Append one record; fsync; mirror to secondary location."""
-        self._seq += 1
-        record = {
-            "seq": self._seq,
-            "ts": datetime.now(UTC).isoformat(),
-            "event": event,
-            "payload": payload,
-            "prev_hash": self._prev_hash,
-        }
-        record["hash"] = _digest(str(record["prev_hash"]), self._seq, payload)
-        self._primary.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._primary, "a") as f:
-            f.write(json.dumps(record, default=str) + "\n")
-            f.flush()
-            os.fsync(f.fileno())
-        self._prev_hash = str(record["hash"])
-        if self._mirror is not None:
-            self._mirror.parent.mkdir(parents=True, exist_ok=True)
-            self._mirror.write_bytes(self._primary.read_bytes())
-        return record
+        """Append one record under an inter-process file lock; fsync; mirror atomically."""
+        with self._lock:
+            self._primary.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._primary, "a+b") as f:
+                # Inter-process lock: another DurableAudit (separate process,
+                # possibly constructed before any record existed) must not
+                # interleave with this append or the chain would break.
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                try:
+                    # Re-read the chain head under the lock — the cached
+                    # self._seq/self._prev_hash may be stale if another
+                    # process appended since this instance was constructed.
+                    last = self._last_record()
+                    self._seq = int(last["seq"]) if last else 0
+                    self._prev_hash = str(last["hash"]) if last else "GENESIS"
+                    self._seq += 1
+                    record = {
+                        "seq": self._seq,
+                        "ts": datetime.now(UTC).isoformat(),
+                        "event": event,
+                        "payload": payload,
+                        "prev_hash": self._prev_hash,
+                    }
+                    record["hash"] = _digest(str(record["prev_hash"]), self._seq, payload)
+                    f.write(json.dumps(record, default=str).encode() + b"\n")
+                    f.flush()
+                    os.fsync(f.fileno())
+                    self._prev_hash = str(record["hash"])
+                    if self._mirror is not None:
+                        # Stage to a temp file and rename: a torn write hits
+                        # only the temp file, never a zeroed/truncated mirror.
+                        self._mirror.parent.mkdir(parents=True, exist_ok=True)
+                        tmp_path = self._mirror.with_name(self._mirror.name + ".tmp")
+                        with open(tmp_path, "wb") as tf:
+                            tf.write(self._primary.read_bytes())
+                            tf.flush()
+                            os.fsync(tf.fileno())
+                        os.replace(tmp_path, self._mirror)
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            return record
 
     # ── verification ───────────────────────────────────────────────
     def verify(self) -> ChainVerdict:

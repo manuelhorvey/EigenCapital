@@ -196,6 +196,31 @@ class TestBrokerConnection:
         assert not checks[4].passed
         assert checks[4].check_id == "PT-BROKER-05"
 
+    def test_spread_limit_comes_from_config_table(self) -> None:
+        """PT-BROKER-05 reads max_spread_points_by_class, not an inline
+        if/elif chain — a class is widened or tightened by config alone."""
+        specs = {"EURUSD": {"spread": 10}, "USOIL": {"spread": 40}}
+        symbols = {"EURUSD": "forex", "USOIL": "energy"}
+
+        relaxed = BrokerBoundaryConfig(
+            expected_symbols=symbols,
+            max_spread_points_by_class={"forex": 15, "energy": 50},
+        )
+        checks = PreTradingValidator(broker_config=relaxed).validate_broker_connection(
+            _make_broker_state(symbol_specs=specs)
+        )
+        assert checks[4].passed, checks[4].observed
+
+        tight = BrokerBoundaryConfig(
+            expected_symbols=symbols,
+            max_spread_points_by_class={"forex": 15, "energy": 30},
+        )
+        checks = PreTradingValidator(broker_config=tight).validate_broker_connection(
+            _make_broker_state(symbol_specs=specs)
+        )
+        assert not checks[4].passed  # 40 points > 30 for energy
+        assert "USOIL" in checks[4].observed
+
     def test_wrong_broker_blocks(self) -> None:
         """Wrong broker name → BLOCKED (confusion check)."""
         broker_config = BrokerBoundaryConfig(

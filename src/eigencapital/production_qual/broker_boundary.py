@@ -17,6 +17,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
+from eigencapital.config import DEFAULT_SPREAD_POINTS_BY_CLASS, normalize_asset_class
+
 
 @dataclass(frozen=True)
 class BrokerBoundaryConfig:
@@ -50,6 +52,19 @@ class BrokerBoundaryConfig:
     max_slippage: float = 0.0008
     min_volume: float = 0.01
     max_volume: float = 1.0
+    # MT5 spread in points per asset class — the same table as
+    # [broker].max_spread_points_by_class in configs/{env}/config.toml, so
+    # pre-trading PT-BROKER-05, account readiness §6 and the live entry gate
+    # cannot disagree. Deliberately NOT part of compute_fingerprint(): the
+    # fingerprint covers symbol mapping and execution bounds, and a spread
+    # tolerance edit must not invalidate stored evidence.
+    max_spread_points_by_class: Dict[str, int] = field(
+        default_factory=lambda: dict(DEFAULT_SPREAD_POINTS_BY_CLASS)
+    )
+
+    def points_spread_limit(self, asset_class: str) -> int:
+        """Maximum MT5 spread in points for an asset class."""
+        return int(self.max_spread_points_by_class.get(normalize_asset_class(asset_class), 50))
 
     def compute_fingerprint(self) -> str:
         data = {

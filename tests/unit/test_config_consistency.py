@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 from eigencapital.config import (
     LiveRiskConfig,
     load_config,
+    normalize_asset_class,
 )
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 
@@ -121,6 +122,32 @@ class TestConfigVsScriptConsistency:
         assert len(symbols) == len(set(symbols)), "duplicate symbols in allowed_symbols"
         unclassified = [s for s, cls in allowed.items() if not str(cls).strip()]
         assert unclassified == [], f"symbols without asset class: {unclassified}"
+
+    def test_spread_gates_share_one_config_source(self):
+        """All three spread gates read the same per-class tables from config.
+
+        The live entry gate (relative, non-FX), account readiness §6 and
+        pre-trading PT-BROKER-05 (MT5 points) must not carry their own
+        hardcoded tolerance tables — otherwise XNGUSD can be allowed by one
+        gate and blocked by another.
+        """
+        broker = load_config("production").broker
+
+        # XNGUSD quoted 0.2193% on 2026-09-27 and was skipped by the 0.15%
+        # default; the configured energy cap must clear that quote.
+        assert broker.spread_class_of("XNGUSD") == "energy"
+        assert broker.relative_spread_limit("energy") == pytest.approx(0.0030)
+        assert broker.relative_spread_limit("energy") > 0.002193
+
+        # Every class actually present in the universe has a points tolerance.
+        classes = {normalize_asset_class(cls) for cls in broker.allowed_symbols.values()}
+        missing = sorted(c for c in classes if c not in broker.max_spread_points_by_class)
+        assert missing == [], f"classes without a points spread limit: {missing}"
+        assert broker.points_spread_limit("energy") == 50
+
+        # Only energy is widened — every other class keeps the 0.15% default.
+        for cls in ("indices", "metals", "crypto", "forex_excluded"):
+            assert broker.relative_spread_limit(cls) == pytest.approx(broker.max_spread), cls
 
     def test_symbol_mapping_fingerprint_reflects_universe(self):
         """compute_symbol_mapping_fingerprint must change when the universe changes

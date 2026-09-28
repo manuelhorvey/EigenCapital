@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Execution/risk hardening: fail-closed on execution and market-data risks, risk-envelope alignment, minimum-lot rounding restored, canonical concentration threshold exposed, hedging-safe order generation
 - Research/live boundary: replay logic migrated out of research code into the core rebalance module
 - Dashboard truthfulness pass: phantom sidebar search rail removed, System page guarantees now read live health dimensions instead of hardcoded `true`, duplicated "Reconciled" column (actually SL presence) removed, gate bars no longer imply fake progress, per-page error states wired
+- XNGUSD (energy) was skipped at its observed 0.2193% spread because every non-FX class shared one 0.15% relative cap; the live entry gate now reads `[broker].max_spread_by_class`, where `energy` = 0.30% (per class, so USOIL widens with it). Every other class stays at 0.15% and FX keeps the absolute 15-pip check
 
 ### Security
 - Bearer API key + per-IP rate limit on `/api/v1/*`; constant-time key comparison on HTTP and WebSocket handshakes
@@ -36,6 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Shadow exposure layer derives classification from the canonical asset-class map instead of maintaining parallel symbol lists (`SINGLE_LEG_ASSET_CLASS`/`FACTOR_GROUP` removed; `US500` added to the canonical map, where it was previously only shadow-side); new canonical universe entries now propagate to the shadow layer automatically
 - Operational scripts (`instrument_eligibility.py`, `account_readiness.py`, `capture_t0.py`) derive their universe from the authoritative config via shared helper `scripts/_universe.py`; inline symbol lists deleted (fail-closed on an empty config universe)
 - Asset-class classification unified on canonical `classify_asset_class` (`live/portfolio_analytics.py`): shadow exposure, live risk observation (sector + correlation), and evidence class buckets all derive from it — substring heuristics deleted; fixes XAUUSD/XNGUSD/BTCUSD being bucketed as FX ("USD" in symbol) and USTEC/US500/HK50/JP225 falling out of exposure buckets
+- Spread tolerances moved out of code into config: `[broker].max_spread_points_by_class` (MT5 points) drives account readiness §6 and pre-trading PT-BROKER-05, and `[broker].max_spread_by_class` (relative) drives the live entry gate. The three previously hardcoded tables disagreed (energy 30 vs 50 points, crypto 500 vs 1000) and could each block a symbol the others allowed; they are now one source. Deliberately excluded from `BrokerBoundaryConfig.compute_fingerprint()` so editing a tolerance never invalidates stored evidence
 
 ## [v0.5.0] - 2026-09-01
 

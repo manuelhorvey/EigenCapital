@@ -30,9 +30,10 @@ sys.path.insert(0, "scripts")
 
 # Universe derives from [broker.allowed_symbols] (scripts/_universe.py →
 # configs/production/config.toml) — no inline symbol copies.
-from _universe import ASSET_CLASSES, R4_SYMBOLS
+from _universe import ASSET_CLASSES, ENVIRONMENT, R4_SYMBOLS
 from mt5linux import MetaTrader5
 
+from eigencapital.config import load_config
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 from eigencapital.production_qual.broker_boundary import (
     BrokerBoundaryConfig,
@@ -43,6 +44,11 @@ from eigencapital.production_qual.pre_trading import (
     PreTradingValidator,
 )
 from eigencapital.risk.policy import RiskPolicy
+
+# [broker].max_spread_points_by_class — feeds pre-trading PT-BROKER-05 so the
+# T0 capture applies the same per-class spread tolerance as readiness and the
+# live entry gate.
+_broker_config = load_config(ENVIRONMENT).broker
 
 
 def check_eligibility_inline(mt5, position_limit: float) -> Dict[str, Any]:
@@ -237,7 +243,9 @@ def main() -> None:
     policy_fingerprint = hashlib.sha256(policy_data).hexdigest()
     check("✅", "Risk Policy", f"{policy_fingerprint[:32]}...")
 
-    broker_config = BrokerBoundaryConfig()
+    broker_config = BrokerBoundaryConfig(
+        max_spread_points_by_class=dict(_broker_config.max_spread_points_by_class),
+    )
     broker_fingerprint = broker_config.compute_fingerprint()
     check("✅", "Broker Config", f"{broker_fingerprint[:32]}...")
 

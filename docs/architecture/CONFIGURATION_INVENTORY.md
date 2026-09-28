@@ -84,7 +84,9 @@ R4 loop / risk enforcement / dashboard / fingerprint verifier
 | Setting | Source | Consumer | Authority | Fingerprint |
 |---------|--------|----------|-----------|-------------|
 | allowed_symbols (37 entries; 7 `forex_excluded` → 30 tradeable) | config.toml → BrokerConfig | r4_rebalance_loop (R4_SYMBOLS, ELIGIBLE_SYMBOLS) | BrokerConfig | ✅ symbol_fp |
-| max_spread (0.0015) | config.toml → BrokerConfig | execution code | BrokerConfig | — |
+| max_spread (0.0015) | config.toml → BrokerConfig | r4_rebalance_loop `_entry_spread_ok` — FX **absolute** price distance | BrokerConfig | — |
+| max_spread_by_class (`energy` = 0.0030) | config.toml → BrokerConfig | r4_rebalance_loop `_entry_spread_ok` — non-FX **relative** (fraction of midpoint); class absent → `max_spread` | BrokerConfig | — |
+| max_spread_points_by_class (forex 15, metals 50, indices 50, energy 50, crypto 1000, other 50) | config.toml → BrokerConfig → BrokerBoundaryConfig | account readiness §6, pre-trading PT-BROKER-05 (MT5 spread **points**) | BrokerConfig | — (not in boundary fingerprint) |
 | account_id (from config; not printed here) | config.toml → BrokerConfig | MT5 connection | BrokerConfig | ✅ config_fp |
 
 ### Data Quality / Truth / Schedule

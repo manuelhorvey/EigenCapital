@@ -28,10 +28,16 @@ from typing import Any, Dict, List
 sys.path.insert(0, "src")
 sys.path.insert(0, "scripts")
 
-from _universe import R4_SYMBOLS  # config-derived — no inline universe
+from _universe import ENVIRONMENT, R4_SYMBOLS  # config-derived — no inline universe
 from mt5linux import MetaTrader5
 
+from eigencapital.config import load_config
 from eigencapital.live.portfolio_analytics import classify_asset_class
+
+# Per-class spread tolerance comes from config ([broker]
+# max_spread_points_by_class), the same table the live entry gate and
+# pre-trading PT-BROKER-05 read — no inline symbol/class tuples to sync.
+_broker_config = load_config(ENVIRONMENT).broker
 
 # ── R4 Universe ────────────────────────────────────────────────────
 # R4_SYMBOLS / ASSET_CLASSES derive from [broker.allowed_symbols]
@@ -63,15 +69,6 @@ EXPECTED_ACCOUNT_ID = "436921728"
 EXPECTED_SERVER = "Exness-MT5Trial9"
 EXPECTED_ENVIRONMENT = "demo"  # trial/demo
 MAX_EQUITY = 5_100.0  # $5K + 2% buffer for P&L drift
-MAX_SPREAD_POINTS = 15  # for forex; metals/crypto/indexes higher
-# Per-class spread tolerance (points) — keyed by canonical
-# classify_asset_class, so no inline symbol tuples to keep in sync.
-_SPREAD_MAX_BY_CLASS: Dict[str, int] = {
-    "metals": 30,
-    "crypto": 500,
-    "indices": 50,
-    "energy": 50,
-}
 
 
 # ── Main ───────────────────────────────────────────────────────────
@@ -281,8 +278,8 @@ def main() -> None:
         spread_pts = info.spread
         spread_data[sym] = spread_pts
 
-        # Check spread (varies by asset class — canonical classification)
-        max_allowed = _SPREAD_MAX_BY_CLASS.get(classify_asset_class(sym), MAX_SPREAD_POINTS)
+        # Check spread (per-class limit from config — canonical classification)
+        max_allowed = _broker_config.points_spread_limit(classify_asset_class(sym))
 
         if spread_pts > max_allowed:
             spread_issues.append(f"{sym}: {spread_pts} pts (max {max_allowed})")
@@ -401,6 +398,7 @@ def main() -> None:
         expected_broker="exness",
         expected_platform="mt5",
         expected_symbols={s: "forex" for s in R4_SYMBOLS[:7]},
+        max_spread_points_by_class=dict(_broker_config.max_spread_points_by_class),
     )
 
     # Run the 5-step validator (without pre-funding gate record)

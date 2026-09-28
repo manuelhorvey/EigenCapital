@@ -19,6 +19,7 @@ Usage:
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import tomllib
@@ -31,6 +32,29 @@ from typing import Any, Dict, List
 CONFIGS_DIR = Path(__file__).parent.parent.parent / "configs"
 
 
+# Per-asset-class spread tolerances, keyed by the normalized asset-class token
+# ("forex_excluded" → "forex"). Single source of truth for all three spread
+# gates so they cannot drift apart: the live entry gate
+# (scripts/r4_rebalance_loop._entry_spread_ok), account readiness §6 and
+# pre-trading PT-BROKER-05.
+#
+# Values are MT5 spread POINTS and are the least-severe of the previously
+# hardcoded per-gate tables, so moving them here never newly blocks a symbol.
+DEFAULT_SPREAD_POINTS_BY_CLASS: Dict[str, int] = {
+    "forex": 15,  # 1.5 pips on a 5-digit quote
+    "metals": 50,
+    "indices": 50,
+    "energy": 50,
+    "crypto": 1000,
+    "other": 50,
+}
+
+
+def normalize_asset_class(asset_class: str) -> str:
+    """Normalize an asset-class token ("forex_excluded" → "forex")."""
+    return str(asset_class).split("_")[0] if asset_class else ""
+
+
 @dataclass(frozen=True)
 class BrokerConfig:
     """Broker connection and validation configuration."""
@@ -41,7 +65,15 @@ class BrokerConfig:
     broker_name: str = "exness"
     platform: str = "mt5"
     server: str = ""
+    # FX entry gate: ABSOLUTE price distance (ask - bid) <= max_spread.
     max_spread: float = 0.0015
+    # Non-FX entry gate: RELATIVE spread (ask - bid) / midpoint, per class.
+    # A class absent here falls back to max_spread.
+    max_spread_by_class: Dict[str, float] = field(default_factory=dict)
+    # Pre-flight gates (readiness §6, pre-trading PT-BROKER-05): MT5 points.
+    max_spread_points_by_class: Dict[str, int] = field(
+        default_factory=lambda: dict(DEFAULT_SPREAD_POINTS_BY_CLASS)
+    )
     max_slippage: float = 0.0008
     min_volume: float = 0.01
     max_volume: float = 1.0
@@ -54,6 +86,18 @@ class BrokerConfig:
     def from_dict(cls, d: Dict[str, Any]) -> BrokerConfig:
         fields = {f.name for f in cls.__dataclass_fields__.values()}
         return cls(**{k: v for k, v in d.items() if k in fields})
+
+    def spread_class_of(self, symbol: str) -> str:
+        """Asset-class token for a configured symbol ("" when unlisted)."""
+        return normalize_asset_class(self.allowed_symbols.get(symbol, ""))
+
+    def points_spread_limit(self, asset_class: str) -> int:
+        """Maximum MT5 spread in points for an asset class."""
+        return int(self.max_spread_points_by_class.get(normalize_asset_class(asset_class), 50))
+
+    def relative_spread_limit(self, asset_class: str) -> float:
+        """Maximum relative spread (fraction of midpoint) for an asset class."""
+        return float(self.max_spread_by_class.get(normalize_asset_class(asset_class), self.max_spread))
 
 
 @dataclass(frozen=True)
@@ -267,7 +311,7 @@ class EigenCapitalConfig:
 
 def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
     """Deep merge two dicts, with override taking precedence."""
-    result = base.copy()
+    result = copy.deepcopy(base)
     for key, value in override.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = _deep_merge(result[key], value)

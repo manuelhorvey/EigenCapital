@@ -13,10 +13,25 @@ platform = "mt5"
 server = "Exness-MT5Trial9"
 
 # Execution constraints
-max_spread = 0.0015       # 15 pips max spread (forex)
+max_spread = 0.0015       # 15 pips max spread (forex) — ABSOLUTE price distance
 max_slippage = 0.0008     # 8 pips max slippage
 min_volume = 0.01         # Minimum lot size (forex)
 max_volume = 1.0          # Maximum lot size
+
+# Per-asset-class spread gates — one table drives all three checks
+# (live entry gate, account readiness §6, pre-trading PT-BROKER-05).
+#
+# max_spread_points_by_class: MT5 spread in POINTS, used by the pre-flight
+# gates. max_spread_by_class: RELATIVE spread (fraction of midpoint) used by
+# the live entry gate for non-FX symbols; a class absent here falls back to
+# max_spread, and FX is never checked relatively (it uses max_spread above).
+#
+# energy 0.30%: XNGUSD quoted a 0.2193% spread on 2026-09-27 and was skipped
+# by the 0.15% default — natural gas is structurally wider than FX/indices.
+# The cap is per CLASS, so USOIL widens with XNGUSD; every other class stays
+# at 0.15%.
+max_spread_points_by_class = { forex = 15, metals = 50, indices = 50, energy = 50, crypto = 1000, other = 50 }
+max_spread_by_class = { energy = 0.0030 }
 
 # R4 universe — Exness MT5 bare names (no 'm' suffix)
 # 37 entries: eligible symbols tradeable if min lot fits position limit

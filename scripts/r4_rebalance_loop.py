@@ -100,7 +100,13 @@ _config = load_config(os.environ.get("EIGENCAPITAL_ENV", "production"))
 
 
 def _entry_spread_ok(symbol: str, bid: float, ask: float) -> bool:
-    """Apply the configured absolute FX spread or relative non-FX spread."""
+    """Apply the configured absolute FX spread or relative non-FX spread.
+
+    FX compares the absolute price distance against `max_spread`. Every other
+    class compares the midpoint-relative spread against `max_spread_by_class`
+    (falling back to `max_spread` when the class has no configured entry) —
+    e.g. energy at 0.30% so XNGUSD's 0.2193% quote is tradeable.
+    """
     if bid <= 0 or ask <= 0 or ask < bid:
         return False
     limit = float(getattr(_config.broker, "max_spread", 0.0))
@@ -109,8 +115,11 @@ def _entry_spread_ok(symbol: str, bid: float, ask: float) -> bool:
     category = str(getattr(_config.broker, "allowed_symbols", {}).get(symbol, ""))
     if category.startswith("forex"):
         return (ask - bid) <= limit
+    relative = _config.broker.relative_spread_limit(category)
+    if relative <= 0:
+        return True
     midpoint = (ask + bid) / 2.0
-    return (ask - bid) / midpoint <= limit
+    return (ask - bid) / midpoint <= relative
 
 
 # R4 universe — derived from broker config

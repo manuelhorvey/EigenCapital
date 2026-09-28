@@ -445,18 +445,10 @@ class PreTradingValidator:
             if sym not in self._broker_config.expected_symbols:
                 continue
             spread_pts = specs.get("spread", 0) if isinstance(specs, dict) else specs
-            # Classify symbol and set per-symbol spread limit (in points)
+            # Per-class limit in points, from config
+            # ([broker].max_spread_points_by_class → BrokerBoundaryConfig).
             asset_class = self._broker_config.expected_symbols.get(sym, "forex")
-            if "forex" in asset_class:
-                max_spread_pts = 15  # 15 points = 1.5 pips
-            elif "metals" in asset_class or "indices" in asset_class:
-                max_spread_pts = 50
-            elif "crypto" in asset_class:
-                max_spread_pts = 1000
-            elif "energy" in asset_class:
-                max_spread_pts = 30
-            else:
-                max_spread_pts = 50
+            max_spread_pts = self._broker_config.points_spread_limit(asset_class)
             if spread_pts > max_spread_pts:
                 spread_issues.append(f"{sym}: {spread_pts} pts (max {max_spread_pts})")
         spread_ok = len(spread_issues) == 0

@@ -292,8 +292,37 @@ class TestWeightErrorEvidence:
         assert not loop._entry_spread_ok("EURUSD", 1.1000, 1.1020)
 
     def test_entry_spread_policy_uses_relative_units_for_non_fx(self, loop):
-        assert loop._entry_spread_ok("USOIL", 75.00, 75.05)
-        assert not loop._entry_spread_ok("USOIL", 75.00, 75.20)
+        # Relative, not absolute: 5.00 price units on a $4,000 gold quote is
+        # 0.125% — inside the 0.15% metals cap, yet thousands of times the
+        # 0.0015 absolute FX distance.
+        assert loop._entry_spread_ok("XAUUSD", 4000.00, 4005.00)
+        assert not loop._entry_spread_ok("XAUUSD", 4000.00, 4008.00)  # 0.20%
+
+    def test_entry_spread_policy_energy_class_widened_for_xngusd(self, loop):
+        """energy is capped at 0.30% via config max_spread_by_class so XNGUSD's
+        observed 0.2193% quote (2026-09-27) is tradeable.
+
+        The cap is per CLASS, so USOIL widens with it; wider quotes still fail
+        and no other class is loosened.
+        """
+        broker = loop._config.broker
+        assert broker.spread_class_of("XNGUSD") == "energy"
+        assert broker.relative_spread_limit("energy") == pytest.approx(0.0030)
+
+        bid, ask = 4.555, 4.565  # 0.2193% of midpoint — the observed quote
+        assert (ask - bid) / ((ask + bid) / 2.0) == pytest.approx(0.002193, abs=1e-6)
+        assert loop._entry_spread_ok("XNGUSD", bid, ask)
+
+        blown_bid, blown_ask = 4.551, 4.569  # 0.3947% — above the 0.30% cap
+        assert not loop._entry_spread_ok("XNGUSD", blown_bid, blown_ask)
+
+        # same class, same cap: USOIL 0.266% passes, 0.40% does not
+        assert loop._entry_spread_ok("USOIL", 75.00, 75.20)
+        assert not loop._entry_spread_ok("USOIL", 75.00, 75.30)
+
+        # other classes keep the 0.15% relative default
+        assert not loop._entry_spread_ok("US30", 40000.0, 40000.0 * 1.0016)
+
 
     def test_d1_data_age_is_measured_from_newest_bar(self, loop):
         import pandas as pd

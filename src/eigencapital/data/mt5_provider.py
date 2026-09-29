@@ -244,9 +244,17 @@ class MT5DataProvider:
 
         def _fetch_one(sym: str) -> tuple[str, pd.DataFrame | None]:
             ticker = yf.Ticker(sym)
-            df = ticker.history(start=start_date, end=end_date, auto_adjust=True)
+            df = ticker.history(start=start_date, end=end_date, auto_adjust=False)
             if df is not None and len(df) > 0:
-                df.index = df.index.tz_localize(None) if df.index.tz else df.index
+                if df.index.tz is None:
+                    df.index = df.index.tz_localize("UTC")
+                else:
+                    df.index = df.index.tz_convert("UTC")
+                # Preserve dividend/split columns if present (do not silently adjust OHLC)
+                if "Dividends" in df.columns:
+                    df = df.drop(columns=["Dividends"])
+                if "Splits" in df.columns:
+                    df = df.drop(columns=["Splits"])
                 out = df[["Open", "High", "Low", "Close", "Volume"]].copy()
                 out.columns = ["open", "high", "low", "close", "volume"]
                 return sym, out

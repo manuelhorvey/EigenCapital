@@ -56,10 +56,9 @@ jobs:
             -q
 
       # Suites outside tests/unit/ (all verified green in-tree, no live
-      # services required). Gated to one interpreter to keep matrix runtime
-      # bounded — unit tests above still run on every Python version.
+      # services or credentials required). M-7: run on the FULL matrix —
+      # integration coverage must not disappear on other Python versions.
       - name: Run property / integration / dashboard suites
-        if: matrix.python-version == '3.13'
         run: |
           pytest tests/property tests/integration tests/failure_injection \
             tests/simulation src/eigencapital/dashboard/tests -q

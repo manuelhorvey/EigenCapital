@@ -21,6 +21,7 @@ No broker is contacted; every test uses synthetic data.
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
@@ -47,6 +48,8 @@ def _load_loop_module():
 class TestConfigConsistencyNotionalAlignment:
     def test_production_config_is_aligned(self):
         """The shipped production config must pass the new CRITICAL gate."""
+        os.environ["MT5_ACCOUNT_ID"] = "436921728"
+        os.environ["MT5_SERVER"] = "Exness-MT5Trial9"
         config = load_config("production")
         assert validate_config_consistency(config) == []
 

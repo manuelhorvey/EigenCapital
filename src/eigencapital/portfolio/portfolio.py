@@ -255,7 +255,9 @@ class Portfolio:
         """
         signed_qty = quantity if side == "BUY" else -quantity
 
+        # Track old quantity before position update (0 if new position)
         if instrument_id not in self.state.positions:
+            old_qty = 0
             # Create new position
             self.state.positions[instrument_id] = Position(
                 instrument_id=instrument_id,
@@ -265,9 +267,18 @@ class Portfolio:
                 unrealized_pnl=0.0,
                 realized_pnl_today=0.0,
             )
+            # Skip position update — already done above
+            # Update cash for new position open
+            commission = self.commission_per_trade
+            if side == "BUY":
+                self.state.current_cash -= quantity * fill_price + commission
+            else:
+                self.state.current_cash += quantity * fill_price - commission
+            return
         else:
             pos = self.state.positions[instrument_id]
             old_qty = pos.quantity
+            pos = self.state.positions[instrument_id]
             new_qty = old_qty + signed_qty
 
             # Update average entry price
@@ -299,9 +310,20 @@ class Portfolio:
                 realized_pnl_today=pos.realized_pnl_today + realized,
             )
 
-        # Update cash
+        # Update cash (margin-correct)
         commission = self.commission_per_trade
-        if side == "BUY":
-            self.state.current_cash -= quantity * fill_price + commission
+        # If closing an existing position (direction reversal), cash moves by
+        # realized PnL only — not the full notional. This prevents over-stating
+        # available funds on a margin account.
+        if old_qty != 0 and (old_qty > 0) != (signed_qty > 0):
+            # Direction reversal: cash changes by realized PnL - commission
+            if side == "SELL":
+                self.state.current_cash += realized - commission
+            else:
+                self.state.current_cash -= realized + commission
         else:
-            self.state.current_cash += quantity * fill_price - commission
+            # Opening new position or adding to same direction — equity-style
+            if side == "BUY":
+                self.state.current_cash -= quantity * fill_price + commission
+            else:
+                self.state.current_cash += quantity * fill_price - commission

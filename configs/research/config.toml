@@ -2,11 +2,15 @@
 # Backtesting and strategy analysis
 
 [broker]
-account_id = "0"
+# Account identity — must match MT5 login exactly
+# set via MT5_ACCOUNT_ID env var; override at load time
+account_id = ""
+# set via MT5_SERVER env var; override at load time
 account_name = "ResearchBacktest"
 environment = "backtest"
 broker_name = "research"
 platform = "backtest"
+# set via MT5_SERVER env var; override at load time
 server = "backtest-simulated"
 
 max_spread = 0.0010

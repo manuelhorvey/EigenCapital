@@ -5,11 +5,13 @@
 
 [broker]
 # Account identity — must match MT5 login exactly
-account_id = "436921728"
+# set via MT5_ACCOUNT_ID env var; override at load time
+account_id = ""  # set via MT5_ACCOUNT_ID environment variable
 account_name = "EigenCapital-R4-Trial"
 environment = "demo"      # "live" or "demo"
 broker_name = "exness"
 platform = "mt5"
+# set via MT5_SERVER env var; override at load time
 server = "Exness-MT5Trial9"
 
 # Execution constraints

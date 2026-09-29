@@ -2,11 +2,15 @@
 # Simulated environment for forward testing
 
 [broker]
-account_id = "0"
+# Account identity — must match MT5 login exactly
+# set via MT5_ACCOUNT_ID env var; override at load time
+account_id = ""
+# set via MT5_SERVER env var; override at load time
 account_name = "PaperTrading"
 environment = "paper"
 broker_name = "paper"
 platform = "paper"
+# set via MT5_SERVER env var; override at load time
 server = "paper-simulated"
 
 max_spread = 0.0010

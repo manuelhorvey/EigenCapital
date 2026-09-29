@@ -23,6 +23,7 @@ from eigencapital.config import (
     LiveRiskConfig,
     load_config,
     normalize_asset_class,
+    validate_config_consistency,
 )
 from eigencapital.fidelity.r4_manifest import R4ConfigManifest
 
@@ -34,10 +35,22 @@ class TestConfigLoading:
 
     def test_production_config_loads(self):
         """Production config must load without error."""
+        os.environ["MT5_ACCOUNT_ID"] = "436921728"
+        os.environ["MT5_SERVER"] = "Exness-MT5Trial9"
         config = load_config("production")
         assert config.environment == "production"
         assert config.broker.account_id == "436921728"
         assert config.broker.broker_name == "exness"
+
+    def test_production_config_fails_without_account_id(self):
+        """Production config must show visible failure if MT5_ACCOUNT_ID is unset."""
+        os.environ.pop("MT5_ACCOUNT_ID", None)
+        os.environ.pop("MT5_SERVER", None)
+        config = load_config("production")
+        errors = validate_config_consistency(config)
+        assert any("empty in production config" in e for e in errors), (
+            f"Expected visible failure about empty account_id, got: {errors}"
+        )
 
     def test_live_risk_config_loads(self):
         """live_risk config must load expected limits.

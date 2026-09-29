@@ -2,12 +2,14 @@
 # Relaxed limits for testing and development
 
 [broker]
-account_id = "436921728"
+# set via MT5_ACCOUNT_ID env var; override at load time
+account_id = ""
 account_name = "EigenCapital-R4-Trial"
 environment = "demo"
 broker_name = "exness"
 platform = "mt5"
-server = "Exness-MT5Trial9"
+# set via MT5_SERVER env var; override at load time
+server = ""
 
 # Relaxed execution constraints for development
 max_spread = 0.0050       # 50 pips (relaxed)

@@ -356,8 +356,22 @@ def load_config(environment: str = "production") -> EigenCapitalConfig:
     # Merge
     merged = _deep_merge(base_data, env_data)
 
+    # Resolve broker account_id and server from environment variables,
+    # taking precedence over config placeholders.
+    broker_raw = merged.get("broker", {})
+    account_id = os.environ.get("MT5_ACCOUNT_ID", broker_raw.get("account_id", ""))
+    server = os.environ.get("MT5_SERVER", broker_raw.get("server", ""))
+    if "account_id" not in broker_raw:
+        broker_raw["account_id"] = account_id
+    else:
+        broker_raw["account_id"] = account_id
+    if "server" not in broker_raw:
+        broker_raw["server"] = server
+    else:
+        broker_raw["server"] = server
+
     # Build config objects
-    broker = BrokerConfig.from_dict(merged.get("broker", {}))
+    broker = BrokerConfig.from_dict(broker_raw)
     capital = CapitalConfig.from_dict(merged.get("capital", {}))
     live_risk = LiveRiskConfig.from_dict(merged.get("live_risk", {}))
     strategy = StrategyConfig.from_dict(merged.get("strategy", {}))
@@ -464,6 +478,13 @@ def validate_config_consistency(config: EigenCapitalConfig) -> list[str]:
             f"CRITICAL: live_risk.max_order_notional (${lr.max_order_notional:,.0f}) != "
             f"capital.max_order_notional (${cap.max_order_notional:,.0f}) — the enforcement "
             f"envelope must match the capital section"
+        )
+
+    # EC-AUD-006: visible failure if broker account_id is empty in production
+    if config.environment == "production" and not config.broker.account_id.strip():
+        warnings.append(
+            "CRITICAL: broker account_id is empty in production config. "
+            "Set MT5_ACCOUNT_ID environment variable to enable production trading."
         )
 
     return warnings

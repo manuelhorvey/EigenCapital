@@ -17,8 +17,8 @@
 - **Verified & committed this run (batch 1)**: C-1, C-3, C-4, C-5, C-6, H-4, H-5, H-7, H-12
 - **Verified & committed this run (batch 2)**: H-8, H-9, H-9b, H-11, H-14 (each independently reviewed, one commit per finding)
 - **Verified & committed (batch 3)**: H-10, M-6, M-2, M-8, M-10, M-11 (each independently reviewed, one commit per finding)
-- **Next**: M-13, M-7, M-3/M-4, M-5, then M-14, M-9, L-1/L-2, L-3/L-4, then M-12, L-5..L-8, then H-13, then M-1 last (big refactor, alone), then final re-scan
-- **Out of range, carried to final re-scan**: C-2, H-1, H-2, H-3
+- **Verified & committed (batch 3)**: M-13, M-3, M-4, M-5 (each independently reviewed, one commit per finding)
+- **Next**: H-13, then M-1 last (big refactor, alone), then final re-scan covering C-2, H-1, H-2, H-3- **Out of range, carried to final re-scan**: C-2, H-1, H-2, H-3
 - **This run** (per instruction): H-5 → L-8, in severity order, parallel only across disjoint files
 - **Not in requested range**: C-2, H-1, H-2, H-3 — carried forward to the final re-scan
 
@@ -60,9 +60,9 @@
 |---|---|---|---|
 | M-1 | r4_rebalance_loop.py God Object (3000+ lines) | `scripts/r4_rebalance_loop.py` | open |
 | M-2 | events.py in-memory audit lost on crash | `execution/events.py` | open |
-| M-3 | mt5_provider.py strips timezone on yfinance fallback | `data/mt5_provider.py` | open |
-| M-4 | mt5_provider.py uses auto_adjust=True | `data/mt5_provider.py` | open |
-| M-5 | portfolio.py cash update is equity-style not margin | `portfolio/portfolio.py` | open |
+| M-3 | mt5_provider.py strips timezone on yfinance fallback | `data/mt5_provider.py` | done |
+| M-4 | mt5_provider.py uses auto_adjust=True | `data/mt5_provider.py` | done |
+| M-5 | portfolio.py cash update is equity-style not margin | `portfolio/portfolio.py` | done |
 | M-6 | mypy silenced with || true in CI | `.github/workflows/ci.yml` | done |
 | M-7 | CI matrix: integration tests only on Python 3.13 | `.github/workflows/ci.yml` | open |
 | M-8 | Dashboard exposes raw financial data without masking | `dashboard/src/` | open |
@@ -70,7 +70,7 @@
 | M-10 | AuthorizationGate lacks cryptographic signing | `live/authorization.py` | open |
 | M-11 | rebalance_policy.py silently returns default on corrupt file | `live/rebalance_policy.py` | open |
 | M-12 | Global weight_error_by_symbol dict is thread-unsafe | `scripts/r4_rebalance_loop.py` | open |
-| M-13 | Account ID hardcoded in production config | `configs/production/config.toml` | open |
+| M-13 | Account ID hardcoded in production config | `configs/production/config.toml` | done |
 | M-14 | No Python lockfile | `pyproject.toml` | open |
 
 ## LOW (P3)

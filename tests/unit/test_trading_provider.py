@@ -313,4 +313,3 @@ class TestConnectErrorHandling:
         records = [r for r in caplog.records if r.name == PROVIDER_LOGGER]
         assert records
         assert any(r.levelno >= logging.ERROR and r.exc_info is not None for r in records)
-

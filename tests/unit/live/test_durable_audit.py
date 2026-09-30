@@ -46,8 +46,7 @@ def test_concurrent_multiprocess_appends_keep_chain_intact(tmp_path: Path) -> No
     mirror = tmp_path / "mirror" / "audit.jsonl"
     ctx = mp.get_context("fork")
     procs = [
-        ctx.Process(target=_worker, args=(str(primary), str(mirror), w, APPENDS_PER_WORKER))
-        for w in range(N_WORKERS)
+        ctx.Process(target=_worker, args=(str(primary), str(mirror), w, APPENDS_PER_WORKER)) for w in range(N_WORKERS)
     ]
     for p in procs:
         p.start()

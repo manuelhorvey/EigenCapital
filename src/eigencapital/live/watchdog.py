@@ -341,11 +341,7 @@ def process_alive(pattern: str = "r4_rebalance_loop", pid_file: Path | None = No
     # Anchored full match: interpreter, then optional interpreter flags, then
     # the script token itself (path prefix allowed, token must end with
     # "<pattern>.py" and be followed by a space or end of command line).
-    anchored = (
-        r"^([^ ]*/)?python[0-9.]* +(-[^ ]+ +)*([^ ]*/)?"
-        + re.escape(pattern)
-        + r"\.py( |$)"
-    )
+    anchored = r"^([^ ]*/)?python[0-9.]* +(-[^ ]+ +)*([^ ]*/)?" + re.escape(pattern) + r"\.py( |$)"
     try:
         result = subprocess.run(
             ["pgrep", "--full", "--count", anchored],

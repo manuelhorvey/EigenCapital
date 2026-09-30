@@ -275,7 +275,9 @@ class TestDeadRiskTableAnnotation:
         """The glob must actually find configs/, else every other check is inert."""
         assert self.CONFIG_FILES, "configs/ glob found no files — the H-10 guard is inert"
         files_with_risk = [
-            path for path in self.CONFIG_FILES if any(line.strip() == "[risk]" for line in path.read_text(encoding="utf-8").splitlines())
+            path
+            for path in self.CONFIG_FILES
+            if any(line.strip() == "[risk]" for line in path.read_text(encoding="utf-8").splitlines())
         ]
         assert files_with_risk, (
             "no config under configs/ defines a [risk] table anymore — if the table "

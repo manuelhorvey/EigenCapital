@@ -529,9 +529,7 @@ class TestMT5ConnectionConnectErrorPolicy:
 
     def test_bridge_unreachable_returns_false(self, monkeypatch):
         """Connection refused / bridge down is an environment failure → False."""
-        _install_fake_mt5(
-            monkeypatch, init_error=ConnectionRefusedError("[Errno 111] Connection refused")
-        )
+        _install_fake_mt5(monkeypatch, init_error=ConnectionRefusedError("[Errno 111] Connection refused"))
         conn = MT5Connection()
         assert conn.connect() is False
         assert conn.is_connected is False

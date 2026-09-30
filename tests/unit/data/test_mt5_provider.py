@@ -7,13 +7,9 @@ M-4: stop silently adjusting — set auto_adjust=False so returned OHLC matches 
 from __future__ import annotations
 
 import pytest
-
 import yfinance as yf
 
-import pandas as pd
-
 from eigencapital.data.mt5_provider import MT5DataProvider
-
 
 WINDOW_START = "2023-01-01"
 WINDOW_END = "2023-01-31"

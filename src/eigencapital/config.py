@@ -71,9 +71,7 @@ class BrokerConfig:
     # A class absent here falls back to max_spread.
     max_spread_by_class: Dict[str, float] = field(default_factory=dict)
     # Pre-flight gates (readiness §6, pre-trading PT-BROKER-05): MT5 points.
-    max_spread_points_by_class: Dict[str, int] = field(
-        default_factory=lambda: dict(DEFAULT_SPREAD_POINTS_BY_CLASS)
-    )
+    max_spread_points_by_class: Dict[str, int] = field(default_factory=lambda: dict(DEFAULT_SPREAD_POINTS_BY_CLASS))
     max_slippage: float = 0.0008
     min_volume: float = 0.01
     max_volume: float = 1.0

@@ -101,7 +101,6 @@ class FingerprintVerifier:
         self._verification_log: List[Dict[str, Any]] = []
         self._max_log_entries = 100  # Bounded retention
 
-
     def _compute_risk_fingerprint(self) -> str:
         """Compute deterministic fingerprint of RiskPolicy."""
         data = self._risk_policy.to_dict()

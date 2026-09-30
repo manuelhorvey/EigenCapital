@@ -120,12 +120,8 @@ async def require_api_key_and_rate_limit(request: Request, call_next: Any) -> An
     header_key = request.headers.get("X-API-Key", "")
     auth = request.headers.get("Authorization", "")
     api_key = _api_key()
-    x_api_key_ok = bool(header_key) and secrets.compare_digest(
-        header_key.encode("utf-8"), api_key.encode("utf-8")
-    )
-    bearer_ok = bool(auth) and secrets.compare_digest(
-        auth.encode("utf-8"), f"Bearer {api_key}".encode()
-    )
+    x_api_key_ok = bool(header_key) and secrets.compare_digest(header_key.encode("utf-8"), api_key.encode("utf-8"))
+    bearer_ok = bool(auth) and secrets.compare_digest(auth.encode("utf-8"), f"Bearer {api_key}".encode())
     if not (x_api_key_ok or bearer_ok):
         return JSONResponse(
             status_code=401,

@@ -326,7 +326,6 @@ class TestWeightErrorEvidence:
         # other classes keep the 0.15% relative default
         assert not loop._entry_spread_ok("US30", 40000.0, 40000.0 * 1.0016)
 
-
     def test_d1_data_age_is_measured_from_newest_bar(self, loop):
         import pandas as pd
 

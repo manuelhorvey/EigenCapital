@@ -58,9 +58,7 @@ class BrokerBoundaryConfig:
     # cannot disagree. Deliberately NOT part of compute_fingerprint(): the
     # fingerprint covers symbol mapping and execution bounds, and a spread
     # tolerance edit must not invalidate stored evidence.
-    max_spread_points_by_class: Dict[str, int] = field(
-        default_factory=lambda: dict(DEFAULT_SPREAD_POINTS_BY_CLASS)
-    )
+    max_spread_points_by_class: Dict[str, int] = field(default_factory=lambda: dict(DEFAULT_SPREAD_POINTS_BY_CLASS))
 
     def points_spread_limit(self, asset_class: str) -> int:
         """Maximum MT5 spread in points for an asset class."""

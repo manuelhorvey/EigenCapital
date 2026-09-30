@@ -49,9 +49,10 @@ class TestM3TimezonePreservation:
 
         assert df.index.tz is not None, "Timestamp should be tz-aware"
         assert str(df.index.tz) == "UTC", f"Expected UTC, got {df.index.tz}"
-        # Verify conversion happened: 9:30 AM EST → 2:30 PM UTC
+        # Verify conversion happened: midnight EST → 5:00 AM UTC
+        # yfinance returns daily bars at midnight local time; EST (UTC-5) → UTC adds 5 hours
         first_hour = df.index[0].hour
-        assert first_hour == 14, f"Expected UTC hour 14 (9:30 EST converted), got {first_hour}"
+        assert first_hour == 5, f"Expected UTC hour 5 (midnight EST converted), got {first_hour}"
 
     def test_utc_timestamps_preserved_utc(self, provider) -> None:
         """UTC timestamps from yfinance should remain UTC (no unnecessary conversion)."""

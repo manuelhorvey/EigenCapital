@@ -257,7 +257,7 @@ class Portfolio:
 
         # Track old quantity before position update (0 if new position)
         if instrument_id not in self.state.positions:
-            old_qty = 0
+            old_qty: float = 0.0
             # Create new position
             self.state.positions[instrument_id] = Position(
                 instrument_id=instrument_id,

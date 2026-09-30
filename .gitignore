@@ -109,3 +109,4 @@ scripts/test_order_submission.py
 .agents/
 .claude/
 skills-lock.json
+.ruff_cache/

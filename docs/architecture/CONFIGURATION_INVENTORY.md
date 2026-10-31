@@ -32,10 +32,18 @@ R4 loop / risk enforcement / dashboard / fingerprint verifier
 | skip_months (1) | config.toml → StrategyConfig | r4_rebalance_loop | StrategyConfig | ✅ config_fp |
 | vol_lookback_signal (60) | config.toml → StrategyConfig | r4_rebalance_loop | StrategyConfig | ✅ config_fp |
 | risk_lookback (20) | config.toml → StrategyConfig | r4_rebalance_loop | StrategyConfig | ✅ config_fp |
-| vol_target_annual (0.10) | config.toml → StrategyConfig | r4_rebalance_loop | StrategyConfig | ✅ config_fp |
+| vol_target_annual (0.10) | config.toml → StrategyConfig | ⚠️ NOT consumed — loaded into `VOL_TARGET`, never read by the signal/sizing path | StrategyConfig | ✅ config_fp |
 | rebalance_frequency ("weekly") | config.toml → StrategyConfig | ⚠️ NOT consumed | StrategyConfig | — |
 | transaction_cost_bps (10) | config.toml → StrategyConfig | ⚠️ NOT consumed by loop | StrategyConfig | — |
 | slippage_bps (5) | config.toml → StrategyConfig | ⚠️ NOT consumed by loop | StrategyConfig | — |
+
+> **R4 volatility identity (EC-AUDIT-001).** The live signal divisor is the frozen
+> constant `signal_vol_scale_reference = 0.50` inside
+> `scripts/r4_rebalance_loop.py::compute_r4_signal` (`min(vol60 / 0.50, 1.0)`).
+> `vol_target_annual = 0.10` is a separate annual target declared in the manifest
+> and `StrategyConfig`; it is **not** consumed by the live signal or sizing path.
+> Do not substitute one for the other. Guarded by
+> `tests/unit/test_r4_signal_fidelity.py`.
 
 ### Risk
 

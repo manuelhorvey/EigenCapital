@@ -78,9 +78,9 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none for validation semantics.
 - **Acceptance:** Four invalid classes BLOCK; xfails removed; gate enablement unchanged.
 - **Tests:** Parametrised invalid SL classes; valid long/short SL passes; gate-disabled path unchanged.
-- **Status:** `READY FOR IMPLEMENTATION`.
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
+- **Commit / evidence:** `18e254b`; `reports/audits/remediation/F04_STOP_LOSS_VALIDATION.md`. 27 targeted, 480 live/edge tests passed; three strict xfails removed.
+- **Closure:** Pending independent review. Gate remains disabled.
 
 ## F-05 — Reconciliation compares broker state to itself
 - **Severity:** High · **Phase:** P0
@@ -357,7 +357,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 | 7 | Dashboard truth | F-14, F-24 | Read-only consumer fixes |
 | 8 | Experiment immutability | F-20 (with F-10 hash check) | Research evidence integrity |
 | 9 | Forming-bar input | F-11 | Live input; R4 maths unchanged |
-| 10 | Stop-loss validation | F-04 | Live risk check; no gate enablement |
+| 10 | Stop-loss validation | F-04 | **DONE** — `18e254b`; gate still disabled |
 | 11 | Execution/ledger P0 items | F-02 fixture, F-05, F-06, F-16, F-03 | Requires F-02 design + live-path approval |
 | 12 | Decisions required | F-07, F-12, F-13, F-17, F-18 | Technical decision records / approval |
 | 13 | Externally blocked | F-01 | Broker statement |

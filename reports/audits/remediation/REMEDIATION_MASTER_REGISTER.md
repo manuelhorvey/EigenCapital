@@ -221,9 +221,9 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none.
 - **Acceptance:** Production startup refuses default/missing key; query token rejected; warning emitted.
 - **Tests:** Startup guard, token transport, auth-disabled warning.
-- **Status:** `READY FOR IMPLEMENTATION`.
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
+- **Commit / evidence:** `e0fec4c`; `reports/audits/remediation/F15_DASHBOARD_AUTH.md`. Fail-closed (503) when unconfigured; query token removed; dev requires explicit opt-in. 157 dashboard tests pass.
+- **Closure:** Pending independent review.
 
 ## F-16 — Risk-gate call semantics / daily-loss baseline fallback
 - **Severity:** Medium · **Phase:** P1
@@ -353,7 +353,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 | 3 | CI hardening | F-19 | **DONE** — `678433b`; no runtime behaviour |
 | 4 | Documentation truth | F-23 | **DONE** — `e96b4e5`; zero behavioural risk |
 | 5 | Simulation executor isolation | F-21 | **DONE** — `7db75db`; import-surface hardening |
-| 6 | Dashboard auth hardening | F-15 | Security; no trading path |
+| 6 | Dashboard auth hardening | F-15 | **DONE** — `e0fec4c`; security, no trading path |
 | 7 | Dashboard truth | F-14, F-24 | Read-only consumer fixes |
 | 8 | Experiment immutability | F-20 (with F-10 hash check) | Research evidence integrity |
 | 9 | Forming-bar input | F-11 | **DONE** — `c91a8d9`; R4 maths unchanged |

@@ -312,9 +312,9 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** F-06 path unification.
 - **Acceptance:** Every operational file versioned; unknown version fails closed.
 - **Tests:** Version-reader matrix; unknown-version rejection.
-- **Status:** `READY FOR IMPLEMENTATION` after F-06 path contract.
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
+- **Commit / evidence:** `pending`; `reports/audits/remediation/F22_STATE_FILE_SCHEMA.md`. `state_schema.py` framework + `daily_baseline.json`/`supervisor_state.json` wired; 26 targeted tests pass; live/core suite 779 passed.
+- **Closure:** Pending independent review; remaining r4_loop files can be versioned against this framework as follow-up.
 
 ## F-23 — Documentation drift and absent governing specs
 - **Severity:** Low · **Phase:** P3

@@ -26,6 +26,31 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict
 
+from eigencapital.core.state_schema import (
+    SchemaDefinition,
+    SchemaError,
+    read_versioned,
+    write_versioned,
+)
+
+
+def _migrate_supervisor_state(legacy: dict) -> dict:
+    """Migrate a legacy supervisor-state payload to schema v1."""
+    data = dict(legacy)
+    data["schema_version"] = 1
+    return data
+
+
+# Schema for supervisor_state.json. Version 1 adds ``schema_version``;
+# legacy (unversioned) files are migrated preserving all fields.
+SUPERVISOR_SCHEMA = SchemaDefinition(
+    name="supervisor_state.json",
+    version=1,
+    required_fields={"pid", "started_at", "restart_count", "last_healthy_at", "status", "instance_id"},
+    optional_fields=set(),
+    migrator=_migrate_supervisor_state,
+)
+
 
 @dataclass(frozen=True)
 class SupervisorState:
@@ -83,12 +108,24 @@ class ProcessSupervisor:
         return hashlib.sha256(data.encode()).hexdigest()[:12]
 
     def _load_state(self) -> SupervisorState | None:
-        """Load state from disk."""
+        """Load state from disk using the versioned schema reader.
+
+        Returns ``None`` if the file is missing, unreadable, malformed, or
+        fails validation (unknown schema version). A ``SchemaError`` is
+        treated as corrupted — fail closed.
+        """
         if not self._state_file.exists():
             return None
         try:
-            with open(self._state_file) as f:
-                data = json.load(f)
+            result = read_versioned(self._state_file, SUPERVISOR_SCHEMA)
+        except SchemaError:
+            # Unknown schema version or validation failure: corrupted, fail
+            # closed — never silently interpret.
+            return None
+        if result is None:
+            return None
+        data, _version = result
+        try:
             return SupervisorState(
                 pid=data["pid"],
                 started_at=data["started_at"],
@@ -97,24 +134,13 @@ class ProcessSupervisor:
                 status=data.get("status", "running"),
                 instance_id=data.get("instance_id", ""),
             )
-        except (json.JSONDecodeError, KeyError, OSError):
-            return None
+        except (KeyError, TypeError):
+            return None  # Missing required fields
 
     def _save_state(self, state: SupervisorState) -> None:
-        """Save state to disk atomically."""
+        """Save state to disk atomically with schema version."""
         self._state_dir.mkdir(parents=True, exist_ok=True)
-        tmp_path = self._state_file.with_suffix(".tmp")
-        try:
-            with open(tmp_path, "w") as f:
-                json.dump(state.to_dict(), f, indent=2)
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(str(tmp_path), str(self._state_file))
-        except OSError:
-            try:
-                os.unlink(str(tmp_path))
-            except OSError:
-                pass
+        write_versioned(self._state_file, state.to_dict(), SUPERVISOR_SCHEMA)
 
     def _write_pid(self) -> None:
         """Write current PID to file."""

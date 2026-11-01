@@ -170,7 +170,7 @@ class ValidationEngine:
         equity_curve: List[float] | None = None,
         instrument_returns: Dict[str, List[float]] | None = None,
         trades: List[float] | None = None,
-        pbo_candidates: List[Dict[str, float]] | None = None,
+        pbo_candidates: List[Dict[str, Any]] | None = None,
         regime_returns: Dict[str, List[float]] | None = None,
         sensitivity_data: Dict[str, List[float]] | None = None,
         cost_stress_data: Dict[str, Any] | None = None,
@@ -178,6 +178,11 @@ class ValidationEngine:
         """Run full validation suite.
 
         MISSING evidence → INCONCLUSIVE (never PASS).
+
+        ``pbo_candidates`` entries must each carry a per-period ``returns``
+        series so PBO can be estimated with CSCV. Summary-only in-sample /
+        out-of-sample values produce an ``UNSUPPORTED_INPUT`` PBO result, which
+        is treated as missing evidence rather than a fabricated value.
         """
         warnings = []
 

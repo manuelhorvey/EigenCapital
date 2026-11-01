@@ -62,7 +62,7 @@ operation was performed. The pre-existing stash
 - `docs/production/LIVE_PROCESS_ATTESTATION.md` (6-question model, 8-step procedure).
 - `docs/production/OPERATIONS_RUNBOOK.md` paths corrected.
 - `reports/audits/EC_AUDIT_005_LIVE_PROCESS_ATTESTATION_GUIDANCE.md` (F-4-1..F-4-6).
-- Findings: status-file staleness, optional T=0, absent `DurableAudit` stores, duplicate-loop exit 75.
+- Findings: status-file staleness, T=0 absence/reuse, absent `DurableAudit` stores, duplicate-loop exit 75.
 
 ### Unit 5 — Research provenance (`EC-AUDIT-006`)
 

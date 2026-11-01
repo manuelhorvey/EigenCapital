@@ -56,10 +56,12 @@ the live record. Capital sizing on this basis would be unfounded.
 
 ### C-7.2 — No current T=0 attestation
 
-The newest T=0 snapshot is `2026-09-30`. The loop ran through `2026-10-29` with
-no T=0 attestation for that session, and T=0 validation is optional at startup
-(`scripts/r4_rebalance_loop.py:3056`, warning only). `decisions.jsonl` records
-three `t0_mismatch` events (`config_match = false`, `account_match = true`).
+The newest T=0 snapshot is `2026-09-30`. The loop ran through `2026-10-29` and
+emitted `t0_validated` 96 times, all against September snapshots; **no T=0
+snapshot was captured for the October sessions**. An absent T=0 file only
+produces a warning (`scripts/r4_rebalance_loop.py:3056`), while a present-but-
+mismatched snapshot aborts startup. Three `t0_mismatch` events are recorded
+(`config_match = false`, `account_match = true`).
 
 ### C-7.3 — Stop-loss protection is disabled by policy
 

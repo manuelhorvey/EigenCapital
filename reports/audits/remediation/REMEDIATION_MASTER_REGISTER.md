@@ -326,7 +326,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Acceptance:** Comment values match code; absent specs labelled; gate status explicit.
 - **Tests:** Doc/code consistency check (grep-based).
 - **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
-- **Commit / evidence:** `e96b4e5` (comment fix); `reports/audits/remediation/F23_DOCUMENTATION_DRIFT.md`. Loop comments now match config; absent specs labelled historical; EC-AUDIT-009 stated as not adopted / gate not passed.
+- **Commit / evidence:** `55ebb33` (comment fix); `reports/audits/remediation/F23_DOCUMENTATION_DRIFT.md`. Loop comments now match config; absent specs labelled historical; EC-AUDIT-009 stated as not adopted / gate not passed.
 - **Closure:** Pending independent review.
 
 ## F-24 — Dashboard repeat reads and in-memory rate limiting

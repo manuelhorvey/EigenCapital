@@ -299,9 +299,9 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none.
 - **Acceptance:** Production import cannot select simulated executor.
 - **Tests:** Import/selection guard.
-- **Status:** `READY FOR IMPLEMENTATION`.
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
+- **Commit / evidence:** `7db75db`; `reports/audits/remediation/F21_SIMULATION_EXECUTORS.md`. Import guard raises without test flag; build-time exclusion of eigencapital.research* documented. 785 research tests pass.
+- **Closure:** Pending independent review.
 
 ## F-22 — Operational state files have no schema/version
 - **Severity:** Medium · **Phase:** P2
@@ -352,7 +352,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 | 2 | Statistical correction: CSCV PBO | F-08 | **DONE** — `6e707ca`; re-derivation blocked on raw matrices |
 | 3 | CI hardening | F-19 | **DONE** — `678433b`; no runtime behaviour |
 | 4 | Documentation truth | F-23 | **DONE** — `e96b4e5`; zero behavioural risk |
-| 5 | Simulation executor isolation | F-21 | Import-surface hardening |
+| 5 | Simulation executor isolation | F-21 | **DONE** — `7db75db`; import-surface hardening |
 | 6 | Dashboard auth hardening | F-15 | Security; no trading path |
 | 7 | Dashboard truth | F-14, F-24 | Read-only consumer fixes |
 | 8 | Experiment immutability | F-20 (with F-10 hash check) | Research evidence integrity |

@@ -1,5 +1,7 @@
 """Unit tests for Experiment Registry."""
 
+import json
+
 import pytest
 from dataclasses import FrozenInstanceError
 
@@ -294,3 +296,88 @@ class TestExperimentImmutability:
         repo.save(_make_experiment(test_frozen=True))
         with pytest.raises(ExperimentError, match="immutable"):
             repo.delete("EXP-000001")
+
+
+class TestExperimentRepositoryProvenance:
+    """F-10: load() verifies the stored provenance hash, fail closed."""
+
+    def _repo_with_saved_experiment(self, tmp_path):
+        from eigencapital.research.experiments.repository import ExperimentRepository
+
+        repo = ExperimentRepository(tmp_path)
+        repo.save(_make_experiment())
+        return repo
+
+    def test_load_verifies_valid_provenance_hash(self, tmp_path):
+        repo = self._repo_with_saved_experiment(tmp_path)
+        loaded = repo.load("EXP-000001")
+        assert loaded.experiment_id == "EXP-000001"
+        assert loaded.provenance_hash  # non-empty, was written by save
+
+    def test_load_rejects_tampered_hash(self, tmp_path):
+        from eigencapital.research.experiments.repository import ExperimentRepository
+
+        repo = ExperimentRepository(tmp_path)
+        repo.save(_make_experiment())
+        path = repo._experiment_path("EXP-000001")
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["provenance_hash"] = "0" * 64  # tampered hash
+        path.write_text(json.dumps(data), encoding="utf-8")
+        with pytest.raises(ExperimentError, match="provenance hash mismatch"):
+            repo.load("EXP-000001")
+
+    def test_load_rejects_tampered_data(self, tmp_path):
+        from eigencapital.research.experiments.repository import ExperimentRepository
+
+        repo = ExperimentRepository(tmp_path)
+        repo.save(_make_experiment())
+        path = repo._experiment_path("EXP-000001")
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["parameters"] = {"lookback": 999}  # tampered field, hash not updated
+        path.write_text(json.dumps(data), encoding="utf-8")
+        with pytest.raises(ExperimentError, match="provenance hash mismatch"):
+            repo.load("EXP-000001")
+
+    def test_load_rejects_missing_hash(self, tmp_path):
+        from eigencapital.research.experiments.repository import ExperimentRepository
+
+        repo = ExperimentRepository(tmp_path)
+        path = repo._experiment_path("EXP-000001")
+        data = _make_experiment().to_dict()
+        del data["provenance_hash"]  # remove the hash
+        path.write_text(json.dumps(data), encoding="utf-8")
+        with pytest.raises(ExperimentError, match="no provenance hash"):
+            repo.load("EXP-000001")
+
+    def test_load_rejects_malformed_json(self, tmp_path):
+        from eigencapital.research.experiments.repository import ExperimentRepository
+
+        repo = ExperimentRepository(tmp_path)
+        path = repo._experiment_path("EXP-000001")
+        path.write_text("{not valid json", encoding="utf-8")
+        with pytest.raises(ExperimentError, match="malformed"):
+            repo.load("EXP-000001")
+
+    def test_load_rejects_non_dict_json(self, tmp_path):
+        from eigencapital.research.experiments.repository import ExperimentRepository
+
+        repo = ExperimentRepository(tmp_path)
+        path = repo._experiment_path("EXP-000001")
+        path.write_text("[1, 2, 3]", encoding="utf-8")
+        with pytest.raises(ExperimentError, match="JSON object"):
+            repo.load("EXP-000001")
+
+    def test_save_writes_valid_provenance_hash(self, tmp_path):
+        from eigencapital.research.experiments.repository import ExperimentRepository
+
+        repo = ExperimentRepository(tmp_path)
+        exp = _make_experiment()
+        repo.save(exp)
+        raw = json.loads((tmp_path / "EXP-000001.json").read_text(encoding="utf-8"))
+        assert "provenance_hash" in raw
+        assert raw["provenance_hash"]
+        # Recomputing the hash over all fields except provenance_hash matches.
+        trial = ExperimentRecord(**{**raw, "provenance_hash": ""})
+        from eigencapital.core.provenance import compute_provenance_hash
+
+        assert compute_provenance_hash(trial.to_dict()) == raw["provenance_hash"]

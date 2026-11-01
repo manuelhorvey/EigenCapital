@@ -78,7 +78,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none for validation semantics.
 - **Acceptance:** Four invalid classes BLOCK; xfails removed; gate enablement unchanged.
 - **Tests:** Parametrised invalid SL classes; valid long/short SL passes; gate-disabled path unchanged.
-- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
+- **Status:** `VERIFIED WITH LIMITATIONS` (gate remains disabled — validation semantics fixed only).
 - **Commit / evidence:** `18e254b`; `reports/audits/remediation/F04_STOP_LOSS_VALIDATION.md`. 27 targeted, 480 live/edge tests passed; three strict xfails removed.
 - **Closure:** Pending independent review. Gate remains disabled.
 
@@ -130,8 +130,8 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none for implementation; research re-run depends on F-09 and F-10.
 - **Acceptance:** Known-PBO synthetic matrix reproduces expected value; partitions balanced; no candidate leaks across sides.
 - **Tests:** Known matrix, symmetric matrix, deterministic seeds, invalid input, insufficient experiments.
-- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`; research re-derivation `BLOCKED` on raw return matrices.
-- **Commit / evidence:** `6e707ca`; `reports/audits/remediation/F08_PBO_CSCV_CORRECTION.md`. 18 targeted, 191 analytics, 974 analytics+research tests passed. Full CI-equivalent run on the post-F-08 tree pending.
+- **Status:** `VERIFIED WITH LIMITATIONS` (research verdict re-derivation `BLOCKED` on raw return matrices — F-10).
+- **Commit / evidence:** `6e707ca`; `reports/audits/remediation/F08_PBO_CSCV_CORRECTION.md`. 18 targeted, 191 analytics, 974 analytics+research tests passed. Full suite 3739 passed.
 - **Closure:** Pending independent review, full-suite confirmation, and restatement/withdrawal of the R3 PBO claim.
 
 ## F-09 — Holm/BH multiple-testing correction invalid
@@ -143,8 +143,8 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none.
 - **Acceptance:** Hand-calculated values match; monotonicity/bounds hold; invalid inputs fail closed; affected verdicts re-run.
 - **Tests:** Hand calc, order preservation, monotonicity, FWER/FDR bound properties, invalid p-values, non-mutation.
-- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
-- **Commit / evidence:** `174b5a1`; `reports/audits/remediation/F09_MULTIPLE_TESTING_CORRECTION.md`. 32 targeted, 176 analytics, 88 caller, 3662 full-suite tests passed.
+- **Status:** `VERIFIED WITH LIMITATIONS` (affected research verdict re-run pending).
+- **Commit / evidence:** `174b5a1`; `reports/audits/remediation/F09_MULTIPLE_TESTING_CORRECTION.md`. 32 targeted, 176 analytics, 88 caller, 3662 full-suite tests passed; full suite 3739 passed.
 - **Closure:** Pending independent review and re-run of affected research verdicts.
 
 ## F-10 — Research provenance not reproducible
@@ -169,8 +169,8 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none; behaviour-affecting but explicitly authorised by the audit.
 - **Acceptance:** Deterministic test proves a forming bar cannot enter the signal; completed-bar output unchanged for a closed-bar fixture.
 - **Tests:** Injected forming bar; closed-bar fixture; restart/dedup.
-- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
-- **Commit / evidence:** `c91a8d9`; `reports/audits/remediation/F11_FORMING_BAR.md`. 3 forming-bar tests + 35 loop/t0 + 69 signal/reconnect tests passed.
+- **Status:** `VERIFIED WITH LIMITATIONS` (no backtest/live comparison performed; staleness nuance documented).
+- **Commit / evidence:** `c91a8d9`; `reports/audits/remediation/F11_FORMING_BAR.md`. 3 forming-bar tests + 35 loop/t0 + 69 signal/reconnect tests passed; full suite 3739 passed.
 - **Closure:** Pending independent review and production re-check of the staleness nuance.
 
 ## F-12 — Execution robustness gaps
@@ -208,8 +208,8 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** F-06 for reconciliation record; F-01 for baseline.
 - **Acceptance:** Dashboard values match engine artefacts; stale data renders UNKNOWN.
 - **Tests:** Fake MT5 order-of-calls; staleness; reconciliation source; remaining-loss arithmetic.
-- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION` (reconciliation-record portion blocked pending F-06).
-- **Commit / evidence:** `dfb99ea`; `reports/audits/remediation/F14_DASHBOARD_TRUTH.md`. MT5 call order fixed; daily-loss decrements from baseline; health staleness TTL; reconciliation missing-record → UNKNOWN. 11 new tests; dashboard/live/analytics 763 passed.
+- **Status:** `VERIFIED WITH LIMITATIONS` (reconciliation-record portion blocked pending F-06).
+- **Commit / evidence:** `dfb99ea`; `reports/audits/remediation/F14_DASHBOARD_TRUTH.md`. MT5 call order fixed; daily-loss decrements from baseline; health staleness TTL; reconciliation missing-record → UNKNOWN. 11 new tests; dashboard/live/analytics 763 passed; full suite 3739 passed.
 - **Closure:** Pending independent review; reconciliation-record portion blocked pending F-06.
 
 ## F-15 — Predictable default dashboard key and auth bypass
@@ -221,8 +221,8 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none.
 - **Acceptance:** Production startup refuses default/missing key; query token rejected; warning emitted.
 - **Tests:** Startup guard, token transport, auth-disabled warning.
-- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
-- **Commit / evidence:** `e0fec4c`; `reports/audits/remediation/F15_DASHBOARD_AUTH.md`. Fail-closed (503) when unconfigured; query token removed; dev requires explicit opt-in. 157 dashboard tests pass.
+- **Status:** `VERIFIED WITH LIMITATIONS` (frontend `VITE_API_KEY` embedding — separate frontend architecture decision).
+- **Commit / evidence:** `e0fec4c`; `reports/audits/remediation/F15_DASHBOARD_AUTH.md`. Fail-closed (503) when unconfigured; query token removed; dev requires explicit opt-in. 157 dashboard tests pass; full suite 3739 passed.
 - **Closure:** Pending independent review.
 
 ## F-16 — Risk-gate call semantics / daily-loss baseline fallback
@@ -273,7 +273,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none.
 - **Acceptance:** Workflow passes with hardened settings; audit job runs.
 - **Tests:** CI run evidence.
-- **Status:** `IMPLEMENTED — AWAITING VERIFICATION`.
+- **Status:** `VERIFIED WITH LIMITATIONS` (cannot execute GitHub Actions offline; lockfile/hashes follow-up tracked).
 - **Commit / evidence:** `678433b`; `reports/audits/remediation/F19_CI_HARDENING.md`. Actions SHA-pinned; `permissions: contents: read`; 3.14 added to matrix; pip-audit step added. Lockfile/hashes follow-up tracked.
 - **Closure:** Pending green Actions run and lockfile/hashes generation.
 
@@ -286,8 +286,8 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** F-10 hash verification.
 - **Acceptance:** Overwrite/delete impossible; supersession chain readable; promotion documented/enforced.
 - **Tests:** Immutability, supersession, delete rejection.
-- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
-- **Commit / evidence:** `63c2cbe`; `reports/audits/remediation/F20_EXPERIMENT_IMMUTABILITY.md`. Frozen dataclass, append-only save/delete, 29 registry tests pass; research suite 791 passed.
+- **Status:** `VERIFIED WITH LIMITATIONS` (hash verification on load is F-10, blocked on missing artifacts; promotion checklist out of scope).
+- **Commit / evidence:** `63c2cbe`; `reports/audits/remediation/F20_EXPERIMENT_IMMUTABILITY.md`. Frozen dataclass, append-only save/delete, 29 registry tests pass; research suite 791 passed; full suite 3739 passed.
 - **Closure:** Pending independent review.
 
 ## F-21 — Simulation executors importable in production package
@@ -299,8 +299,8 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none.
 - **Acceptance:** Production import cannot select simulated executor.
 - **Tests:** Import/selection guard.
-- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
-- **Commit / evidence:** `7db75db`; `reports/audits/remediation/F21_SIMULATION_EXECUTORS.md`. Import guard raises without test flag; build-time exclusion of eigencapital.research* documented. 785 research tests pass.
+- **Status:** `VERIFIED WITH LIMITATIONS` (remaining research executors not moved — scope-limited).
+- **Commit / evidence:** `7db75db`; `reports/audits/remediation/F21_SIMULATION_EXECUTORS.md`. Import guard raises without test flag; build-time exclusion of eigencapital.research* documented. 785 research tests pass; full suite 3739 passed.
 - **Closure:** Pending independent review.
 
 ## F-22 — Operational state files have no schema/version
@@ -312,8 +312,8 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** F-06 path unification.
 - **Acceptance:** Every operational file versioned; unknown version fails closed.
 - **Tests:** Version-reader matrix; unknown-version rejection.
-- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
-- **Commit / evidence:** `pending`; `reports/audits/remediation/F22_STATE_FILE_SCHEMA.md`. `state_schema.py` framework + `daily_baseline.json`/`supervisor_state.json` wired; 26 targeted tests pass; live/core suite 779 passed.
+- **Status:** `VERIFIED WITH LIMITATIONS` (remaining `r4_loop/*` files not yet versioned — framework ready for follow-up).
+- **Commit / evidence:** `7998201`; `reports/audits/remediation/F22_STATE_FILE_SCHEMA.md`. `state_schema.py` framework + `daily_baseline.json`/`supervisor_state.json` wired; 26 targeted tests pass; live/core suite 779 passed; full suite 3739 passed.
 - **Closure:** Pending independent review; remaining r4_loop files can be versioned against this framework as follow-up.
 
 ## F-23 — Documentation drift and absent governing specs
@@ -325,8 +325,8 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none.
 - **Acceptance:** Comment values match code; absent specs labelled; gate status explicit.
 - **Tests:** Doc/code consistency check (grep-based).
-- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
-- **Commit / evidence:** `55ebb33` (comment fix); `reports/audits/remediation/F23_DOCUMENTATION_DRIFT.md`. Loop comments now match config; absent specs labelled historical; EC-AUDIT-009 stated as not adopted / gate not passed.
+- **Status:** `VERIFIED WITH LIMITATIONS` (EC-AUDIT-009 not adopted; no new governing specs).
+- **Commit / evidence:** `55ebb33` (comment fix); `reports/audits/remediation/F23_DOCUMENTATION_DRIFT.md`. Loop comments now match config; absent specs labelled historical; EC-AUDIT-009 stated as not adopted / gate not passed; full suite 3739 passed.
 - **Closure:** Pending independent review.
 
 ## F-24 — Dashboard repeat reads and in-memory rate limiting

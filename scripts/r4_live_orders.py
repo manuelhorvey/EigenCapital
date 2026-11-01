@@ -110,7 +110,8 @@ def fetch_d1_data(mt5, symbols: List[str], bars: int = 300) -> Dict[str, pd.Data
     data: Dict[str, pd.DataFrame] = {}
     for sym in symbols:
         mt5.symbol_select(sym, True)
-        rates = mt5.copy_rates_from_pos(sym, mt5.TIMEFRAME_D1, 0, bars)
+        # start_pos=1 skips the forming daily bar: R4 consumes completed bars only.
+        rates = mt5.copy_rates_from_pos(sym, mt5.TIMEFRAME_D1, 1, bars)
         if rates is None or len(rates) == 0:
             print(f"  ⚠️  {sym}: no data")
             continue

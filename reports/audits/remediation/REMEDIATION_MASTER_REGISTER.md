@@ -143,9 +143,9 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none.
 - **Acceptance:** Hand-calculated values match; monotonicity/bounds hold; invalid inputs fail closed; affected verdicts re-run.
 - **Tests:** Hand calc, order preservation, monotonicity, FWER/FDR bound properties, invalid p-values, non-mutation.
-- **Status:** `IN PROGRESS`.
-- **Commit / evidence:** pending.
-- **Closure:** Pending.
+- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
+- **Commit / evidence:** `174b5a1`; `reports/audits/remediation/F09_MULTIPLE_TESTING_CORRECTION.md`. 32 targeted, 176 analytics, 88 caller, 3662 full-suite tests passed.
+- **Closure:** Pending independent review and re-run of affected research verdicts.
 
 ## F-10 — Research provenance not reproducible
 - **Severity:** High · **Phase:** P1
@@ -348,8 +348,8 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 
 | Order | Unit | Findings | Rationale |
 |---|---|---|---|
-| 1 | Statistical correction: Holm/BH | F-09 | Pure function; no live path; high severity |
-| 2 | Statistical correction: CSCV PBO | F-08 | Pure function; depends only on F-09 for re-run |
+| 1 | Statistical correction: Holm/BH | F-09 | **DONE** — `174b5a1`, awaiting independent verification |
+| 2 | Statistical correction: CSCV PBO | F-08 | Next — pure function; depends only on F-09 for re-run |
 | 3 | CI hardening | F-19 | No runtime behaviour; protects all later work |
 | 4 | Documentation truth | F-23 | Zero behavioural risk |
 | 5 | Simulation executor isolation | F-21 | Import-surface hardening |

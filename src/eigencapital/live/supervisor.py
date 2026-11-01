@@ -288,23 +288,51 @@ class ProcessSupervisor:
         return new_count
 
     def release(self) -> None:
-        """Release the instance claim (cleanup PID file)."""
+        """Release the instance claim and persist a terminal state.
+
+        ``release()`` must not leave ``supervisor_state.json`` claiming the
+        process is still ``running``: status files are read by operators and
+        the dashboard, and a released instance that still reads ``running`` is
+        indistinguishable from a live one. ``frozen`` is preserved because it
+        is a deliberate terminal state that a clean exit must not mask.
+        """
         try:
             self._pid_file.unlink(missing_ok=True)
         except OSError:
             pass
-        # Write final health state
+
+        if self._state is not None:
+            terminal = "frozen" if self._state.status == "frozen" else "stopped"
+            self._state = SupervisorState(
+                pid=self._state.pid,
+                started_at=self._state.started_at,
+                restart_count=self._state.restart_count,
+                last_healthy_at=self._state.last_healthy_at,
+                status=terminal,
+                instance_id=self._state.instance_id,
+            )
+            self._save_state(self._state)
+
+        # Write final health state atomically: a torn write must not leave a
+        # half-written health file that external monitors misread.
         self._state_dir.mkdir(parents=True, exist_ok=True)
         health_data = {
             "alive": False,
             "pid": os.getpid(),
             "timestamp": self._now_utc(),
         }
+        tmp = self._health_file.with_suffix(".tmp")
         try:
-            with open(self._health_file, "w") as f:
+            with open(tmp, "w") as f:
                 json.dump(health_data, f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(str(tmp), str(self._health_file))
         except OSError:
-            pass
+            try:
+                os.unlink(str(tmp))
+            except OSError:
+                pass
 
     @property
     def is_owner(self) -> bool:

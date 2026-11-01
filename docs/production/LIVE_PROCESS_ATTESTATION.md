@@ -39,7 +39,7 @@ running process (not merely from the repository), the runtime identity is
 |---|---|---|---|
 | `reports/r4_loop/supervisor.pid` | `ProcessSupervisor.claim_instance()` | PID of the single loop claimant; removed on clean release | None (liveness via `kill -0`) |
 | `reports/r4_loop/supervisor.lock` | `ProcessSupervisor.claim_instance()` | `flock` target making claim atomic | OS lock |
-| `reports/r4_loop/supervisor_state.json` | `ProcessSupervisor` | `pid`, `started_at`, `restart_count`, `last_healthy_at`, `status`, `instance_id` | None; **status can remain `running` after exit** |
+| `reports/r4_loop/supervisor_state.json` | `ProcessSupervisor` | `pid`, `started_at`, `restart_count`, `last_healthy_at`, `status`, `instance_id` | None; `release()` writes `stopped` (preserves `frozen`); artifacts written before that hardening may still read `running` |
 | `reports/r4_loop/loop_health.json` | `ProcessSupervisor.mark_healthy()` / `release()` | `alive`, `pid`, `timestamp`, `instance_id` | None |
 | `reports/r4_loop/last_health.json` | `scripts/r4_monitor.py` | Monitor fallback liveness snapshot | None |
 | `reports/r4_loop/decisions.jsonl` | `scripts/r4_rebalance_loop.py::audit()` | Append-only operational/audit events | **Append-only only; not hash-chained** |
@@ -184,9 +184,10 @@ configured watchdog thresholds (`configs/production/config.toml`,
 `[watchdog]`): `stale_after_seconds = 300`, `blind_after_seconds = 900`,
 `contain_after_seconds = 3600`.
 
-**Pitfall:** `supervisor_state.json.status` is not updated by `release()` and
-can still read `"running"` after a process has exited. Always confirm with
-`kill -0 "$PID"` and a fresh `loop_health.json` timestamp.
+**Pitfall:** `release()` now writes `stopped` (or preserves `frozen`), but any
+`supervisor_state.json` written before that hardening can still read
+`"running"` after a process has exited. Always confirm with `kill -0 "$PID"`
+and a fresh `loop_health.json` timestamp.
 
 ### Step 7 — Verify evidence integrity
 
@@ -243,9 +244,9 @@ Store the result under `reports/audits/` with the timestamp and commit:
 
 ## 4. Known pitfalls and limitations
 
-1. **Status-file staleness** — `supervisor_state.json.status` may say
-   `running` after exit; `loop_health.json` may be stale. Always confirm with
-   the live PID.
+1. **Status-file staleness** — newer releases write `stopped`/`frozen`, but
+   older `supervisor_state.json` artifacts may still say `running`. Always
+   confirm with the live PID.
 2. **T=0 is optional at startup** — absent T=0 produces a warning, not a halt.
    Record it as an evidence gap.
 3. **`decisions.jsonl` is not hash-chained** — do not claim tamper evidence for

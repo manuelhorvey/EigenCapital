@@ -130,9 +130,9 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none for implementation; research re-run depends on F-09 and F-10.
 - **Acceptance:** Known-PBO synthetic matrix reproduces expected value; partitions balanced; no candidate leaks across sides.
 - **Tests:** Known matrix, symmetric matrix, deterministic seeds, invalid input, insufficient experiments.
-- **Status:** `READY FOR IMPLEMENTATION`.
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`; research re-derivation `BLOCKED` on raw return matrices.
+- **Commit / evidence:** `6e707ca`; `reports/audits/remediation/F08_PBO_CSCV_CORRECTION.md`. 18 targeted, 191 analytics, 974 analytics+research tests passed. Full CI-equivalent run on the post-F-08 tree pending.
+- **Closure:** Pending independent review, full-suite confirmation, and restatement/withdrawal of the R3 PBO claim.
 
 ## F-09 — Holm/BH multiple-testing correction invalid
 - **Severity:** High · **Phase:** P1
@@ -349,7 +349,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 | Order | Unit | Findings | Rationale |
 |---|---|---|---|
 | 1 | Statistical correction: Holm/BH | F-09 | **DONE** — `174b5a1`, awaiting independent verification |
-| 2 | Statistical correction: CSCV PBO | F-08 | Next — pure function; depends only on F-09 for re-run |
+| 2 | Statistical correction: CSCV PBO | F-08 | **DONE** — `6e707ca`; re-derivation blocked on raw matrices |
 | 3 | CI hardening | F-19 | No runtime behaviour; protects all later work |
 | 4 | Documentation truth | F-23 | Zero behavioural risk |
 | 5 | Simulation executor isolation | F-21 | Import-surface hardening |

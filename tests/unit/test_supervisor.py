@@ -261,6 +261,46 @@ class TestRelease:
             data = json.load(f)
         assert data["alive"] is False
 
+    def test_release_marks_state_stopped(self, supervisor, tmp_dir):
+        """Release must not leave supervisor_state.json claiming 'running'."""
+        supervisor.claim_instance()
+        supervisor.release()
+        state_file = Path(tmp_dir) / "supervisor_state.json"
+        with open(state_file) as f:
+            data = json.load(f)
+        assert data["status"] == "stopped"
+        assert data["pid"] == os.getpid()
+
+    def test_release_preserves_frozen_status(self, supervisor, tmp_dir):
+        """A frozen instance must stay frozen after release, not become stopped."""
+        supervisor.claim_instance()
+        supervisor.mark_frozen(reason="too many failures")
+        supervisor.release()
+        state_file = Path(tmp_dir) / "supervisor_state.json"
+        with open(state_file) as f:
+            data = json.load(f)
+        assert data["status"] == "frozen"
+
+    def test_claim_after_release_resets_status_to_running(self, supervisor, tmp_dir):
+        """A fresh claim must overwrite the terminal state with 'running'."""
+        supervisor.claim_instance()
+        supervisor.release()
+        fresh = ProcessSupervisor(state_dir=tmp_dir)
+        assert fresh.claim_instance() is True
+        state_file = Path(tmp_dir) / "supervisor_state.json"
+        with open(state_file) as f:
+            data = json.load(f)
+        assert data["status"] == "running"
+        fresh.release()
+
+    def test_release_without_claim_writes_dead_health(self, supervisor, tmp_dir):
+        """release() before claim() must still emit a dead health file."""
+        supervisor.release()
+        health_file = Path(tmp_dir) / "loop_health.json"
+        with open(health_file) as f:
+            data = json.load(f)
+        assert data["alive"] is False
+
     def test_release_does_not_break_a_subsequent_claim(self, supervisor, tmp_dir):
         """A released claim must be immediately claimable again."""
         assert supervisor.claim_instance() is True

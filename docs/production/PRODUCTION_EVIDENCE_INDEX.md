@@ -54,8 +54,9 @@ Last updated (original campaign): 2026-08-26 · banner added 2026-09-23
 | Directory | Purpose | Retention |
 |---|---|---|
 | `evidence/position_evidence.jsonl` | Hourly position snapshots | Rolling 30 days |
-| `reports/r4_loop/decisions.jsonl` | Order execution audit | Rolling 30 days |
-| `reports/r4_loop/loop.log` | Loop operational log | Rolling 7 days |
+| `reports/r4_loop/decisions.jsonl` | Order execution audit (append-only; **not hash-chained** — use the `DurableAudit` stores for tamper evidence) | Rolling 30 days |
+| `reports/r4_loop/loop_stdout.log` | Loop operational log (launcher-dependent; `r4_daily.sh` writes `runs/YYYY-MM-DD.log`) | Rolling 7 days |
+| `reports/r4_loop/supervisor_state.json` | PID/instance/status state (status becomes terminal on release) | Until next claim |
 
 ### Safety Architecture (Authoritative)
 

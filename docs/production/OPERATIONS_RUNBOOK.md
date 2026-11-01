@@ -9,11 +9,18 @@ Last updated: 2026-08-26
 | Action | Command |
 |---|---|
 | Check status | `ps aux \| grep r4_rebalance_loop` |
-| View logs | `tail -30 reports/r4_loop/loop.log` |
-| Stop loop | `kill $(cat reports/r4_loop/loop.pid)` |
+| View logs | `tail -30 reports/r4_loop/loop_stdout.log` |
+| Stop loop | `kill $(cat reports/r4_loop/supervisor.pid)` |
 | Restart loop | See below |
 | Emergency flatten | `python scripts/r4_rebalance_loop.py --flatten` |
 | Supervisor check | `python scripts/r4_supervisor_dryrun.py` |
+
+> **Log and PID paths depend on the launcher.** `start_trading.sh` writes
+> `reports/r4_loop/loop_stdout.log`; `r4_daily.sh` writes
+> `reports/r4_loop/runs/YYYY-MM-DD.log`. `supervisor.pid` exists only while the
+> loop holds the single-instance claim (it is removed on clean release); do not
+> assume it exists when the process is stopped. For a full runtime-identity
+> procedure, see [`LIVE_PROCESS_ATTESTATION.md`](LIVE_PROCESS_ATTESTATION.md).
 
 ## Daily Checks
 
@@ -24,13 +31,13 @@ Last updated: 2026-08-26
 ps aux | grep r4_rebalance_loop | grep -v grep
 
 # 2. Check last cycle succeeded
-tail -10 reports/r4_loop/loop.log
+tail -10 reports/r4_loop/loop_stdout.log
 
 # 3. Check positions
 python scripts/r4_qualification_monitor.py
 
 # 4. Check for overnight issues
-grep -i "error\|fail\|halt\|block" reports/r4_loop/loop.log | tail -10
+grep -i "error\|fail\|halt\|block" reports/r4_loop/loop_stdout.log | tail -10
 ```
 
 ### Evening (Market Close)
@@ -93,9 +100,9 @@ python -c "from eigencapital.production_qual.fingerprint_verifier import Fingerp
 
 If loop fails to reconnect:
 ```bash
-kill $(cat reports/r4_loop/loop.pid 2>/dev/null)
+kill $(cat reports/r4_loop/supervisor.pid 2>/dev/null)
 sleep 5
-nohup python -u scripts/r4_rebalance_loop.py --loop --interval 3600 > reports/r4_loop/loop.log 2>&1 &
+nohup python -u scripts/r4_rebalance_loop.py --loop --interval 3600 > reports/r4_loop/loop_stdout.log 2>&1 &
 ```
 
 ### Process Crash
@@ -105,10 +112,10 @@ nohup python -u scripts/r4_rebalance_loop.py --loop --interval 3600 > reports/r4
 **Action:**
 ```bash
 # Check why it crashed
-tail -50 reports/r4_loop/loop.log
+tail -50 reports/r4_loop/loop_stdout.log
 
 # Restart
-nohup python -u scripts/r4_rebalance_loop.py --loop --interval 3600 > reports/r4_loop/loop.log 2>&1 &
+nohup python -u scripts/r4_rebalance_loop.py --loop --interval 3600 > reports/r4_loop/loop_stdout.log 2>&1 &
 ```
 
 The loop loads persisted state on startup and reconciles with broker.
@@ -133,7 +140,7 @@ python scripts/r4_generate_t0.py
 **Action:** Do NOT restart the loop to bypass. Investigate:
 ```bash
 # Check which gate breached
-grep -i "blocked\|critical" reports/r4_loop/loop.log | tail -5
+grep -i "blocked\|critical" reports/r4_loop/loop_stdout.log | tail -5
 
 # Check equity/drawdown
 python -c "
@@ -234,22 +241,28 @@ If account is frozen by broker:
 
 ## Log Analysis
 
+The loop's `log()` output goes to stdout. Resolve the actual destination from
+the launcher: `start_trading.sh` → `reports/r4_loop/loop_stdout.log`;
+`r4_daily.sh` → `reports/r4_loop/runs/YYYY-MM-DD.log`; a manual `nohup ... >
+FILE` → `FILE`. `reports/r4_loop/loop.log` is not produced by the supported
+launchers.
+
 ### Find Errors
 
 ```bash
-grep -i "error\|fail\|exception" reports/r4_loop/loop.log
+grep -i "error\|fail\|exception" reports/r4_loop/loop_stdout.log
 ```
 
 ### Find Blocked Trades
 
 ```bash
-grep -i "blocked\|critical" reports/r4_loop/loop.log
+grep -i "blocked\|critical" reports/r4_loop/loop_stdout.log
 ```
 
 ### Find Executions
 
 ```bash
-grep "EXECUTED\|filled" reports/r4_loop/loop.log
+grep "EXECUTED\|filled" reports/r4_loop/loop_stdout.log
 ```
 
 ### Find Risk Gate Results

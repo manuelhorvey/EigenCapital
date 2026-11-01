@@ -11,6 +11,8 @@ Last updated: 2026-09-27
 |---|---|---|
 | R4 identity (frozen) | R4 manifest | `src/eigencapital/fidelity/r4_manifest.py` |
 | R4 **live signal math** | Rebalance loop signal | `scripts/r4_rebalance_loop.py::compute_r4_signal` |
+| R4 signal vol-scale reference (`signal_vol_scale_reference = 0.50`) | Frozen constant in the live signal | `scripts/r4_rebalance_loop.py::compute_r4_signal` (`min(vol60 / 0.50, 1.0)`) |
+| R4 annual vol target (`vol_target_annual = 0.10`) | Manifest + StrategyConfig (declared, **not consumed** by live signal/sizing) | `src/eigencapital/fidelity/r4_manifest.py`, `src/eigencapital/config.py` → `StrategyConfig` |
 | Strategy parameters | Config production | `configs/production/config.toml` |
 | Risk policy | RiskPolicy class | `src/eigencapital/risk/policy.py` |
 | Capital limits | CapitalConfig | `src/eigencapital/config.py` → `CapitalConfig` |

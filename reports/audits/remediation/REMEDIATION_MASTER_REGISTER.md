@@ -169,9 +169,9 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none; behaviour-affecting but explicitly authorised by the audit.
 - **Acceptance:** Deterministic test proves a forming bar cannot enter the signal; completed-bar output unchanged for a closed-bar fixture.
 - **Tests:** Injected forming bar; closed-bar fixture; restart/dedup.
-- **Status:** `READY FOR IMPLEMENTATION`.
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
+- **Commit / evidence:** `c91a8d9`; `reports/audits/remediation/F11_FORMING_BAR.md`. 3 forming-bar tests + 35 loop/t0 + 69 signal/reconnect tests passed.
+- **Closure:** Pending independent review and production re-check of the staleness nuance.
 
 ## F-12 — Execution robustness gaps
 - **Severity:** Medium · **Phase:** P1
@@ -356,7 +356,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 | 6 | Dashboard auth hardening | F-15 | Security; no trading path |
 | 7 | Dashboard truth | F-14, F-24 | Read-only consumer fixes |
 | 8 | Experiment immutability | F-20 (with F-10 hash check) | Research evidence integrity |
-| 9 | Forming-bar input | F-11 | Live input; R4 maths unchanged |
+| 9 | Forming-bar input | F-11 | **DONE** — `c91a8d9`; R4 maths unchanged |
 | 10 | Stop-loss validation | F-04 | **DONE** — `18e254b`; gate still disabled |
 | 11 | Execution/ledger P0 items | F-02 fixture, F-05, F-06, F-16, F-03 | Requires F-02 design + live-path approval |
 | 12 | Decisions required | F-07, F-12, F-13, F-17, F-18 | Technical decision records / approval |

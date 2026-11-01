@@ -12,6 +12,7 @@ Usage:
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
@@ -51,40 +52,57 @@ class MultipleTestingResult:
         }
 
 
+def _validate_p_values(p_values: List[float]) -> List[float]:
+    """Return p-values as floats, rejecting values outside [0, 1].
+
+    A correction applied to a non-probability is meaningless and could hide a
+    defective test. Fail closed instead of silently correcting a bad input.
+    """
+    values: List[float] = []
+    for index, p in enumerate(p_values):
+        try:
+            value = float(p)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"p_values[{index}] is not numeric: {p!r}") from exc
+        if not math.isfinite(value) or value < 0.0 or value > 1.0:
+            raise ValueError(f"p_values[{index}]={p!r} is outside [0, 1]")
+        values.append(value)
+    return values
+
+
 def bonferroni(p_values: List[float], alpha: float = 0.05) -> List[float]:
     """Bonferroni correction.
 
     Adjusted p-value = min(raw_p * n_tests, 1.0)
     """
-    n = len(p_values)
-    return [min(p * n, 1.0) for p in p_values]
+    values = _validate_p_values(p_values)
+    n = len(values)
+    return [min(p * n, 1.0) for p in values]
 
 
 def holm(p_values: List[float], alpha: float = 0.05) -> List[float]:
     """Holm step-down correction (less conservative than Bonferroni).
 
-    Sort p-values, then adjust sequentially.
+    For raw p-values ordered ``p_(1) <= ... <= p_(n)``, the adjusted value is
+
+        adj_(k) = max_{j <= k} min(1, (n - j + 1) * p_(j))
+
+    The cumulative maximum is taken in rank order, before mapping back to the
+    caller's ordering. Holm rejects ``p_(k)`` when ``adj_(k) <= alpha``.
     """
-    n = len(p_values)
+    values = _validate_p_values(p_values)
+    n = len(values)
     if n == 0:
         return []
 
-    indexed = sorted(enumerate(p_values), key=lambda x: x[1])
-    adjusted = [0.0] * n
-
-    for rank, (orig_idx, p) in enumerate(indexed):
-        adj = p * (n - rank)
-        adjusted[orig_idx] = min(adj, 1.0)
-
-    # Step-down: ensure monotonicity
-    sorted_adj = sorted(adjusted)
-    for i in range(1, n):
-        sorted_adj[i] = max(sorted_adj[i], sorted_adj[i - 1])
-
-    # Map back
+    order = sorted(range(n), key=lambda i: values[i])
     result = [0.0] * n
-    for i, (orig_idx, _) in enumerate(indexed):
-        result[orig_idx] = sorted_adj[i]
+    running_max = 0.0
+
+    for rank, index in enumerate(order):
+        adjusted = min(1.0, values[index] * (n - rank))
+        running_max = max(running_max, adjusted)
+        result[index] = running_max
 
     return result
 
@@ -92,27 +110,27 @@ def holm(p_values: List[float], alpha: float = 0.05) -> List[float]:
 def benjamini_hochberg(p_values: List[float], alpha: float = 0.05) -> List[float]:
     """Benjamini-Hochberg FDR correction.
 
-    Controls false discovery rate rather than family-wise error rate.
+    For raw p-values ordered ``p_(1) <= ... <= p_(n)``, the adjusted value is
+
+        adj_(k) = min_{j >= k} min(1, n * p_(j) / j)
+
+    The cumulative minimum is taken from the largest p-value downwards, in rank
+    order, before mapping back to the caller's ordering.
     """
-    n = len(p_values)
+    values = _validate_p_values(p_values)
+    n = len(values)
     if n == 0:
         return []
 
-    indexed = sorted(enumerate(p_values), key=lambda x: x[1])
-    adjusted = [0.0] * n
-
-    for rank, (orig_idx, p) in enumerate(indexed):
-        adj = p * n / (rank + 1)
-        adjusted[orig_idx] = min(adj, 1.0)
-
-    # Enforce monotonicity (step-down)
-    sorted_adj = sorted(adjusted)
-    for i in range(n - 2, -1, -1):
-        sorted_adj[i] = min(sorted_adj[i], sorted_adj[i + 1])
-
+    order = sorted(range(n), key=lambda i: values[i])
     result = [0.0] * n
-    for i, (orig_idx, _) in enumerate(indexed):
-        result[orig_idx] = sorted_adj[i]
+    running_min = 1.0
+
+    for rank in range(n - 1, -1, -1):
+        index = order[rank]
+        adjusted = min(1.0, values[index] * n / (rank + 1))
+        running_min = min(running_min, adjusted)
+        result[index] = running_min
 
     return result
 

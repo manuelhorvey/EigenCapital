@@ -164,9 +164,9 @@ VOL_TARGET = _config.strategy.vol_target_annual  # 0.10
 # Sizing uses verified live equity; this remains the campaign authorization
 # ceiling and is not used as the sizing denominator.
 MAX_EQUITY = _config.capital.max_equity
-MAX_POSITION_USD = _config.capital.max_position_size  # 1500
-MAX_CONCURRENT = _config.capital.max_concurrent_positions  # 8
-MAX_ORDERS_PER_CYCLE = _config.execution.max_orders_per_cycle  # 8
+MAX_POSITION_USD = _config.capital.max_position_size
+MAX_CONCURRENT = _config.capital.max_concurrent_positions
+MAX_ORDERS_PER_CYCLE = _config.execution.max_orders_per_cycle
 
 # Risk enforcement envelope — from live_risk config (single source of truth)
 _lr = _config.live_risk

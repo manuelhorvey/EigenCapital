@@ -325,9 +325,9 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none.
 - **Acceptance:** Comment values match code; absent specs labelled; gate status explicit.
 - **Tests:** Doc/code consistency check (grep-based).
-- **Status:** `READY FOR IMPLEMENTATION`.
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
+- **Commit / evidence:** `e96b4e5` (comment fix); `reports/audits/remediation/F23_DOCUMENTATION_DRIFT.md`. Loop comments now match config; absent specs labelled historical; EC-AUDIT-009 stated as not adopted / gate not passed.
+- **Closure:** Pending independent review.
 
 ## F-24 — Dashboard repeat reads and in-memory rate limiting
 - **Severity:** Low · **Phase:** P3
@@ -351,7 +351,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 | 1 | Statistical correction: Holm/BH | F-09 | **DONE** — `174b5a1`, awaiting independent verification |
 | 2 | Statistical correction: CSCV PBO | F-08 | **DONE** — `6e707ca`; re-derivation blocked on raw matrices |
 | 3 | CI hardening | F-19 | No runtime behaviour; protects all later work |
-| 4 | Documentation truth | F-23 | Zero behavioural risk |
+| 4 | Documentation truth | F-23 | **DONE** — `e96b4e5`; zero behavioural risk |
 | 5 | Simulation executor isolation | F-21 | Import-surface hardening |
 | 6 | Dashboard auth hardening | F-15 | Security; no trading path |
 | 7 | Dashboard truth | F-14, F-24 | Read-only consumer fixes |

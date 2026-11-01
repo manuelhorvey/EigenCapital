@@ -273,9 +273,9 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** none.
 - **Acceptance:** Workflow passes with hardened settings; audit job runs.
 - **Tests:** CI run evidence.
-- **Status:** `READY FOR IMPLEMENTATION`.
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Status:** `IMPLEMENTED — AWAITING VERIFICATION`.
+- **Commit / evidence:** `678433b`; `reports/audits/remediation/F19_CI_HARDENING.md`. Actions SHA-pinned; `permissions: contents: read`; 3.14 added to matrix; pip-audit step added. Lockfile/hashes follow-up tracked.
+- **Closure:** Pending green Actions run and lockfile/hashes generation.
 
 ## F-20 — Experiment registry mutable; no promotion path
 - **Severity:** Medium · **Phase:** P2
@@ -350,7 +350,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 |---|---|---|---|
 | 1 | Statistical correction: Holm/BH | F-09 | **DONE** — `174b5a1`, awaiting independent verification |
 | 2 | Statistical correction: CSCV PBO | F-08 | **DONE** — `6e707ca`; re-derivation blocked on raw matrices |
-| 3 | CI hardening | F-19 | No runtime behaviour; protects all later work |
+| 3 | CI hardening | F-19 | **DONE** — `678433b`; no runtime behaviour |
 | 4 | Documentation truth | F-23 | **DONE** — `e96b4e5`; zero behavioural risk |
 | 5 | Simulation executor isolation | F-21 | Import-surface hardening |
 | 6 | Dashboard auth hardening | F-15 | Security; no trading path |

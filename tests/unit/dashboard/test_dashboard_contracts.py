@@ -927,11 +927,10 @@ class TestDashboardSecurity:
 class TestAPIAuthAndRateLimit:
     """API endpoints exposing live state must require a key (S7)."""
 
-    def test_healthz_is_open(self) -> None:
+    def test_healthz_is_open(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Load-balancer health probe stays unauthenticated."""
-        import os
-
-        os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
+        monkeypatch.delenv("DASHBOARD_DISABLE_AUTH", raising=False)
+        monkeypatch.delenv("DASHBOARD_API_KEY", raising=False)
         from fastapi.testclient import TestClient
 
         from eigencapital.dashboard.api.app import app
@@ -940,12 +939,12 @@ class TestAPIAuthAndRateLimit:
             response = client.get("/healthz")
         assert response.status_code == 200
 
-    def test_risk_endpoint_requires_key(self) -> None:
+    def test_risk_endpoint_requires_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """GET /api/v1/risk without a key → 401 when auth is configured."""
-        import os
-
-        os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
-        os.environ["DASHBOARD_API_KEY"] = "strong-random-test-key-do-not-use-in-production"
+        monkeypatch.delenv("DASHBOARD_DISABLE_AUTH", raising=False)
+        monkeypatch.setenv(
+            "DASHBOARD_API_KEY", "strong-random-test-key-do-not-use-in-production"
+        )
         from fastapi.testclient import TestClient
 
         from eigencapital.dashboard.api.app import app
@@ -954,13 +953,15 @@ class TestAPIAuthAndRateLimit:
             response = client.get("/api/v1/risk")
         assert response.status_code == 401
 
-    def test_risk_endpoint_accepts_valid_key(self) -> None:
+    def test_risk_endpoint_accepts_valid_key(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """GET /api/v1/risk with the configured key is authorized (not 401)."""
-        import os
-
-        os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
-        os.environ["DASHBOARD_API_KEY"] = "strong-random-test-key-do-not-use-in-production"
-        key = os.environ["DASHBOARD_API_KEY"]
+        monkeypatch.delenv("DASHBOARD_DISABLE_AUTH", raising=False)
+        monkeypatch.setenv(
+            "DASHBOARD_API_KEY", "strong-random-test-key-do-not-use-in-production"
+        )
+        key = "strong-random-test-key-do-not-use-in-production"
         from fastapi.testclient import TestClient
 
         from eigencapital.dashboard.api.app import app
@@ -972,13 +973,13 @@ class TestAPIAuthAndRateLimit:
             )
         assert response.status_code != 401
 
-    def test_api_fails_closed_when_key_unconfigured(self) -> None:
+    def test_api_fails_closed_when_key_unconfigured(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Missing/default DASHBOARD_API_KEY refuses to serve /api/v1 (503)."""
-        import os
-
-        os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
-        os.environ.pop("DASHBOARD_ALLOW_INSECURE_DEV", None)
-        os.environ.pop("DASHBOARD_API_KEY", None)
+        monkeypatch.delenv("DASHBOARD_DISABLE_AUTH", raising=False)
+        monkeypatch.delenv("DASHBOARD_ALLOW_INSECURE_DEV", raising=False)
+        monkeypatch.delenv("DASHBOARD_API_KEY", raising=False)
         from fastapi.testclient import TestClient
 
         from eigencapital.dashboard.api.app import app
@@ -987,13 +988,13 @@ class TestAPIAuthAndRateLimit:
             response = client.get("/api/v1/risk")
         assert response.status_code == 503
 
-    def test_api_allows_dev_key_only_with_explicit_opt_in(self) -> None:
+    def test_api_allows_dev_key_only_with_explicit_opt_in(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """DASHBOARD_ALLOW_INSECURE_DEV=1 permits the default key in dev only."""
-        import os
-
-        os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
-        os.environ["DASHBOARD_ALLOW_INSECURE_DEV"] = "1"
-        os.environ.pop("DASHBOARD_API_KEY", None)  # falls back to default
+        monkeypatch.delenv("DASHBOARD_DISABLE_AUTH", raising=False)
+        monkeypatch.setenv("DASHBOARD_ALLOW_INSECURE_DEV", "1")
+        monkeypatch.delenv("DASHBOARD_API_KEY", raising=False)  # falls back to default
         from fastapi.testclient import TestClient
 
         from eigencapital.dashboard.api.app import app
@@ -1004,20 +1005,16 @@ class TestAPIAuthAndRateLimit:
                 headers={"Authorization": "Bearer dev-key-change-in-production"},
             )
         assert response.status_code != 401 and response.status_code != 503
-        os.environ.pop("DASHBOARD_ALLOW_INSECURE_DEV", None)
 
-    def test_auth_can_be_disabled_for_local_dev(self) -> None:
+    def test_auth_can_be_disabled_for_local_dev(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """DASHBOARD_DISABLE_AUTH=1 bypasses auth (local development only)."""
-        import os
+        monkeypatch.setenv("DASHBOARD_DISABLE_AUTH", "1")
+        from fastapi.testclient import TestClient
 
-        os.environ["DASHBOARD_DISABLE_AUTH"] = "1"
-        try:
-            from fastapi.testclient import TestClient
+        from eigencapital.dashboard.api.app import app
 
-            from eigencapital.dashboard.api.app import app
-
-            with TestClient(app) as client:
-                response = client.get("/api/v1/risk")
-            assert response.status_code != 401
-        finally:
-            os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
+        with TestClient(app) as client:
+            response = client.get("/api/v1/risk")
+        assert response.status_code != 401

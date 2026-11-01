@@ -95,7 +95,7 @@ _RATE_LIMIT_WINDOW = 60  # seconds
 _RATE_LIMIT_MAX = int(os.environ.get("DASHBOARD_RATE_LIMIT_MAX", "600"))  # requests per window per client IP
 
 
-_DEFAULT_API_KEY = "dev-key-change-in-production"
+_DASHBOARD_DEFAULT_KEY = "dev-key-change-in-production"
 _DEV_KEY_WARNED = False
 
 
@@ -108,7 +108,7 @@ def _api_key() -> str | None:
     """
     global _DEV_KEY_WARNED
     key = os.environ.get("DASHBOARD_API_KEY")
-    if not key or key == _DEFAULT_API_KEY:
+    if not key or key == _DASHBOARD_DEFAULT_KEY:
         if os.environ.get("DASHBOARD_ALLOW_INSECURE_DEV") == "1":
             if not _DEV_KEY_WARNED:
                 _DEV_KEY_WARNED = True
@@ -117,7 +117,7 @@ def _api_key() -> str | None:
                     "DASHBOARD_ALLOW_INSECURE_DEV=1 permits local-development use "
                     "only and must not be used in production."
                 )
-            return _DEFAULT_API_KEY
+            return _DASHBOARD_DEFAULT_KEY
         return None
     return key
 

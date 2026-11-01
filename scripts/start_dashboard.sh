@@ -17,9 +17,13 @@ FRONTEND_PORT=5173
 
 # Shared API key (S7): backend requires it on /api/v1/*; frontend sends it.
 # Override both by exporting DASHBOARD_API_KEY before running this script.
+# The default key is insecure: local development only, never production.
 if [ -z "${DASHBOARD_API_KEY:-}" ]; then
     DASHBOARD_API_KEY="dev-key-change-in-production"
     export DASHBOARD_API_KEY
+    export DASHBOARD_ALLOW_INSECURE_DEV=1
+    echo -e "${YELLOW}  WARNING: using the default, insecure dashboard API key.${NC}"
+    echo -e "${YELLOW}  Set DASHBOARD_API_KEY to a strong random value for any non-local use.${NC}"
 fi
 export VITE_API_KEY="${DASHBOARD_API_KEY}"
 

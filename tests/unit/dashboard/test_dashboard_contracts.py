@@ -941,10 +941,11 @@ class TestAPIAuthAndRateLimit:
         assert response.status_code == 200
 
     def test_risk_endpoint_requires_key(self) -> None:
-        """GET /api/v1/risk without a key → 401."""
+        """GET /api/v1/risk without a key → 401 when auth is configured."""
         import os
 
         os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
+        os.environ["DASHBOARD_API_KEY"] = "strong-random-test-key-do-not-use-in-production"
         from fastapi.testclient import TestClient
 
         from eigencapital.dashboard.api.app import app
@@ -958,7 +959,8 @@ class TestAPIAuthAndRateLimit:
         import os
 
         os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
-        key = os.environ.get("DASHBOARD_API_KEY", "dev-key-change-in-production")
+        os.environ["DASHBOARD_API_KEY"] = "strong-random-test-key-do-not-use-in-production"
+        key = os.environ["DASHBOARD_API_KEY"]
         from fastapi.testclient import TestClient
 
         from eigencapital.dashboard.api.app import app
@@ -969,6 +971,40 @@ class TestAPIAuthAndRateLimit:
                 headers={"Authorization": f"Bearer {key}"},
             )
         assert response.status_code != 401
+
+    def test_api_fails_closed_when_key_unconfigured(self) -> None:
+        """Missing/default DASHBOARD_API_KEY refuses to serve /api/v1 (503)."""
+        import os
+
+        os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
+        os.environ.pop("DASHBOARD_ALLOW_INSECURE_DEV", None)
+        os.environ.pop("DASHBOARD_API_KEY", None)
+        from fastapi.testclient import TestClient
+
+        from eigencapital.dashboard.api.app import app
+
+        with TestClient(app) as client:
+            response = client.get("/api/v1/risk")
+        assert response.status_code == 503
+
+    def test_api_allows_dev_key_only_with_explicit_opt_in(self) -> None:
+        """DASHBOARD_ALLOW_INSECURE_DEV=1 permits the default key in dev only."""
+        import os
+
+        os.environ.pop("DASHBOARD_DISABLE_AUTH", None)
+        os.environ["DASHBOARD_ALLOW_INSECURE_DEV"] = "1"
+        os.environ.pop("DASHBOARD_API_KEY", None)  # falls back to default
+        from fastapi.testclient import TestClient
+
+        from eigencapital.dashboard.api.app import app
+
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/v1/risk",
+                headers={"Authorization": "Bearer dev-key-change-in-production"},
+            )
+        assert response.status_code != 401 and response.status_code != 503
+        os.environ.pop("DASHBOARD_ALLOW_INSECURE_DEV", None)
 
     def test_auth_can_be_disabled_for_local_dev(self) -> None:
         """DASHBOARD_DISABLE_AUTH=1 bypasses auth (local development only)."""

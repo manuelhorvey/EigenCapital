@@ -154,8 +154,9 @@ class TestSingleWriterRule:
 class TestWebSocketAuth:
     """/ws/live must require the API key (contract §2 T5, H-11).
 
-    Credentials: `api-key.<key>` subprotocol (preferred), `Authorization:
-    Bearer`, or the legacy `?token=` query parameter (transition window).
+    Credentials: `api-key.<key>` subprotocol (preferred) or
+    `Authorization: Bearer`. Credentials must never travel in the URL; the
+    legacy `?token=` query authentication is removed.
     """
 
     @pytest.fixture(autouse=True)
@@ -193,9 +194,10 @@ class TestWebSocketAuth:
         _, ok = self._make_ws(token="wrong")
         assert ok is False
 
-    def test_valid_token_accepted(self) -> None:
+    def test_query_token_rejected(self) -> None:
+        """`?token=` credentials are no longer accepted (H-11)."""
         _, ok = self._make_ws(token="test-key-123")
-        assert ok is True
+        assert ok is False
 
     def test_bearer_header_accepted(self) -> None:
         _, ok = self._make_ws(auth_header="Bearer test-key-123")
@@ -213,11 +215,6 @@ class TestWebSocketAuth:
     def test_subprotocol_with_other_offered_protocols_accepted(self) -> None:
         """The api-key token may be one of several comma-separated offers."""
         _, ok = self._make_ws(subprotocol="chat, api-key.test-key-123")
-        assert ok is True
-
-    def test_legacy_query_token_still_accepted_in_transition_window(self) -> None:
-        """`?token=` must keep working during the transition window (H-11)."""
-        _, ok = self._make_ws(token="test-key-123")
         assert ok is True
 
     def test_disable_auth_bypass_is_explicit(self, monkeypatch: pytest.MonkeyPatch) -> None:

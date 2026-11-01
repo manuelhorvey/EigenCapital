@@ -14,6 +14,7 @@ local development against localhost.
 from __future__ import annotations
 
 import os
+import logging
 import secrets
 import time
 from collections import defaultdict
@@ -25,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from eigencapital import __version__
+
 from eigencapital.dashboard.api.routes import (
     alerts,
     evidence,
@@ -61,6 +63,16 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+async def _announce_auth_mode() -> None:
+    """Loud warning when auth is bypassed (local development only)."""
+    if os.environ.get("DASHBOARD_DISABLE_AUTH") == "1":
+        logging.warning(
+            "DASHBOARD_DISABLE_AUTH=1: dashboard API auth is BYPASSED — "
+            "local development only, never production."
+        )
+
+
 # Security headers middleware
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next: Any) -> Any:
@@ -83,9 +95,31 @@ _RATE_LIMIT_WINDOW = 60  # seconds
 _RATE_LIMIT_MAX = int(os.environ.get("DASHBOARD_RATE_LIMIT_MAX", "600"))  # requests per window per client IP
 
 
-def _api_key() -> str:
-    """Read the configured API key (env override each request)."""
-    return os.environ.get("DASHBOARD_API_KEY", "dev-key-change-in-production")
+_DEFAULT_API_KEY = "dev-key-change-in-production"
+_DEV_KEY_WARNED = False
+
+
+def _api_key() -> str | None:
+    """Resolve the dashboard API key per request, failing closed when unconfigured.
+
+    A missing or default key means the server is not authorised to serve live
+    state. Local development may opt in with DASHBOARD_ALLOW_INSECURE_DEV=1.
+    Resolved per request so tests can flip the env var between cases.
+    """
+    global _DEV_KEY_WARNED
+    key = os.environ.get("DASHBOARD_API_KEY")
+    if not key or key == _DEFAULT_API_KEY:
+        if os.environ.get("DASHBOARD_ALLOW_INSECURE_DEV") == "1":
+            if not _DEV_KEY_WARNED:
+                _DEV_KEY_WARNED = True
+                logging.warning(
+                    "INSECURE: DASHBOARD_API_KEY is missing or is the default value; "
+                    "DASHBOARD_ALLOW_INSECURE_DEV=1 permits local-development use "
+                    "only and must not be used in production."
+                )
+            return _DEFAULT_API_KEY
+        return None
+    return key
 
 
 @app.middleware("http")
@@ -112,6 +146,16 @@ async def require_api_key_and_rate_limit(request: Request, call_next: Any) -> An
         )
     _RATE_LIMITS[client_ip].append(now)
 
+    # Fail closed: an unconfigured (missing or default) API key refuses to
+    # serve live state.
+    api_key = _api_key()
+    if api_key is None:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Auth not configured", "detail": "Set DASHBOARD_API_KEY"},
+            headers={"Retry-After": str(_RATE_LIMIT_WINDOW)},
+        )
+
     # X-API-Key is the canonical header (H-11: credentials never travel in the
     # URL); Authorization: Bearer remains accepted for tooling and legacy
     # clients. Constant-time comparison (bytes) — avoids timing side channels
@@ -119,7 +163,6 @@ async def require_api_key_and_rate_limit(request: Request, call_next: Any) -> An
     # compare_digest.
     header_key = request.headers.get("X-API-Key", "")
     auth = request.headers.get("Authorization", "")
-    api_key = _api_key()
     x_api_key_ok = bool(header_key) and secrets.compare_digest(header_key.encode("utf-8"), api_key.encode("utf-8"))
     bearer_ok = bool(auth) and secrets.compare_digest(auth.encode("utf-8"), f"Bearer {api_key}".encode())
     if not (x_api_key_ok or bearer_ok):

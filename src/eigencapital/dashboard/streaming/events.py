@@ -21,9 +21,8 @@ Security (DASHBOARD_CONTRACT.md §2 T5): the live transport is authenticated.
 Browsers cannot set custom headers on the WebSocket handshake, so the API key
 is passed via the `api-key.<key>` subprotocol (`Sec-WebSocket-Protocol`); the
 server echoes the selected protocol per RFC 6455. `Authorization: Bearer` is
-also accepted (non-browser clients). Legacy `?token=` query authentication
-remains accepted only during the transition window — the key must not travel
-in the URL (H-11).
+also accepted (non-browser clients). Credentials must never travel in the URL
+(H-11); the legacy `?token=` query authentication is removed.
 
 Masking (FINDINGS.md M-8): the stream is the broadly shared surface — one
 snapshot fans out to every connected viewer. It is masked in the DTO layer
@@ -58,11 +57,6 @@ _STATE_CACHE_MAX_AGE_SECONDS = 5.0
 _API_KEY_PROTOCOL_PREFIX = "api-key."
 
 
-def _api_key() -> str:
-    """Read the configured API key (env override each request)."""
-    return os.environ.get("DASHBOARD_API_KEY", "dev-key-change-in-production")
-
-
 def _offered_api_key_protocol(websocket: WebSocket) -> str | None:
     """Return the offered `api-key.<key>` subprotocol token, if any.
 
@@ -82,16 +76,22 @@ def _is_authorized(websocket: WebSocket) -> bool:
     """Authenticate a WebSocket handshake against the dashboard API key.
 
     Mirrors the /api/v1 HTTP middleware (S7): DASHBOARD_DISABLE_AUTH=1 bypasses
-    auth for local development only. Credentials are accepted from, in order
-    of preference:
+    auth for local development only. An unconfigured (missing or default) key
+    fails closed — no credentials are accepted. Credentials are accepted from,
+    in order of preference:
     1. the `api-key.<key>` subprotocol (Sec-WebSocket-Protocol header),
-    2. `Authorization: Bearer <key>`,
-    3. the legacy `?token=` query parameter (transition window, H-11).
+    2. `Authorization: Bearer <key>`.
 
     Every non-empty candidate is checked with a constant-time comparison.
     """
     if os.environ.get("DASHBOARD_DISABLE_AUTH") == "1":
         return True
+    # Lazy import avoids a circular import (app imports this router).
+    from eigencapital.dashboard.api.app import _api_key
+
+    api_key = _api_key()
+    if api_key is None:
+        return False
     candidates: list[str] = []
     api_key_protocol = _offered_api_key_protocol(websocket)
     if api_key_protocol is not None:
@@ -99,15 +99,11 @@ def _is_authorized(websocket: WebSocket) -> bool:
     auth_header = websocket.headers.get("authorization", "")
     if auth_header.startswith("Bearer "):
         candidates.append(auth_header[len("Bearer ") :])
-    candidates.append(websocket.query_params.get("token", ""))
 
-    expected = _api_key().encode("utf-8")
+    expected = api_key.encode("utf-8")
     authorized = False
     for candidate in candidates:
         if candidate:
-            # Constant-time comparison for each non-empty candidate (bytes —
-            # tolerates non-ASCII input that would raise in str compare_digest),
-            # mirroring the HTTP middleware. No candidate short-circuits the rest.
             authorized = secrets.compare_digest(candidate.encode("utf-8"), expected) or authorized
     return authorized
 
@@ -243,9 +239,8 @@ async def websocket_live(websocket: WebSocket) -> None:
 
     Authentication: `Sec-WebSocket-Protocol: api-key.<DASHBOARD_API_KEY>`
     (preferred — the selected protocol is echoed on accept), or
-    `Authorization: Bearer <key>`. The legacy `?token=<DASHBOARD_API_KEY>`
-    query parameter is still accepted during the transition window but the
-    key must no longer be placed in the URL (H-11).
+    `Authorization: Bearer <key>`. Credentials must never travel in the URL
+    (H-11); `?token=` query authentication is not accepted.
     Unauthorized handshakes are closed with policy violation code 1008.
     """
     if not _is_authorized(websocket):

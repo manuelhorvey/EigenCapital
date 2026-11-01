@@ -15,6 +15,15 @@ The campaign is frozen. No scoring changes after seeing results.
 
 from __future__ import annotations
 
+import os
+
+if os.environ.get("EIGENCAPITAL_RESEARCH_ALLOW_IMPORTS") != "1":
+    raise RuntimeError(
+        "eigencapital.research.alpha.executor is research-only tooling: it "
+        "ships SIMULATED_EVIDENCE and must not be imported outside tests. "
+        "Set EIGENCAPITAL_RESEARCH_ALLOW_IMPORTS=1 in test setup."
+    )
+
 import hashlib
 import json
 from typing import Any, Dict, List

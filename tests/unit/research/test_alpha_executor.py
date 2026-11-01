@@ -8,6 +8,10 @@ Tests:
 - No hypothesis modified after registration
 """
 
+import os
+
+os.environ["EIGENCAPITAL_RESEARCH_ALLOW_IMPORTS"] = "1"
+
 from eigencapital.research.alpha.executor import HYPOTHESIS_LIBRARY, SIMULATED_EVIDENCE, CampaignExecutor
 
 

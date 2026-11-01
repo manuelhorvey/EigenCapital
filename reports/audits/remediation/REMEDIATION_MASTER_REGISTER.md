@@ -208,9 +208,9 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** F-06 for reconciliation record; F-01 for baseline.
 - **Acceptance:** Dashboard values match engine artefacts; stale data renders UNKNOWN.
 - **Tests:** Fake MT5 order-of-calls; staleness; reconciliation source; remaining-loss arithmetic.
-- **Status:** `READY FOR IMPLEMENTATION` (read-only dashboard).
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION` (reconciliation-record portion blocked pending F-06).
+- **Commit / evidence:** `dfb99ea`; `reports/audits/remediation/F14_DASHBOARD_TRUTH.md`. MT5 call order fixed; daily-loss decrements from baseline; health staleness TTL; reconciliation missing-record → UNKNOWN. 11 new tests; dashboard/live/analytics 763 passed.
+- **Closure:** Pending independent review; reconciliation-record portion blocked pending F-06.
 
 ## F-15 — Predictable default dashboard key and auth bypass
 - **Severity:** Medium · **Phase:** P1
@@ -354,7 +354,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 | 4 | Documentation truth | F-23 | **DONE** — `e96b4e5`; zero behavioural risk |
 | 5 | Simulation executor isolation | F-21 | **DONE** — `7db75db`; import-surface hardening |
 | 6 | Dashboard auth hardening | F-15 | **DONE** — `e0fec4c`; security, no trading path |
-| 7 | Dashboard truth | F-14, F-24 | Read-only consumer fixes |
+| 7 | Dashboard truth | F-14 (done); F-24 (pending) | **DONE** F-14 `dfb99ea`; F-24 still pending |
 | 8 | Experiment immutability | F-20 | **DONE** — `63c2cbe`; research evidence integrity |
 | 9 | Forming-bar input | F-11 | **DONE** — `c91a8d9`; R4 maths unchanged |
 | 10 | Stop-loss validation | F-04 | **DONE** — `18e254b`; gate still disabled |

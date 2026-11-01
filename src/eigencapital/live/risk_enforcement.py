@@ -21,6 +21,7 @@ Risk enforcement CANNOT be bypassed by the strategy layer.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
@@ -113,6 +114,48 @@ class RiskEnvelope:
             )
         except (ImportError, FileNotFoundError, AttributeError):
             return cls()  # Use defaults if config unavailable
+
+
+def _has_valid_stop_loss(position: Dict[str, Any]) -> bool:
+    """Return True only for a finite, correctly-sided stop-loss.
+
+    Missing, ``None``, boolean, non-numeric, non-finite, zero, negative, and
+    wrong-side values are all unprotected. An unknown entry price or position
+    type cannot establish protection and is also treated as unprotected.
+    """
+    stop_loss = position.get("sl")
+    if stop_loss is None or isinstance(stop_loss, bool):
+        return False
+    try:
+        stop_loss_value = float(stop_loss)
+    except (TypeError, ValueError):
+        return False
+    if not math.isfinite(stop_loss_value) or stop_loss_value <= 0.0:
+        return False
+
+    entry_price = position.get("price_open")
+    if entry_price is None or isinstance(entry_price, bool):
+        return False
+    try:
+        entry_price_value = float(entry_price)
+    except (TypeError, ValueError):
+        return False
+    if not math.isfinite(entry_price_value):
+        return False
+
+    side = position.get("type")
+    if isinstance(side, bool):
+        return False
+    try:
+        side_value = int(side)
+    except (TypeError, ValueError):
+        return False
+
+    if side_value == 0:  # long
+        return stop_loss_value < entry_price_value
+    if side_value == 1:  # short
+        return stop_loss_value > entry_price_value
+    return False
 
 
 class RiskEnforcer:
@@ -426,6 +469,11 @@ class RiskEnforcer:
           3. Blocking here would halt trading during normal SL placement latency
 
         Do NOT refactor this to block trading without understanding the above.
+
+        Protection requires a finite, positive stop-loss on the correct side of
+        the entry price: below entry for a long, above entry for a short.
+        Missing, ``None``, boolean, non-numeric, non-finite, zero, negative,
+        wrong-side, unknown-side, and unknown-entry values are all unprotected.
         """
         if not self._envelope.require_sl_on_positions:
             return RiskGateResult(
@@ -436,7 +484,7 @@ class RiskEnforcer:
                 timestamp=now,
             )
 
-        unprotected = [p for p in positions if p.get("sl", 0) == 0]
+        unprotected = [p for p in positions if not _has_valid_stop_loss(p)]
 
         if unprotected:
             symbols = [p.get("symbol", "?") for p in unprotected]

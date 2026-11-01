@@ -15,11 +15,12 @@ Authoritative policy (verified against code + config, not assumed):
 This module verifies both policy states, the missing/invalid data paths, and
 the placement-outcome reporting. It does **not** change production behavior.
 
-Residual gap documented by ``xfail`` tests below: when the policy *requires*
-SL, Gate 6 treats a non-numeric, ``None``, or negative ``sl`` value as
-"protected" because it only compares ``p.get("sl", 0) == 0``. Production runs
-with the policy disabled, so this path is currently dormant. Fixing it is a
-behavior change that requires separate authorization.
+Gate 6 now requires a finite, positive stop-loss on the correct side of the
+entry: below entry for a long, above entry for a short. Missing, ``None``,
+boolean, non-numeric, non-finite, zero, negative, wrong-side, unknown-side,
+and unknown-entry values are unprotected. This corrects the validation
+semantics only; production still runs with ``require_sl_on_positions=false``
+and gate enablement remains a separate operator decision.
 """
 
 from __future__ import annotations
@@ -152,6 +153,54 @@ class TestPolicyRequired:
         assert _protection_gate(results).result == GateResult.PASS
         assert passed is True
 
+    def test_valid_short_sl_passes(self):
+        enforcer = RiskEnforcer(_envelope(require_sl=True))
+        passed, results = enforcer.check_all(
+            broker_positions=[_position(type=1, price_open=1.1000, sl=1.1100)],
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
+        )
+        assert _protection_gate(results).result == GateResult.PASS
+        assert passed is True
+
+    def test_long_sl_above_entry_is_unprotected(self):
+        enforcer = RiskEnforcer(_envelope(require_sl=True))
+        _, results = enforcer.check_all(
+            broker_positions=[_position(type=0, price_open=1.1000, sl=1.1100)],
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
+        )
+        assert _protection_gate(results).result == GateResult.CRITICAL
+
+    def test_short_sl_below_entry_is_unprotected(self):
+        enforcer = RiskEnforcer(_envelope(require_sl=True))
+        _, results = enforcer.check_all(
+            broker_positions=[_position(type=1, price_open=1.1000, sl=1.0900)],
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
+        )
+        assert _protection_gate(results).result == GateResult.CRITICAL
+
+    def test_missing_entry_price_is_unprotected(self):
+        pos = _position(sl=1.0900)
+        del pos["price_open"]
+        enforcer = RiskEnforcer(_envelope(require_sl=True))
+        _, results = enforcer.check_all(
+            broker_positions=[pos],
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
+        )
+        assert _protection_gate(results).result == GateResult.CRITICAL
+
+    def test_unknown_position_side_is_unprotected(self):
+        enforcer = RiskEnforcer(_envelope(require_sl=True))
+        _, results = enforcer.check_all(
+            broker_positions=[_position(type=2, price_open=1.1000, sl=1.0900)],
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
+        )
+        assert _protection_gate(results).result == GateResult.CRITICAL
+
     def test_zero_sl_is_critical(self):
         enforcer = RiskEnforcer(_envelope(require_sl=True))
         passed, results = enforcer.check_all(
@@ -206,13 +255,9 @@ class TestPolicyRequired:
         assert names.index("position_protection") < names.index("fingerprint")
 
 
-class TestInvalidDataGap:
-    """Residual gap: invalid SL values are treated as protected when required."""
+class TestInvalidStopLossData:
+    """Invalid SL values must be classified as unprotected when required."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="EC-AUDIT-002 residual: Gate 6 treats sl=None as protected (p.get('sl',0) == 0 is False)",
-    )
     def test_none_sl_is_treated_as_unprotected(self):
         enforcer = RiskEnforcer(_envelope(require_sl=True))
         _, results = enforcer.check_all(
@@ -222,10 +267,6 @@ class TestInvalidDataGap:
         )
         assert _protection_gate(results).result == GateResult.CRITICAL
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="EC-AUDIT-002 residual: Gate 6 treats negative sl as protected",
-    )
     def test_negative_sl_is_treated_as_unprotected(self):
         enforcer = RiskEnforcer(_envelope(require_sl=True))
         _, results = enforcer.check_all(
@@ -235,14 +276,23 @@ class TestInvalidDataGap:
         )
         assert _protection_gate(results).result == GateResult.CRITICAL
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="EC-AUDIT-002 residual: Gate 6 treats non-numeric sl as protected",
-    )
     def test_non_numeric_sl_is_treated_as_unprotected(self):
         enforcer = RiskEnforcer(_envelope(require_sl=True))
         _, results = enforcer.check_all(
             broker_positions=[_position(sl="invalid")],
+            account_equity=5_000.0,
+            account_free_margin=4_900.0,
+        )
+        assert _protection_gate(results).result == GateResult.CRITICAL
+
+    @pytest.mark.parametrize(
+        "bad_value",
+        [float("nan"), float("inf"), float("-inf"), True, ""],
+    )
+    def test_other_invalid_sl_values_are_unprotected(self, bad_value):
+        enforcer = RiskEnforcer(_envelope(require_sl=True))
+        _, results = enforcer.check_all(
+            broker_positions=[_position(sl=bad_value)],
             account_equity=5_000.0,
             account_free_margin=4_900.0,
         )

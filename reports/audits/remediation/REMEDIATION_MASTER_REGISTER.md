@@ -286,9 +286,9 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Dependencies:** F-10 hash verification.
 - **Acceptance:** Overwrite/delete impossible; supersession chain readable; promotion documented/enforced.
 - **Tests:** Immutability, supersession, delete rejection.
-- **Status:** `READY FOR IMPLEMENTATION`.
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Status:** `IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION`.
+- **Commit / evidence:** `63c2cbe`; `reports/audits/remediation/F20_EXPERIMENT_IMMUTABILITY.md`. Frozen dataclass, append-only save/delete, 29 registry tests pass; research suite 791 passed.
+- **Closure:** Pending independent review.
 
 ## F-21 — Simulation executors importable in production package
 - **Severity:** Medium · **Phase:** P2
@@ -355,7 +355,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 | 5 | Simulation executor isolation | F-21 | **DONE** — `7db75db`; import-surface hardening |
 | 6 | Dashboard auth hardening | F-15 | **DONE** — `e0fec4c`; security, no trading path |
 | 7 | Dashboard truth | F-14, F-24 | Read-only consumer fixes |
-| 8 | Experiment immutability | F-20 (with F-10 hash check) | Research evidence integrity |
+| 8 | Experiment immutability | F-20 | **DONE** — `63c2cbe`; research evidence integrity |
 | 9 | Forming-bar input | F-11 | **DONE** — `c91a8d9`; R4 maths unchanged |
 | 10 | Stop-loss validation | F-04 | **DONE** — `18e254b`; gate still disabled |
 | 11 | Execution/ledger P0 items | F-02 fixture, F-05, F-06, F-16, F-03 | Requires F-02 design + live-path approval |

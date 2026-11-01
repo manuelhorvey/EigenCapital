@@ -20,6 +20,17 @@ It does NOT modify any production trading state. Per the single-writer rule
 (docs/production/DASHBOARD_CONTRACT.md §4), this service never writes state
 files owned by the live loop (risk_state.json, reconciliation_state.json,
 qualification_status.json) — each has exactly one writer.
+
+Single-worker constraint (F-24):
+- Every ``DashboardStateService()`` instance reads state files fresh on each
+  call; there is no shared in-memory cache across REST requests. This is
+  intentional: REST endpoints return exact (unmasked) values, while the
+  broadcasting WebSocket/SSE surface (``eigencapital.dashboard.streaming``)
+  shares one masked snapshot per broadcast interval.
+- The per-IP rate limiter in ``eigencapital.dashboard.api.app`` (``_RATE_LIMITS``)
+  is an in-memory dict scoped to a single process. It is NOT safe across
+  multiple workers. Run the dashboard as a single worker, or place an external
+  rate limiter in front of it for multi-worker deployments.
 """
 
 from __future__ import annotations

@@ -331,16 +331,16 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 
 ## F-24 — Dashboard repeat reads and in-memory rate limiting
 - **Severity:** Low · **Phase:** P3
-- **Evidence:** REST handlers re-read files; per-IP limiter is in-memory dict; 5 s broadcaster.
-- **Root cause:** No shared snapshot cache; multi-worker unsafe.
+- **Evidence:** REST handlers re-read files per request; per-IP limiter is in-memory dict; 5 s broadcaster interval.
+- **Root cause:** No shared snapshot cache across REST requests; multi-worker unsafe.
 - **Affected:** dashboard API/streaming.
-- **Remediation:** Shared snapshot cache; document single-worker or external limiter.
+- **Remediation:** Documented single-worker constraint (per-process in-memory rate limiter and per-instance file reads); broadcaster already shares one snapshot per broadcast interval (regression-tested at ``tests/unit/dashboard/test_p1_sync_fixes.py::test_state_cache_reuses_snapshot``).
 - **Dependencies:** F-14 (state reads).
-- **Acceptance:** One snapshot per broadcast interval; single-worker constraint documented.
-- **Tests:** Cache reuse; limiter behaviour.
-- **Status:** `READY FOR IMPLEMENTATION` after F-14.
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Acceptance:** Snapshot cache shared with the broadcaster; single-worker requirement documented.
+- **Tests:** REST fresh-read per instance; broadcaster snapshot sharing (existing test).
+- **Status:** `VERIFIED WITH LIMITATIONS`.
+- **Commit / evidence:** pending; `reports/audits/remediation/F24_DASHBOARD_CACHE_SINGLE_WORKER.md`. 2 new tests; dashboard suite 168 passed.
+- **Closure:** Pending independent review.
 
 ---
 
@@ -355,7 +355,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 | 5 | Documentation truth | F-23 | **DONE** — `e96b4e5`; zero behavioural risk |
 | 6 | Simulation executor isolation | F-21 | **DONE** — `7db75db`; import-surface hardening |
 | 7 | Dashboard auth hardening | F-15 | **DONE** — `e0fec4c`; security, no trading path |
-| 8 | Dashboard truth | F-14 (done); F-24 (pending) | **DONE** F-14 `dfb99ea`; F-24 still pending |
+| 8 | Dashboard truth | F-14 (done); F-24 (done) | **DONE** F-14 `dfb99ea`; F-24 done (single-worker docs) |
 | 9 | Experiment immutability | F-20 | **DONE** — `63c2cbe`; research evidence integrity |
 | 10 | Forming-bar input | F-11 | **DONE** — `c91a8d9`; R4 maths unchanged |
 | 11 | Stop-loss validation | F-04 | **DONE** — `18e254b`; gate still disabled |

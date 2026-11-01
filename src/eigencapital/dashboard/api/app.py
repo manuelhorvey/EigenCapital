@@ -94,6 +94,12 @@ _RATE_LIMIT_WINDOW = 60  # seconds
 # quickly and cascades into 429s. Default sized for the dashboard itself.
 _RATE_LIMIT_MAX = int(os.environ.get("DASHBOARD_RATE_LIMIT_MAX", "600"))  # requests per window per client IP
 
+# Single-worker constraint (F-24): this in-memory per-IP rate limiter is scoped
+# to a single process. It is NOT shared across multiple workers, so a client
+# could bypass limits by hitting different workers. Run the dashboard as a
+# single worker, or place an external rate limiter in front of it for
+# multi-worker deployments.
+
 
 _DASHBOARD_DEFAULT_KEY = "dev-key-change-in-production"
 _DEV_KEY_WARNED = False

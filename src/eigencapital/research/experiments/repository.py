@@ -35,8 +35,23 @@ class ExperimentRepository:
         return self.base_path / f"{experiment_id}.json"
 
     def save(self, experiment: ExperimentRecord) -> None:
-        """Save experiment to disk."""
+        """Save experiment to disk.
+
+        Raises:
+            ExperimentError: if an immutable (frozen or finalized) record
+                already exists for this experiment_id — finalized experiments
+                are append-only and may not be overwritten.
+        """
         path = self._experiment_path(experiment.experiment_id)
+        if path.exists():
+            existing = self.load(experiment.experiment_id)
+            if self._is_immutable(existing):
+                raise ExperimentError(
+                    f"Experiment {experiment.experiment_id} is immutable "
+                    f"(status={existing.status}, frozen={existing.test_frozen}); "
+                    f"refusing to overwrite",
+                    experiment_id=experiment.experiment_id,
+                )
         data = experiment.to_dict()
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, sort_keys=True, indent=2, ensure_ascii=False)
@@ -63,9 +78,28 @@ class ExperimentRepository:
         return sorted(p.stem for p in self.base_path.glob("*.json"))
 
     def delete(self, experiment_id: str) -> bool:
-        """Delete an experiment file."""
+        """Delete an experiment file.
+
+        Raises:
+            ExperimentError: if the experiment is immutable (frozen or
+                finalized) — finalized experiments are append-only.
+        """
         path = self._experiment_path(experiment_id)
-        if path.exists():
-            path.unlink()
-            return True
-        return False
+        if not path.exists():
+            return False
+        existing = self.load(experiment_id)
+        if self._is_immutable(existing):
+            raise ExperimentError(
+                f"Experiment {experiment_id} is immutable; refusing to delete",
+                experiment_id=experiment_id,
+            )
+        path.unlink()
+        return True
+
+    def _is_immutable(self, experiment: ExperimentRecord) -> bool:
+        """An experiment is immutable once frozen or finalized."""
+        return experiment.test_frozen or experiment.status in {
+            "COMPLETED",
+            "CANDIDATE",
+            "REJECTED",
+        }

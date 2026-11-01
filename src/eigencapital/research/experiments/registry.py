@@ -20,6 +20,7 @@ Usage:
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
@@ -34,9 +35,13 @@ class ExperimentError(ValueError):
         self.experiment_id = experiment_id
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExperimentRecord:
     """A single experiment with full lifecycle.
+
+    Records are immutable once constructed: status transitions and parameter
+    freezes produce new record objects (the registry replaces the stored
+    record), so a finalized experiment can never be overwritten in place.
 
     Attributes:
         experiment_id: Unique identifier (e.g., "EXP-000001")
@@ -102,19 +107,6 @@ class ExperimentRecord:
     created_at: str = ""
     updated_at: str = ""
 
-    # Mutable fields that can change before freeze
-    _MODIFIABLE_BEFORE_FREEZE = {
-        "parameters",
-        "strategy_version",
-        "strategy_config_hash",
-        "strategy_artifact_hash",
-        "cost_model_id",
-        "cost_model_version",
-        "random_seed",
-        "result",
-        "rejection_reason",
-    }
-
     def __post_init__(self) -> None:
         if not self.experiment_id:
             raise ValueError("experiment_id must be non-empty")
@@ -142,6 +134,20 @@ class ExperimentRecord:
             idx = self.trial_metadata["trial_index"]
             if not isinstance(idx, int) or idx < 1:
                 raise ValueError(f"trial_index must be an int >= 1, got {idx!r}")
+
+        # Defensive copies so callers cannot mutate a record through its
+        # nested dicts after construction.
+        object.__setattr__(
+            self, "parameters", copy.deepcopy(self.parameters) if self.parameters else {}
+        )
+        object.__setattr__(
+            self, "result", copy.deepcopy(self.result) if self.result else {}
+        )
+        object.__setattr__(
+            self,
+            "trial_metadata",
+            copy.deepcopy(self.trial_metadata) if self.trial_metadata else {},
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """Deterministic serialization."""
@@ -184,6 +190,17 @@ class ExperimentRecord:
         return cls(**{k: v for k, v in d.items() if k in fields})
 
 
+def _compute_provenance_hash(fields: Dict[str, Any]) -> str:
+    """Provenance hash over all record fields except provenance_hash itself.
+
+    The hash is computed over a trial record whose ``provenance_hash`` is
+    empty, so the hash does not depend on its own value (matching the
+    historical convention where the hash was assigned after construction).
+    """
+    trial = ExperimentRecord(**{**fields, "provenance_hash": ""})
+    return compute_provenance_hash(trial.to_dict())
+
+
 class ExperimentRegistry:
     """Manages experiment lifecycle and enforces invariants.
 
@@ -192,7 +209,9 @@ class ExperimentRegistry:
 
     Freezing:
         Once freeze_test_parameters() is called, the experiment
-        becomes immutable (except status and result updates).
+        becomes immutable; every transition returns a new record object and
+        replaces the stored record, so a finalized experiment can never be
+        overwritten in place.
     """
 
     def __init__(self) -> None:
@@ -204,14 +223,15 @@ class ExperimentRegistry:
         Raises:
             ExperimentError: if experiment_id already exists
         """
-        exp = ExperimentRecord(**kwargs)
+        fields = dict(kwargs)
+        fields.pop("provenance_hash", None)  # provenance is computed, not supplied
+        fields["provenance_hash"] = _compute_provenance_hash(fields)
+        exp = ExperimentRecord(**fields)
         if exp.experiment_id in self._experiments:
             raise ExperimentError(
                 f"Duplicate experiment_id: {exp.experiment_id}",
                 experiment_id=exp.experiment_id,
             )
-        # Compute provenance hash
-        exp.provenance_hash = compute_provenance_hash(exp.to_dict())
         self._experiments[exp.experiment_id] = exp
         return exp
 
@@ -224,25 +244,34 @@ class ExperimentRegistry:
     def freeze_test_parameters(self, experiment_id: str) -> ExperimentRecord:
         """Freeze test parameters — experiment becomes immutable.
 
-        This is the point of no return for parameter modification.
+        This is the point of no return for parameter modification. Returns a
+        new record and replaces the stored one.
         """
         exp = self.get(experiment_id)
         if exp.test_frozen:
             raise ExperimentError("Test parameters already frozen", experiment_id)
         if exp.status != "PRE_REGISTERED":
             raise ExperimentError(f"Cannot freeze: status is {exp.status}", experiment_id)
-        # Recompute provenance hash after freeze
-        exp.test_frozen = True
-        exp.provenance_hash = compute_provenance_hash(exp.to_dict())
-        return exp
+        fields = exp.to_dict()
+        fields["test_frozen"] = True
+        fields.pop("provenance_hash", None)
+        fields["provenance_hash"] = _compute_provenance_hash(fields)
+        new_exp = ExperimentRecord(**fields)
+        self._experiments[experiment_id] = new_exp
+        return new_exp
 
     def start(self, experiment_id: str) -> ExperimentRecord:
-        """Transition to RUNNING status."""
+        """Transition to RUNNING status. Returns a new record."""
         exp = self.get(experiment_id)
         if exp.status != "PRE_REGISTERED":
             raise ExperimentError(f"Cannot start: status is {exp.status}", experiment_id)
-        exp.status = "RUNNING"
-        return exp
+        fields = exp.to_dict()
+        fields["status"] = "RUNNING"
+        fields.pop("provenance_hash", None)
+        fields["provenance_hash"] = _compute_provenance_hash(fields)
+        new_exp = ExperimentRecord(**fields)
+        self._experiments[experiment_id] = new_exp
+        return new_exp
 
     def complete(
         self,
@@ -250,7 +279,7 @@ class ExperimentRegistry:
         status: str = "COMPLETED",
         result: Dict[str, Any] | None = None,
     ) -> ExperimentRecord:
-        """Complete an experiment with a final status."""
+        """Complete an experiment with a final status. Returns a new record."""
         exp = self.get(experiment_id)
         if exp.status != "RUNNING":
             raise ExperimentError(f"Cannot complete: status is {exp.status}", experiment_id)
@@ -260,11 +289,15 @@ class ExperimentRegistry:
                 f"Invalid final status: {status}. Must be one of {valid_final}",
                 experiment_id,
             )
-        exp.status = status
+        fields = exp.to_dict()
+        fields["status"] = status
         if result:
-            exp.result = result
-        exp.provenance_hash = compute_provenance_hash(exp.to_dict())
-        return exp
+            fields["result"] = dict(result)
+        fields.pop("provenance_hash", None)
+        fields["provenance_hash"] = _compute_provenance_hash(fields)
+        new_exp = ExperimentRecord(**fields)
+        self._experiments[experiment_id] = new_exp
+        return new_exp
 
     def list_experiments(self) -> list[ExperimentRecord]:
         """List all experiments in creation order."""

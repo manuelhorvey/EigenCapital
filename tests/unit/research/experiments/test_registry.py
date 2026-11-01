@@ -1,6 +1,7 @@
 """Unit tests for Experiment Registry."""
 
 import pytest
+from dataclasses import FrozenInstanceError
 
 from eigencapital.research.experiments.registry import (
     ExperimentError,
@@ -239,3 +240,57 @@ class TestExperimentRepository:
         repo.save(_make_experiment())
         assert repo.delete("EXP-000001") is True
         assert repo.exists("EXP-000001") is False
+
+
+class TestExperimentImmutability:
+    def test_frozen_record_rejects_assignment(self):
+        exp = _make_experiment()
+        with pytest.raises(FrozenInstanceError):
+            exp.status = "RUNNING"
+
+    def test_to_dict_returns_copies(self):
+        exp = _make_experiment(parameters={"lookback": 100})
+        d = exp.to_dict()
+        d["parameters"]["lookback"] = 999
+        assert exp.parameters["lookback"] == 100
+
+    def test_registry_transition_returns_new_record(self):
+        reg = ExperimentRegistry()
+        exp = reg.create(**_make_experiment().__dict__)
+        assert exp.status == "PRE_REGISTERED"
+        exp2 = reg.start("EXP-000001")
+        assert exp2 is not exp
+        # Original record unchanged
+        assert exp.status == "PRE_REGISTERED"
+        assert exp2.status == "RUNNING"
+        assert reg.get("EXP-000001") is exp2
+
+    def test_save_allows_overwrite_of_unfrozen_experiment(self, tmp_path):
+        from eigencapital.research.experiments.repository import ExperimentRepository
+
+        repo = ExperimentRepository(tmp_path)
+        exp = _make_experiment()
+        repo.save(exp)
+        exp2 = ExperimentRecord(
+            **{**exp.to_dict(), "parameters": {"lookback": 999}}
+        )
+        repo.save(exp2)
+        assert repo.load("EXP-000001").parameters["lookback"] == 999
+
+    def test_save_refuses_overwrite_of_frozen_experiment(self, tmp_path):
+        from eigencapital.research.experiments.repository import ExperimentRepository
+
+        repo = ExperimentRepository(tmp_path)
+        repo.save(_make_experiment(test_frozen=True))  # existing record is frozen
+        with pytest.raises(ExperimentError, match="immutable"):
+            repo.save(_make_experiment())  # overwrite attempt must be refused
+
+    def test_delete_refuses_frozen_experiment(self, tmp_path):
+        from eigencapital.research.experiments.repository import ExperimentRepository
+
+        repo = ExperimentRepository(tmp_path)
+        repo.save(_make_experiment())
+        assert repo.delete("EXP-000001") is True
+        repo.save(_make_experiment(test_frozen=True))
+        with pytest.raises(ExperimentError, match="immutable"):
+            repo.delete("EXP-000001")

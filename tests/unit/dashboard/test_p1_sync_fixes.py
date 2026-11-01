@@ -20,6 +20,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from eigencapital.dashboard.schemas.common import DataFreshness
+
 # ═══════════════════════════════════════════════════════════════════
 # F-03 — Alerts ordering
 # ═══════════════════════════════════════════════════════════════════
@@ -134,7 +136,10 @@ class TestSingleWriterRule:
 
         status = service.get_reconciliation_status()
 
-        assert status["overall_status"] == "NO_DATA"
+        # No engine reconciliation record → UNKNOWN, not derived from SL presence (F-14)
+        assert status["overall_status"] == "UNKNOWN"
+        assert status.get("engine_record") is False
+        assert status["freshness"] == DataFreshness.UNKNOWN.value
         assert not (loop_dir / "reconciliation_state.json").exists()
 
     def test_risk_observer_constants_not_duplicated(self) -> None:

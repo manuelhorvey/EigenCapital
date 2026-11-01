@@ -33,6 +33,21 @@ from typing import Any
 from eigencapital.core.data_quality import DataQualityAssessor
 from eigencapital.dashboard.schemas.common import DataFreshness
 
+# Supervisor/health data older than this TTL cannot be treated as live.
+HEALTH_STALENESS_TTL_SECONDS = 300
+
+
+def _compute_daily_loss_remaining(daily_pnl: float, max_daily_loss: float) -> float:
+    """Remaining daily loss derived from the same baseline as the risk engine.
+
+    Never resets to the full limit; daily P&L reduces the remaining allowance.
+    """
+    try:
+        remaining = float(max_daily_loss) - abs(float(daily_pnl))
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, remaining)
+
 
 class DashboardStateService:
     """Read-only adapter over existing EigenCapital domain models."""
@@ -100,8 +115,18 @@ class DashboardStateService:
 
         if supervisor_health is not None:
             alive = supervisor_health.get("alive", False)
-            overall_alive = alive
             health_timestamp = supervisor_health.get("timestamp", now.isoformat())
+
+            # Staleness TTL: health data older than the TTL cannot be treated as live.
+            # A stale "alive" flag (e.g. last_health.json left over from a previous run)
+            # must not make the dashboard report HEALTHY.
+            health_stale = self._is_health_stale(health_timestamp)
+            if health_stale:
+                alive = False
+                overall_alive = False
+                health_timestamp = now.isoformat()
+            else:
+                overall_alive = alive
 
             restart_count = 0
             sup_status = "running"
@@ -137,6 +162,7 @@ class DashboardStateService:
                         "instance_id": supervisor_health.get("instance_id", ""),
                         "restart_count": restart_count,
                         "status": sup_status,
+                        "health_stale": health_stale,
                     },
                 }
             )
@@ -623,9 +649,9 @@ class DashboardStateService:
 
             account = mt5.account_info()
             self._mt5_connected = True
-            mt5.shutdown()
 
             if account is None:
+                mt5.shutdown()
                 return self._empty_account_state()
 
             equity = account.equity
@@ -647,7 +673,6 @@ class DashboardStateService:
 
                 env = RiskEnvelope.from_config()
                 t0 = getattr(env, "t0_equity", balance)
-                daily_loss_remaining = getattr(env, "max_daily_loss", 250.0)
 
                 # Load persisted peak equity for true HWM
                 state_path = self._loop_dir / "runtime_state.json"
@@ -682,7 +707,12 @@ class DashboardStateService:
                 if daily_start > 0:
                     daily_pnl = equity - daily_start
 
-                # Compute total unrealized P&L from live positions
+                # Daily loss remaining decrements from the same baseline as the risk engine
+                daily_loss_remaining = _compute_daily_loss_remaining(
+                    daily_pnl, getattr(env, "max_daily_loss", 250.0)
+                )
+
+                # Compute total unrealized P&L from live positions BEFORE shutdown
                 try:
                     live_positions = mt5.positions_get()
                     for p in live_positions or []:
@@ -693,11 +723,12 @@ class DashboardStateService:
                     import logging
 
                     logging.getLogger(__name__).debug(f"Failed to get live positions: {e}")
-
             except Exception as e:
                 import logging
 
                 logging.getLogger(__name__).debug(f"Failed to get account state: {e}")
+
+            mt5.shutdown()
 
             return {
                 "equity": equity,
@@ -1020,18 +1051,20 @@ class DashboardStateService:
             except (json.JSONDecodeError, OSError):
                 pass
 
-        # Derive from positions — all SL-protected positions are reconciled
+        # No engine reconciliation record exists. Do NOT derive CLEAN from SL
+        # presence — that conflates stop-loss protection with reconciliation and
+        # can mask unreconciled broker positions (audit F-14). Return UNKNOWN
+        # until the reconciliation engine writes its own record (tracked by F-06).
         positions = self.get_positions()
         protected = sum(1 for p in positions if p.get("protected"))
         total = len(positions)
         now = datetime.now(UTC).isoformat()
 
-        # Check for foreign positions (no SL = potentially foreign/untracked)
         foreign = [p for p in positions if not p.get("protected")]
 
         status = {
-            "overall_status": "CLEAN" if protected == total and total > 0 else ("WARNING" if foreign else "NO_DATA"),
-            "last_reconciliation": now,
+            "overall_status": "UNKNOWN",
+            "last_reconciliation": None,
             "checks_performed": total,
             "checks_passed": protected,
             "checks_warning": len(foreign),
@@ -1044,8 +1077,9 @@ class DashboardStateService:
             "position_count": total,
             "protected_count": protected,
             "unprotected_count": total - protected,
+            "engine_record": False,
             "timestamp": now,
-            "freshness": DataFreshness.LIVE.value if total > 0 else DataFreshness.UNKNOWN.value,
+            "freshness": DataFreshness.UNKNOWN.value,
         }
 
         # Single-writer rule: reconciliation_state.json is owned by the
@@ -1428,3 +1462,19 @@ class DashboardStateService:
             return DataFreshness.STALE.value
         else:
             return DataFreshness.UNKNOWN.value
+
+    def _is_health_stale(self, timestamp_str: str | None) -> bool:
+        """Return True if health data is older than HEALTH_STALENESS_TTL_SECONDS.
+
+        Stale health data (e.g. last_health.json left over from a previous run)
+        must not be treated as live. A missing or unparseable timestamp is
+        treated as stale.
+        """
+        if not timestamp_str:
+            return True
+        try:
+            ts = datetime.fromisoformat(timestamp_str)
+        except (ValueError, TypeError):
+            return True
+        age_seconds = (datetime.now(UTC) - ts).total_seconds()
+        return age_seconds > HEALTH_STALENESS_TTL_SECONDS

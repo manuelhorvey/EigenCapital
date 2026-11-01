@@ -1,0 +1,546 @@
+{
+  "audit": {
+    "repository": "EigenCapital",
+    "branch": "audit/ec-remediation-001",
+    "commit": "6a7e77f865eff21c17bb1cedae368cb23ec473f4",
+    "date": "2026-11-01",
+    "type": "read-only comprehensive codebase review",
+    "governing_gate": "reports/audits/EC_AUDIT_009_CLOSURE_AND_CAPITAL_READINESS_GATE.md",
+    "gate_status": "DRAFT_AMENDED_NOT_ADOPTED_GATE_NOT_PASSED",
+    "capital_increase_authorized": false
+  },
+  "severity_definitions": {
+    "critical": "Absence of a control required to account for capital or reconstruct execution.",
+    "high": "A control exists but is incorrect or unwired in a way that invalidates a safety or evidence claim.",
+    "medium": "Material correctness or operability defect with a bounded workaround.",
+    "low": "Hygiene or defence-in-depth."
+  },
+  "findings": [
+    {
+      "id": "F-01",
+      "title": "No independent equity/capital reconciliation",
+      "severity": "critical",
+      "category": "capital_accounting",
+      "status": "open",
+      "prior_mapping": "P0-1",
+      "confidence": "code-verified",
+      "evidence": [
+        "scripts/r4_rebalance_loop.py uses account_info() equity for sizing and daily-loss checks",
+        "no internal equity ledger exists in the live path",
+        "reports/r4_loop/runtime_state.json (2026-10-29) contains daily_start=5107.83 and daily_loss.baseline_equity=18177.0 in the same record",
+        "reports/r4_loop/last_equity.json (2026-09-27) records equity=5117.15",
+        "the observed ~3.5x equity change between those dates has no capital-event record",
+        "reports/audits/EC_AUDIT_009_P0_1_EQUITY_RECONCILIATION.md records P0-1 as BLOCKED - BROKER STATEMENT REQUIRED; the diagnostic tool is not wired to the live loop"
+      ],
+      "impact": "Trading P&L cannot be distinguished from deposits, withdrawals, broker corrections, or a stale baseline; daily-loss protection may run against the wrong capital base.",
+      "acceptance_criteria": [
+        "Append-only equity ledger persisted with timestamps and hashes",
+        "Per-cycle broker-vs-ledger equity comparison recorded",
+        "Daily-loss baseline derived from ledger and immutable intraday",
+        "Unexplained delta above tolerance alerts and blocks new entries"
+      ],
+      "phase": "P0"
+    },
+    {
+      "id": "F-02",
+      "title": "Capital-event ledger not wired into live path",
+      "severity": "critical",
+      "category": "capital_accounting",
+      "status": "open",
+      "prior_mapping": "P0-2",
+      "confidence": "code-verified",
+      "evidence": [
+        "src/eigencapital/production_qual/event_ledger.py defines EventLedger",
+        "grep finds no EventLedger construction or use in src/ or scripts/ outside production_qual"
+      ],
+      "impact": "Capital movements cannot be reconstructed; no accounting spine for external audit or scaling.",
+      "acceptance_criteria": [
+        "EventLedger instantiated in the live loop",
+        "Capital events written with correlation IDs",
+        "get_trade_chain() returns a full chain for a live cycle"
+      ],
+      "phase": "P0"
+    },
+    {
+      "id": "F-03",
+      "title": "Durable decision-intent-order-fill chain absent from live path",
+      "severity": "critical",
+      "category": "audit_trail",
+      "status": "open",
+      "prior_mapping": "P0-3",
+      "confidence": "code-verified",
+      "evidence": [
+        "no import of AuditLog or DurableAudit in scripts/r4_rebalance_loop.py",
+        "DurableAudit is used only by src/eigencapital/live/campaign.py",
+        "execute_orders uses an in-memory (symbol, side) dedup set per cycle"
+      ],
+      "impact": "Ambiguous sends and restarts cannot be reconstructed or safely deduplicated; no durable execution provenance.",
+      "acceptance_criteria": [
+        "Every decision, intent, submission, fill, rejection and reconciliation appended to one hash-chained log",
+        "Chain keyed by cycle and decision ID",
+        "Restart re-reads open intents and resolves them against the broker before submitting"
+      ],
+      "phase": "P0"
+    },
+    {
+      "id": "F-04",
+      "title": "Stop-loss gate treats invalid SL as protected and is optional",
+      "severity": "high",
+      "category": "risk_control",
+      "status": "open",
+      "prior_mapping": "P0-4",
+      "confidence": "code-verified+runtime",
+      "evidence": [
+        "src/eigencapital/live/risk_enforcement.py:415-430 uses p.get('sl', 0) == 0",
+        "require_sl_on_positions=false in production config",
+        "tests/unit/live/test_stop_loss_policy.py::TestInvalidDataGap: 3 xfailed (14 passed, 3 xfailed)"
+      ],
+      "impact": "Gate 6 cannot assert that every position is protected; catastrophic supervisor mitigates but does not replace the check.",
+      "acceptance_criteria": [
+        "None, non-positive, wrong-side and non-numeric SL count as unprotected and BLOCK",
+        "Tests un-xfailed",
+        "Gate enablement remains an explicit operator decision"
+      ],
+      "phase": "P0"
+    },
+    {
+      "id": "F-05",
+      "title": "Reconciliation compares broker state to itself",
+      "severity": "high",
+      "category": "reconciliation",
+      "status": "open",
+      "prior_mapping": "P1-5",
+      "confidence": "code-verified",
+      "evidence": [
+        "scripts/r4_rebalance_loop.py:1680-1705 builds BrokerState and InternalState from the same pos_list"
+      ],
+      "impact": "Position count, quantity, side and ticket mismatches can never be detected; RECONCILED is not evidence of agreement.",
+      "acceptance_criteria": [
+        "InternalState derived from persisted confirmed fills",
+        "Tests for broker-only position, missing position, and quantity delta each produce MISMATCH or HALT"
+      ],
+      "phase": "P0"
+    },
+    {
+      "id": "F-06",
+      "title": "Reconciliation result never persisted; dashboard reads a different file",
+      "severity": "high",
+      "category": "reconciliation",
+      "status": "open",
+      "prior_mapping": "P1-5",
+      "confidence": "code-verified",
+      "evidence": [
+        "scripts/r4_rebalance_loop.py:1740-1766 cycle_counter always 0 and last_cycle initializes to 0, so the append is always skipped",
+        "dashboard/services/dashboard_state.py:1013 reads reconciliation_state.json",
+        "loop targets reconciliation_state.jsonl"
+      ],
+      "impact": "No durable reconciliation history; the dashboard cannot show engine truth.",
+      "acceptance_criteria": [
+        "Monotonic cycle ID persisted",
+        "One record per cycle or state change",
+        "Loop and dashboard agree on path and schema",
+        "Test asserts the file exists after a cycle"
+      ],
+      "phase": "P0"
+    },
+    {
+      "id": "F-07",
+      "title": "Advertised max_absolute_weight_error veto is not implemented",
+      "severity": "medium",
+      "category": "configuration",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "src/eigencapital/config.py:173 max_absolute_weight_error=0.05",
+        "configs/production/config.toml:202-204 documents SKIPPED_MIN_LOT / no order on breach",
+        "scripts/r4_rebalance_loop.py:801-839 records the error and states in a comment that it is not an execution veto",
+        "is_feasible checks only 0 < executable_notional <= MAX_POSITION_USD"
+      ],
+      "impact": "Orders are deliberately submitted that the config documents as skipped. Exposure remains bounded by the per-position notional cap, but the advertised control does not exist.",
+      "acceptance_criteria": [
+        "Breach blocks the order with an auditable reason, or the claim is removed from config and docs with written risk acceptance"
+      ],
+      "phase": "P1"
+    },
+    {
+      "id": "F-08",
+      "title": "Probability of Backtest Overfitting structurally constant 1.0",
+      "severity": "high",
+      "category": "statistics",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "runtime-verified",
+      "evidence": [
+        "src/eigencapital/analytics/validation/pbo.py:88-114 uses a single deterministic disjoint half-split",
+        "best_is_idx is selected from train and can never appear in test",
+        "runtime: 12 candidates -> pbo=1.0, overfit_count=6, total_partitions=6",
+        "reports cite PBO 1.000 (16/16)"
+      ],
+      "impact": "Reported PBO values are artifacts; the metric carries no information in either direction.",
+      "acceptance_criteria": [
+        "CSCV implementation",
+        "Unit test with known-PBO synthetic matrix",
+        "Affected research values re-derived"
+      ],
+      "phase": "P1"
+    },
+    {
+      "id": "F-09",
+      "title": "Holm/BH multiple-testing correction invalid",
+      "severity": "high",
+      "category": "statistics",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "runtime-verified",
+      "evidence": [
+        "src/eigencapital/analytics/validation/multiple_testing.py:63-129 sorts adjusted values before mapping back",
+        "runtime holm([0.001,0.04,0.03]) = [0.003,0.06,0.04]; correct = [0.003,0.06,0.06]",
+        "runtime benjamini_hochberg([0.001,0.04,0.03]) = [0.003,0.045,0.04]; correct = [0.003,0.04,0.04]"
+      ],
+      "impact": "Holm is anti-conservative for the largest raw p; a test with p=0.03 is rejected at alpha=0.05 when correct Holm would retain it. FWER/FDR guarantees do not hold.",
+      "acceptance_criteria": [
+        "Correct step-down and step-up algorithms",
+        "Property tests for monotonicity and error-rate bounds",
+        "Affected verdicts re-run"
+      ],
+      "phase": "P1"
+    },
+    {
+      "id": "F-10",
+      "title": "Research provenance and cited artifacts are not reproducible",
+      "severity": "high",
+      "category": "research_governance",
+      "status": "open",
+      "prior_mapping": "P1-2",
+      "confidence": "code-verified+document-based",
+      "evidence": [
+        "EXP-000002 stored provenance_hash 1b81... does not reproduce (e549.../fbb4...)",
+        "repository.load() never verifies the hash",
+        "dataset_hash matches R5_data_manifest.json with 38 instruments; experiment claims 42; production allows 37 (30 tradeable)",
+        "all six R1-R6 artifact directories cited by program_status.json are absent",
+        "git_commit fda2468 is unresolvable"
+      ],
+      "impact": "Research conclusions cannot be audited or reproduced; reports reference evidence that does not exist in the repository.",
+      "acceptance_criteria": [
+        "Hash verified on load",
+        "Dataset manifest tied to the experiment universe",
+        "Artifacts present or claims withdrawn",
+        "Commit reachable or provenance restated"
+      ],
+      "phase": "P1"
+    },
+    {
+      "id": "F-11",
+      "title": "Live signal includes the forming D1 bar",
+      "severity": "high",
+      "category": "signal_correctness",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "scripts/r4_rebalance_loop.py:515 copy_rates_from_pos(sym, TIMEFRAME_D1, 0, bars) includes index 0",
+        "no bar-completion filter found"
+      ],
+      "impact": "Hourly recomputation on an evolving daily bar causes signal churn, non-reproducible daily weights, and avoidable turnover.",
+      "acceptance_criteria": [
+        "Signal pinned to the last closed bar, or intraday-update semantics explicitly documented and tested"
+      ],
+      "phase": "P1"
+    },
+    {
+      "id": "F-12",
+      "title": "Execution robustness gaps",
+      "severity": "medium",
+      "category": "execution",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "detect_filling_mode always returns ORDER_FILLING_FOK",
+        "deviation hard-coded 10 (line 995) and 20 (line 2564), not max_slippage",
+        "ambiguous timeout breaks without broker resolution",
+        "partial fill treated as failed",
+        "no chase despite max_chase_attempts",
+        "idempotency key in memory per cycle only"
+      ],
+      "impact": "Higher rejection and partial-fill risk; unresolved sends after crash; possible duplicate exposure in edge cases.",
+      "acceptance_criteria": [
+        "Broker-capability-based filling mode",
+        "Config-driven deviation",
+        "Resolve ambiguous sends by client order ID",
+        "Partial-fill repair path",
+        "Durable dedup keys"
+      ],
+      "phase": "P1"
+    },
+    {
+      "id": "F-13",
+      "title": "Execution and rebalance config fields unconsumed",
+      "severity": "medium",
+      "category": "configuration",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "no consumer in the live loop for max_chase_attempts, max_age_seconds, max_cumulative_slippage_bps, max_order_frequency, rebalance_frequency"
+      ],
+      "impact": "Operators can set limits that have no effect; false assurance.",
+      "acceptance_criteria": [
+        "Enforce or remove each field",
+        "Config-consumption test for every safety key"
+      ],
+      "phase": "P1"
+    },
+    {
+      "id": "F-14",
+      "title": "Dashboard misreports account, risk, health and reconciliation state",
+      "severity": "medium",
+      "category": "observability",
+      "status": "open",
+      "prior_mapping": "P1-5",
+      "confidence": "code-verified",
+      "evidence": [
+        "dashboard/services/dashboard_state.py:626 calls mt5.shutdown() before positions_get(), so unrealized_pnl is always 0",
+        "daily_loss_remaining set to max_daily_loss and never decremented",
+        "get_system_health does not staleness-gate the alive flag",
+        "get_reconciliation_status derives CLEAN from SL presence and never reads the intent ledger",
+        "_empty_account_state returns equity=0 and balance=0 with freshness UNKNOWN",
+        "reports/r4_loop/last_health.json shows alive=true with timestamp 2026-09-27 while runtime_state.json is dated 2026-10-29"
+      ],
+      "impact": "Operators may see a healthier or safer state than reality.",
+      "acceptance_criteria": [
+        "Correct MT5 call order",
+        "Remaining loss derived from the same baseline as the risk engine",
+        "Staleness TTL on health",
+        "Reconciliation from the engine record",
+        "Explicit UNKNOWN rendering for missing data"
+      ],
+      "phase": "P1"
+    },
+    {
+      "id": "F-15",
+      "title": "Predictable default dashboard key and auth bypass switch",
+      "severity": "medium",
+      "category": "security",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "dashboard/api/app.py and dashboard/streaming/events.py default to dev-key-change-in-production",
+        "DASHBOARD_DISABLE_AUTH=1 bypasses auth",
+        "legacy ?token= accepted for WebSocket",
+        "loopback bind in scripts/start_dashboard.sh",
+        "start_dashboard.sh exports VITE_API_KEY, embedding the same key in the frontend bundle"
+      ],
+      "impact": "A local misconfiguration can expose live state under a known credential; risk is reduced but not eliminated by loopback binding.",
+      "acceptance_criteria": [
+        "Fail closed in production when the key is missing or default",
+        "Remove query-token acceptance",
+        "Loud startup warning when auth is disabled"
+      ],
+      "phase": "P1"
+    },
+    {
+      "id": "F-16",
+      "title": "Risk-gate call semantics and daily-loss baseline fallback",
+      "severity": "medium",
+      "category": "risk_control",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "RiskEnforcer.check_all called with target_orders=0 before order generation",
+        "src/eigencapital/live/risk_enforcement.py _check_daily_loss auto-initializes baseline when audit is CLEAN"
+      ],
+      "impact": "The concurrency gate cannot see planned orders; a restart at a loss can silently restart the daily-loss clock from the lower equity.",
+      "acceptance_criteria": [
+        "Call with the actual planned order count",
+        "Baseline must come from the persistent ledger (RESTORED) or trading is refused"
+      ],
+      "phase": "P1"
+    },
+    {
+      "id": "F-17",
+      "title": "Audit chain is unkeyed and event IDs can race",
+      "severity": "medium",
+      "category": "security",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "durable_audit.py hashes prev_hash|seq|payload with plain SHA-256 and no key",
+        "AuditLog event counter is reconstructed by replay"
+      ],
+      "impact": "An attacker with write access to both primary and mirror can recompute a consistent chain; concurrent processes can duplicate event IDs.",
+      "acceptance_criteria": [
+        "HMAC with a key held outside the repository",
+        "Sequence allocated under the existing file lock",
+        "Periodic chain-head digest exported off-host"
+      ],
+      "phase": "P2"
+    },
+    {
+      "id": "F-18",
+      "title": "Backtest fill model unsuitable for scaling evidence",
+      "severity": "medium",
+      "category": "backtest",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "backtest/engine.py uses fixed tick_size=0.25 and quantity=1.0",
+        "fills at bar close with static spread/slippage",
+        "no margin, financing, liquidation, or partial fills",
+        "trade_count approximated as fill_events // 2"
+      ],
+      "impact": "Useful for relative comparison and look-ahead testing; not a basis for capacity, slippage, or drawdown claims.",
+      "acceptance_criteria": [
+        "Per-instrument contract and tick metadata",
+        "Risk-based sizing",
+        "Intrabar stop and gap handling",
+        "Broker-spec cost model",
+        "Limitations disclosed in reports"
+      ],
+      "phase": "P2"
+    },
+    {
+      "id": "F-19",
+      "title": "CI and supply-chain hardening gaps",
+      "severity": "medium",
+      "category": "ci_cd",
+      "status": "open",
+      "prior_mapping": "P1-7 (partial)",
+      "confidence": "code-verified",
+      "evidence": [
+        "GitHub Actions referenced by tag, not commit SHA",
+        "no permissions block",
+        "unpinned runtime dependencies",
+        "no dependency vulnerability scan",
+        "Codecov fail_ci_if_error=false",
+        "CI matrix 3.11-3.13 while local review used 3.14.8"
+      ],
+      "impact": "Non-reproducible builds and increased supply-chain exposure; Python 3.14 is untested in CI.",
+      "acceptance_criteria": [
+        "SHA-pinned actions",
+        "permissions: contents: read",
+        "Lockfile or hashes for operational installs",
+        "pip-audit",
+        "Explicit Python 3.14 support decision"
+      ],
+      "phase": "P2"
+    },
+    {
+      "id": "F-20",
+      "title": "Experiment registry is mutable and no promotion path exists",
+      "severity": "medium",
+      "category": "research_governance",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "ExperimentRecord is a mutable dataclass",
+        "repository.save() overwrites and delete() exists",
+        "_MODIFIABLE_BEFORE_FREEZE is dead code",
+        "no code promotes research into production"
+      ],
+      "impact": "Evidence can be altered post hoc; there is no formal research-to-live gate.",
+      "acceptance_criteria": [
+        "Immutable records with content-addressed IDs",
+        "Append-only supersession",
+        "Promotion checklist enforced or documented as out of scope"
+      ],
+      "phase": "P2"
+    },
+    {
+      "id": "F-21",
+      "title": "Simulation executors importable in the production package",
+      "severity": "medium",
+      "category": "evidence_integrity",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "SIMULATED_EVIDENCE and hardcoded executors are production modules referenced only by tests today"
+      ],
+      "impact": "Latent fabrication path if any future wiring selects them in a promotion or reporting context.",
+      "acceptance_criteria": [
+        "Move under tests/ or raise at import unless a test flag is set",
+        "Test asserting they cannot be selected outside tests"
+      ],
+      "phase": "P2"
+    },
+    {
+      "id": "F-22",
+      "title": "Operational state files have no schema or version",
+      "severity": "medium",
+      "category": "persistence",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "reports/r4_loop/* JSON and JSONL files carry no schema version",
+        "readers use .get() defaults",
+        "naming is inconsistent between producers and consumers"
+      ],
+      "impact": "Format changes become silent parse failures or dropped fields.",
+      "acceptance_criteria": [
+        "Version field in each file",
+        "Readers reject unknown versions explicitly",
+        "One documented owner per file"
+      ],
+      "phase": "P2"
+    },
+    {
+      "id": "F-23",
+      "title": "Documentation drift and absent governing specs",
+      "severity": "low",
+      "category": "documentation",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "scripts/r4_rebalance_loop.py:163-168 comments say 1500 and 8 while actual values are 5000 and 20",
+        "SYSTEM_SPECIFICATION.md and domain_contracts.md do not exist",
+        "EC-AUDIT-009 is draft and not adopted"
+      ],
+      "impact": "Misleading during incident response; readers may assume controls that are not enforced.",
+      "acceptance_criteria": [
+        "Fix stale comments",
+        "Mark nonexistent specs as historical references",
+        "State the adopted gate explicitly"
+      ],
+      "phase": "P3"
+    },
+    {
+      "id": "F-24",
+      "title": "Dashboard repeat reads and in-memory rate limiting",
+      "severity": "low",
+      "category": "performance",
+      "status": "open",
+      "prior_mapping": null,
+      "confidence": "code-verified",
+      "evidence": [
+        "REST handlers re-read many files per request",
+        "per-IP rate limiter is an in-memory dict",
+        "5 s broadcaster interval"
+      ],
+      "impact": "Unnecessary I/O; multi-worker deployments multiply effective rate limits.",
+      "acceptance_criteria": [
+        "Snapshot cache shared with the broadcaster",
+        "Single-worker requirement documented or external limiter used"
+      ],
+      "phase": "P3"
+    }
+  ],
+  "positive_observations": [
+    "Single-instance claim with exit 75 on refusal",
+    "Reconnect requires a live account read and reconciliation before resume",
+    "Corrupted risk audit fails closed",
+    "Reconciliation HALT stops trading",
+    "Catastrophic-SL safety supervisor on by default behind an explicit flag file",
+    "Constant-time credential comparison and masked WebSocket stream",
+    "3644 tests collected; property suite stable over three runs; ruff and mypy clean",
+    "Frozen-signal identity guarded by a fidelity test"
+  ]
+}

@@ -149,16 +149,16 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 
 ## F-10 — Research provenance not reproducible
 - **Severity:** High · **Phase:** P1
-- **Evidence:** `EXP-000002` provenance hash mismatch; `repository.load()` never verifies; dataset manifest 38 vs claim 42 vs production 37; six R1–R6 artifact directories absent; `git_commit fda2468` unresolvable.
+- **Evidence:** `EXP-000002` provenance hash mismatch; `repository.load()` never verified; dataset manifest 38 vs claim 42 vs production 37; six R1–R6 artifact directories absent; `git_commit fda2468` unresolvable.
 - **Root cause:** Provenance fields are written but not enforced; artifacts not retained.
-- **Affected:** `research/experiment_repository.py` (load path), manifests, reports.
-- **Remediation:** Verify hash on load; align universe manifest; restore artifacts or withdraw claims; resolve/restate commit.
-- **Dependencies:** External artifacts (may be unrecoverable) → partial.
-- **Acceptance:** Load rejects tampered hash; manifest matches experiment universe; every cited artifact present or claim withdrawn.
-- **Tests:** Tampered-hash rejection; manifest/universe consistency.
-- **Status:** `READY FOR IMPLEMENTATION` (verification); artifact restoration `BLOCKED`.
-- **Commit / evidence:** none.
-- **Closure:** Pending.
+- **Affected:** `research/experiments/repository.py` (load path), `research/experiments/registry.py` (save path), manifests, reports.
+- **Remediation:** `repository.load()` now verifies the stored provenance hash, fail closed; `repository.save()` always writes a valid hash. Missing historical artifacts cannot be recreated by a hash check — those remain blocked (F-10 artifact restoration).
+- **Dependencies:** External artifacts (R1–R6, EXP-000002 raw matrix) may be unrecoverable → artifact restoration partial/blocked.
+- **Acceptance:** Load rejects tampered hash, missing hash, malformed JSON; manifest matches experiment universe; every cited artifact present or claim withdrawn.
+- **Tests:** Tampered-hash rejection; tampered-data rejection; missing-hash rejection; malformed/non-dict JSON rejection; save writes valid hash.
+- **Status:** `VERIFIED WITH LIMITATIONS` (hash verification implemented; artifact restoration `BLOCKED` on raw matrix).
+- **Commit / evidence:** `23552ad`; `reports/audits/remediation/F10_PROVENANCE_HASH_VERIFICATION.md`. 7 new tests; registry 36 passed; full suite 3746 passed.
+- **Closure:** Pending independent review; artifact restoration blocked on raw data.
 
 ## F-11 — Live signal includes the forming D1 bar
 - **Severity:** High · **Phase:** P1
@@ -350,17 +350,18 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 |---|---|---|---|
 | 1 | Statistical correction: Holm/BH | F-09 | **DONE** — `174b5a1`, awaiting independent verification |
 | 2 | Statistical correction: CSCV PBO | F-08 | **DONE** — `6e707ca`; re-derivation blocked on raw matrices |
-| 3 | CI hardening | F-19 | **DONE** — `678433b`; no runtime behaviour |
-| 4 | Documentation truth | F-23 | **DONE** — `e96b4e5`; zero behavioural risk |
-| 5 | Simulation executor isolation | F-21 | **DONE** — `7db75db`; import-surface hardening |
-| 6 | Dashboard auth hardening | F-15 | **DONE** — `e0fec4c`; security, no trading path |
-| 7 | Dashboard truth | F-14 (done); F-24 (pending) | **DONE** F-14 `dfb99ea`; F-24 still pending |
-| 8 | Experiment immutability | F-20 | **DONE** — `63c2cbe`; research evidence integrity |
-| 9 | Forming-bar input | F-11 | **DONE** — `c91a8d9`; R4 maths unchanged |
-| 10 | Stop-loss validation | F-04 | **DONE** — `18e254b`; gate still disabled |
-| 11 | Execution/ledger P0 items | F-02 fixture, F-05, F-06, F-16, F-03 | Requires F-02 design + live-path approval |
-| 12 | Decisions required | F-07, F-12, F-13, F-17, F-18 | Technical decision records / approval |
-| 13 | Externally blocked | F-01 | Broker statement |
+| 3 | Research provenance hash verification | F-10 | **DONE** — `23552ad`; load verifies hash, save writes hash |
+| 4 | CI hardening | F-19 | **DONE** — `678433b`; no runtime behaviour |
+| 5 | Documentation truth | F-23 | **DONE** — `e96b4e5`; zero behavioural risk |
+| 6 | Simulation executor isolation | F-21 | **DONE** — `7db75db`; import-surface hardening |
+| 7 | Dashboard auth hardening | F-15 | **DONE** — `e0fec4c`; security, no trading path |
+| 8 | Dashboard truth | F-14 (done); F-24 (pending) | **DONE** F-14 `dfb99ea`; F-24 still pending |
+| 9 | Experiment immutability | F-20 | **DONE** — `63c2cbe`; research evidence integrity |
+| 10 | Forming-bar input | F-11 | **DONE** — `c91a8d9`; R4 maths unchanged |
+| 11 | Stop-loss validation | F-04 | **DONE** — `18e254b`; gate still disabled |
+| 12 | Execution/ledger P0 items | F-02 fixture, F-05, F-06, F-16, F-03 | Requires F-02 design + live-path approval |
+| 13 | Decisions required | F-07, F-12, F-13, F-17, F-18 | Technical decision records / approval |
+| 14 | Externally blocked | F-01 | Broker statement |
 
 ## Programme decisions held constant
 

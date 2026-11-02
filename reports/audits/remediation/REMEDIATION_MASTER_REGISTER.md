@@ -48,13 +48,13 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 - **Evidence:** `production_qual/event_ledger.py` defines `EventLedger`; no construction in `src/` or `scripts/` outside `production_qual`.
 - **Root cause:** Ledger implemented as a research primitive but never integrated.
 - **Affected:** `src/eigencapital/production_qual/event_ledger.py`, live loop.
-- **Remediation:** Typed, append-only, hash-chained ledger with broker refs, correlation IDs, replay, fail-closed handling; fixture implementation first.
+- **Remediation:** Synthetic fixture-ledger tests verifying `EventLedger` append, hash computation, correlation-chain reconstruction (`get_trade_chain`), duplicate handling, fail-closed input validation, flush/persistence, and deterministic replay. Live-path wiring is **not** implemented (prohibited).
 - **Dependencies:** F-01 for capital-event semantics; **separate approval for live-path wiring**.
-- **Acceptance:** §6 of `P0_F01_F02_INVESTIGATION_AND_ACCEPTANCE.md`.
-- **Tests:** Append/replay determinism, tamper detection, duplicate/restart idempotency, unknown-type rejection, currency mismatch, corrupted-ledger fail-closed, wiring regression.
-- **Status:** `BLOCKED` — live wiring requires approval; fixture work `READY FOR IMPLEMENTATION`.
-- **Commit / evidence:** `9b5c635` (criteria only).
-- **Closure:** Pending.
+- **Acceptance:** Synthetic fixture criteria met (append/replay determinism, duplicate handling, unknown-type rejection, atomic persistence, no live-path mutation). Live-path acceptance criteria (§6 of `P0_F01_F02_INVESTIGATION_AND_ACCEPTANCE.md`) remain blocked.
+- **Tests:** `tests/unit/live/test_f02_ledger_fixture.py` — 14 tests pass.
+- **Status:** `VERIFIED WITH LIMITATIONS` (synthetic fixture implementation verified; live-path wiring blocked).
+- **Commit / evidence:** pending; `reports/audits/remediation/F02_SYNTHETIC_LEDGER.md`.
+- **Closure:** Pending independent review; live-path wiring remains blocked pending authorization.
 
 ## F-03 — Durable decision-intent-order-fill chain absent
 - **Severity:** Critical · **Phase:** P0
@@ -359,7 +359,7 @@ Severity and finding identifiers are copied unchanged from the audit register. N
 | 9 | Experiment immutability | F-20 | **DONE** — `63c2cbe`; research evidence integrity |
 | 10 | Forming-bar input | F-11 | **DONE** — `c91a8d9`; R4 maths unchanged |
 | 11 | Stop-loss validation | F-04 | **DONE** — `18e254b`; gate still disabled |
-| 12 | Execution/ledger P0 items | F-02 fixture, F-05, F-06, F-16, F-03 | Requires F-02 design + live-path approval |
+| 12 | Execution/ledger P0 items | F-02 fixture (done), F-05, F-06, F-16, F-03 | F-02 synthetic fixture verified; live wiring blocked pending approval |
 | 13 | Decisions required | F-07, F-12, F-13, F-17, F-18 | Technical decision records / approval |
 | 14 | Externally blocked | F-01 | Broker statement |
 
